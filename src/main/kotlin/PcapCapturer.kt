@@ -44,7 +44,7 @@ class PcapCapturer(private val config: PcapCapturerConfig, private val channel: 
         }
         val nif = devices[config.deviceIdx]
         val handle = nif.openLive(config.snapshotSize, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, config.timeout)
-        val filter = "src host ${config.serverIp} and port ${config.serverPort}"
+        val filter = "src net ${config.serverIp} and port ${config.serverPort}"
         handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE)
         println("${this::class.java.simpleName} : 필터 설정 $filter")
         val listener = PacketListener { packet ->

@@ -8,6 +8,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 fun main() = runBlocking {
+    Thread.setDefaultUncaughtExceptionHandler{
+        t,e->
+        println("thread dead ${t.name}")
+        e.printStackTrace()
+    }
     var deviceIdx = PropertyHandler.getProperty("device")
     if (deviceIdx == null) {
         println("사용할 네트워크 기기 번호를 입력하세요.")
