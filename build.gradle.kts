@@ -24,6 +24,15 @@ dependencies {
     implementation ("org.pcap4j:pcap4j-core:1.8.2")
     implementation ("org.pcap4j:pcap4j-packetfactory-static:1.8.2")
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+
+    implementation ("compose-webview-multiplatform:2.0.3")
+    //cef 래퍼 포함 라이브러리
+
+    implementation ("net.java.dev.jna:jna:5.18.1")
+    implementation ("net.java.dev.jna:jna-platform:5.18.1")
+    //jna
+
+
 }
 
 compose.desktop {
