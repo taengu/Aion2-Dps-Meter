@@ -1,9 +1,15 @@
 package com.tbread
 
+import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.application
 import com.tbread.config.PcapCapturerConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -47,6 +53,26 @@ fun main() = runBlocking {
         capturer.start()
     }
 
-    delay(Long.MAX_VALUE)
-    //이건 나중에 컴포즈나 fx 추가하면 빼기
+    runCompose()
+}
+
+@Composable
+@Preview
+fun App() {
+    var text by remember { mutableStateOf("Hello, World!") }
+
+    MaterialTheme {
+        Button(onClick = {
+            text = "Hello, Desktop!"
+        }) {
+            Text(text)
+        }
+    }
+}
+
+fun runCompose() = application {
+    System.setProperty("skiko.renderApi", "SOFTWARE")
+    Window(onCloseRequest = ::exitApplication) {
+        App()
+    }
 }
