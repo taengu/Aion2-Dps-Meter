@@ -12,8 +12,7 @@ import java.io.File
 
 class BrowserApp : Application() {
 
-    @Composable
-    @Preview
+
     override fun start(stage: Stage) {
         val webView = WebView()
         val engine = webView.engine
