@@ -3,6 +3,5 @@ package com.tbread.entity
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class DpsData(val map:HashMap<String,Double> = HashMap()){
-}
+data class DpsData(val map:MutableMap<String,Double> = mutableMapOf())
 
