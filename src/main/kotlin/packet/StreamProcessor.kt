@@ -85,6 +85,19 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         offset += 2
 
         val summonInfo = readVarInt(packet, offset)
+        offset += summonInfo.length + 28
+        if (packet.size > offset){
+            val mobInfo = readVarInt(packet, offset)
+            offset += mobInfo.length
+            if (packet.size > offset){
+                val mobInfo2 = readVarInt(packet, offset)
+                if (mobInfo.value == mobInfo2.value){
+                    dataStorage.appendMob(summonInfo.value,mobInfo.value)
+                }
+            }
+        }
+
+
         val keyIdx = findArrayIndex(packet, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff)
         if (keyIdx == -1) return false
         val afterPacket = packet.copyOfRange(keyIdx + 8, packet.size)
