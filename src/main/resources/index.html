@@ -17,500 +17,72 @@
   </head>
 
   <body>
-    <div class="meter">
-      <div class="header">
-        <div class="bossIcon">
-          <img src="./logo.png" />
-        </div>
-        <div class="bossNames">
-          <span class="bossName"></span>
-          <!-- 흑풍마녀 -->
-        </div>
-        <div class="headerBtns">
-          <div class="headerBtn resetBtn"><i data-lucide="rotate-ccw"></i></div>
-          <div class="headerBtn collapseBtn">
-            <i
-              class="collapseIcon"
-              data-lucide="arrow-up-wide-narrow"></i>
+    <div class="container">
+      <div class="meter">
+        <div class="header">
+          <div class="bossIcon">
+            <img src="./assets/logo.png" />
           </div>
-        </div>
-      </div>
-
-      <div class="list"></div>
-      <div
-        class="console"
-        style="
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          background: rgba(0, 0, 0, 0.8);
-          color: lime;
-          font-family: monospace;
-          font-size: 12px;
-          padding: 10px;
-          max-height: 200px;
-          overflow-y: auto;
-          display: none;
-        "></div>
-    </div>
-
-    <div class="overlay">
-      <div
-        class="detailsPanel"
-        role="dialog"
-        aria-modal="true">
-        <div class="detailsHeader">
-          <div class="detailsTitle">상세</div>
-          <div class="closeX detailsClose">×</div>
-        </div>
-
-        <div class="detailsBody">
-          <div class="detailsStats"></div>
-
-          <div class="detailsSkills">
-            <div class="skillHeader">
-              <div class="cell name">스킬명</div>
-              <div class="cell cast right">시전 횟수 (치명)</div>
-              <div class="cell dmg">누적 피해량</div>
+          <div class="bossNames">
+            <span class="bossName"></span>
+          </div>
+          <div class="headerBtns">
+            <div class="headerBtn resetBtn"><i data-lucide="rotate-ccw"></i></div>
+            <div class="headerBtn collapseBtn">
+              <i
+                class="collapseIcon"
+                data-lucide="arrow-up-wide-narrow"></i>
             </div>
-            <div class="skills"></div>
           </div>
         </div>
+        <div
+          class="detailsPanel"
+          role="dialog"
+          aria-modal="true">
+          <div class="detailsHeader">
+            <div class="detailsTitle">상세</div>
+            <div class="closeX detailsClose">×</div>
+          </div>
+
+          <div class="detailsBody">
+            <div class="detailsStats"></div>
+
+            <div class="detailsSkills">
+              <div class="skillHeader">
+                <div class="cell name">스킬명</div>
+                <div class="cell cast right">시전 횟수 (치명)</div>
+                <div class="cell dmg">누적 피해량</div>
+              </div>
+              <div class="skills"></div>
+            </div>
+          </div>
+        </div>
+        <div class="list"></div>
+        <div
+          class="console"
+          style="
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: lime;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+          "></div>
       </div>
     </div>
 
+    <script src="./js/meter.js"></script>
+    <script src="./js/details.js"></script>
+    <script src="./js/core.js"></script>
     <script>
       lucide.createIcons();
-
-      const elList = document.querySelector(".list");
-      const elBossName = document.querySelector(".bossName");
-
-      const overlay = document.querySelector(".overlay");
-      const detailsClose = document.querySelector(".detailsClose");
-      const detailsTitle = document.querySelector(".detailsTitle");
-
-      const resetBtn = document.querySelector(".resetBtn");
-      const collapseBtn = document.querySelector(".collapseBtn");
-      const collapseIcon = document.querySelector(".collapseIcon");
-
-      const detailsStatsEl = document.querySelector(".detailsStats");
-      const skillsListEl = document.querySelector(".skills");
-
-      const dpsFormatter = new Intl.NumberFormat("ko-KR");
-
-      let isCollapse = false;
-
-      const clamp = (v) => Math.max(0, Math.min(1, v));
-
-      const formatNum = (v) => {
-        const n = Number(v);
-        if (!Number.isFinite(n)) return "-";
-        return dpsFormatter.format(n);
-      };
-
-      const STATUS = [
-        { label: "누적 피해량", getValue: (d) => formatNum(d?.totalDmg) },
-        { label: "피해량 기여도", getValue: (d) => d?.percent ?? "-" },
-        { label: "보스 막기비율", getValue: (d) => d?.parry ?? "-" },
-        { label: "보스 회피비율", getValue: (d) => d?.eva ?? "-" },
-        { label: "전투시간", getValue: (d) => d?.combatTime ?? "-" },
-      ];
-
-      const createStatView = (labelText) => {
-        const statEl = document.createElement("div");
-        statEl.className = "stat";
-
-        const labelEl = document.createElement("p");
-        labelEl.className = "label";
-        labelEl.textContent = labelText;
-
-        const valueEl = document.createElement("p");
-        valueEl.className = "value";
-        valueEl.textContent = "-";
-
-        statEl.appendChild(labelEl);
-        statEl.appendChild(valueEl);
-
-        return { statEl, valueEl };
-      };
-
-      const statSlots = STATUS.map((def) => createStatView(def.label));
-      statSlots.forEach((v) => detailsStatsEl.appendChild(v.statEl));
-
-      const renderStats = (details) => {
-        for (let i = 0; i < STATUS.length; i++) {
-          statSlots[i].valueEl.textContent = STATUS[i].getValue(details);
-        }
-      };
-
-      const createSkillView = () => {
-        const rowEl = document.createElement("div");
-        rowEl.className = "skillRow";
-
-        const nameEl = document.createElement("div");
-        nameEl.className = "cell name";
-        nameEl.textContent = "";
-
-        const castEl = document.createElement("div");
-        castEl.className = "cell cast right";
-        castEl.textContent = "";
-
-        const dmgEl = document.createElement("div");
-        dmgEl.className = "cell dmg right";
-
-        const dmgFillEl = document.createElement("div");
-        dmgFillEl.className = "dmgFill";
-
-        const dmgTextEl = document.createElement("div");
-        dmgTextEl.className = "dmgText";
-        dmgTextEl.textContent = "";
-
-        dmgEl.appendChild(dmgFillEl);
-        dmgEl.appendChild(dmgTextEl);
-
-        rowEl.appendChild(nameEl);
-        rowEl.appendChild(castEl);
-        rowEl.appendChild(dmgEl);
-
-        return { rowEl, nameEl, castEl, dmgEl, dmgFillEl, dmgTextEl, current: null };
-      };
-
-      const skillSlots = [];
-
-      const ensureSkillSlots = (n) => {
-        while (skillSlots.length < n) {
-          const v = createSkillView();
-          skillSlots.push(v);
-          skillsListEl.appendChild(v.rowEl);
-        }
-      };
-
-      const renderSkills = (details) => {
-        const list = Array.isArray(details?.skills) ? details.skills : [];
-        const sortedAll = [...list].sort((a, b) => (Number(b?.dmg) || 0) - (Number(a?.dmg) || 0));
-        const sorted = sortedAll.slice(0, 10);
-
-        const totalAllDmg = Number(details?.totalDmg) || 0;
-        const denomForPercent =
-          totalAllDmg > 0
-            ? totalAllDmg
-            : sorted.reduce((acc, s) => acc + (Number(s?.dmg) || 0), 0) || 1;
-
-        let maxSkillDmg = 1;
-        for (const s of sorted) {
-          const d = Number(s?.dmg) || 0;
-          if (d > maxSkillDmg) maxSkillDmg = d;
-        }
-
-        ensureSkillSlots(sorted.length);
-
-        for (let i = 0; i < skillSlots.length; i++) {
-          const view = skillSlots[i];
-          const s = sorted[i];
-
-          if (!s) {
-            view.current = null;
-            view.rowEl.style.display = "none";
-            view.dmgFillEl.style.transform = "scaleX(0)";
-            continue;
-          }
-
-          view.current = s;
-          view.rowEl.style.display = "";
-
-          const dmg = Number(s.dmg) || 0;
-
-          // 전체 누적 피해량
-          const pct = (dmg / denomForPercent) * 100;
-          const pctRounded = Math.round(pct);
-
-          // 게이지
-          const barRatio = clamp(pct / 100);
-
-          view.nameEl.textContent = s.name ?? "";
-          view.castEl.textContent = `${formatNum(s.time)} (${formatNum(s.crit)})`;
-
-          view.dmgTextEl.textContent = `${formatNum(dmg)} (${pctRounded}%)`;
-          view.dmgFillEl.style.transform = `scaleX(${barRatio})`;
-        }
-      };
-
-      const renderDetails = (details, row) => {
-        detailsTitle.textContent = `${String(row.name)} 상세내역`;
-
-        renderStats(details);
-        renderSkills(details);
-      };
-
-      const openModal = async (row) => {
-        if (!overlay) return;
-        const details = await getDetails(row);
-        renderDetails(details, row);
-        overlay.classList.add("open");
-      };
-
-      const closeModal = () => overlay?.classList.remove("open");
-
-      overlay?.addEventListener("click", (e) => {
-        if (e.target === overlay) closeModal();
-      });
-
-      detailsClose?.addEventListener("click", closeModal);
-
-      const getDetails = (row) => {
-        const skills = [
-          {
-            code: 24,
-            name: "내려찍기",
-            time: 324,
-            crit: 300,
-            dmg: Math.round(Math.random() * 1000000),
-          },
-          {
-            code: 6765,
-            name: "맹렬한 일격",
-            time: 32,
-            crit: 20,
-            dmg: Math.round(Math.random() * 500000),
-          },
-          {
-            code: 954,
-            name: "파멸의 맹타",
-            time: 324,
-            crit: 300,
-            dmg: Math.round(Math.random() * 400000),
-          },
-          { code: 9981, name: "단죄", time: 14, crit: 3, dmg: Math.round(Math.random() * 900000) },
-          {
-            code: 12345,
-            name: "비호의 일격",
-            time: 4,
-            crit: 2,
-            dmg: Math.round(Math.random() * 200000),
-          },
-          { code: 4332, name: "심판", time: 54, crit: 1, dmg: Math.round(Math.random() * 400000) },
-        ];
-
-        const sumSkills = skills.reduce((acc, s) => acc + (Number(s.dmg) || 0), 0);
-
-        const totalDmg = sumSkills + Math.round(sumSkills * 0.12);
-
-        return {
-          totalDmg,
-          percent: `${Math.round(Math.random() * 30) + 10}%`,
-          parry: `${Math.round(Math.random() * 50)}%`,
-          eva: `${Math.round(Math.random() * 30)}%`,
-          combatTime: "2분 36초",
-          skills,
-        };
-      };
-
-      collapseBtn?.addEventListener("click", () => {
-        isCollapse = !isCollapse;
-        elList.style.display = isCollapse ? "none" : "grid";
-
-        const iconName = isCollapse ? "arrow-down-wide-narrow" : "arrow-up-wide-narrow";
-
-        const iconEl =
-          collapseBtn.querySelector("svg") || collapseBtn.querySelector("[data-lucide]");
-
-        if (!iconEl) return;
-
-        iconEl.setAttribute("data-lucide", iconName);
-
-        lucide.createIcons({ root: collapseBtn });
-      });
-
-      resetBtn.addEventListener("click", () => {
-        window.javaBridge.resetDps();
-      });
-
-      const onResetDps = () => {};
-      // 상위 6개만, 내가 6등밖이면 총 7개
-      const getDisplayRows = (sortedAll) => {
-        const top6 = sortedAll.slice(0, 6);
-        const isUser = sortedAll.find((x) => x.isUser);
-
-        if (!isUser) return top6;
-        if (top6.some((x) => x.isUser)) return top6;
-        return [...top6, isUser];
-      };
-
-      const createRowView = () => {
-        const rowEl = document.createElement("div");
-        rowEl.className = "item";
-        rowEl.style.display = "none";
-
-        const fillEl = document.createElement("div");
-        fillEl.className = "fill";
-
-        const contentEl = document.createElement("div");
-        contentEl.className = "content";
-
-        const classIconEl = document.createElement("div");
-        classIconEl.className = "classIcon";
-
-        const nameEl = document.createElement("div");
-        nameEl.className = "name";
-
-        const dpsEl = document.createElement("div");
-        dpsEl.className = "dps";
-
-        contentEl.appendChild(classIconEl);
-        contentEl.appendChild(nameEl);
-        contentEl.appendChild(dpsEl);
-
-        rowEl.appendChild(fillEl);
-        rowEl.appendChild(contentEl);
-
-        const view = { rowEl, nameEl, dpsEl, fillEl, currentRow: null };
-
-        rowEl.addEventListener("click", () => {
-          if (view.currentRow?.isUser) openModal(view.currentRow);
-        });
-
-        return view;
-      };
-
-      const rowSlots = Array.from({ length: 7 }, createRowView);
-      rowSlots.forEach((v) => elList.appendChild(v.rowEl));
-
-      const renderRows = (rows) => {
-        let topDps = 1;
-        for (const row of rows) {
-          const d = Number(row.dps) || 0;
-          if (d > topDps) topDps = d;
-        }
-
-        for (let i = 0; i < rowSlots.length; i++) {
-          const view = rowSlots[i];
-          const row = rows[i];
-
-          if (!row) {
-            view.currentRow = null;
-            view.rowEl.style.display = "none";
-            view.fillEl.style.transform = "scaleX(0)";
-            continue;
-          }
-
-          view.currentRow = row;
-          view.rowEl.style.display = "";
-
-          view.rowEl.classList.toggle("isUser", !!row.isUser);
-
-          view.nameEl.textContent = row.name ?? "";
-
-          const dps = Number(row.dps) || 0;
-          view.dpsEl.textContent = `${dpsFormatter.format(dps)}/초`;
-
-          const ratio = Math.max(0, Math.min(1, dps / topDps));
-          view.fillEl.style.transform = `scaleX(${ratio})`;
-        }
-      };
-
-      const POLL_MS = 250;
-      let USER_NAME = "박승찬2";
-
-      let lastJson = null;
-
-      const buildRowsFromJson = (data) => {
-        const obj = JSON.parse(data);
-
-        const rows = [];
-        for (const [name, value] of Object.entries(obj)) {
-          // dps 뒤 소수점 버림
-          const dps = Math.trunc(Number(value));
-          if (!Number.isFinite(dps)) continue;
-
-          rows.push({
-            id: name,
-            name,
-            dps,
-            isUser: name === USER_NAME,
-          });
-        }
-
-        return rows;
-      };
-
-      const fetchDps = () => {
-        const data = window.dpsData?.getDpsData?.();
-        if (typeof data !== "string") return;
-        //똑같은값 오면 업데이트안함
-        if (data === lastJson) {
-          return;
-        }
-        lastJson = data;
-
-        const rows = buildRowsFromJson(data);
-        rows.sort((a, b) => (Number(b.dps) || 0) - (Number(a.dps) || 0));
-
-        const display = getDisplayRows(rows);
-        renderRows(display);
-      };
-
-      elBossName.textContent = "DPS METER";
-      fetchDps();
-      setInterval(fetchDps, POLL_MS);
-
-      /*
-      JS 브릿지 마우스 드래그 이벤트 추가
-       */
-
-      let isDragging = false;
-      let startX, startY;
-      let initialStageX, initialStageY;
-
-      document.addEventListener("mousedown", (e) => {
-        isDragging = true;
-        startX = e.screenX;
-        startY = e.screenY;
-        initialStageX = window.screenX;
-        initialStageY = window.screenY;
-      });
-
-      document.addEventListener("mousemove", (e) => {
-        if (isDragging && window.javaBridge) {
-          const deltaX = e.screenX - startX;
-          const deltaY = e.screenY - startY;
-          window.javaBridge.moveWindow(initialStageX + deltaX, initialStageY + deltaY);
-        }
-      });
-
-      document.addEventListener("mouseup", () => {
-        isDragging = false;
-      });
-
-      /*
-      타임라인 테스트
-      * */
-
-      function callDebugWindow() {
-        if (!window.dpsData) {
-          setTimeout(callDebugWindow, 100);
-          return;
-        }
-
-        const consoleDiv = document.querySelector(".console");
-        if (window.dpsData.isDebuggingMode()) {
-          consoleDiv.style.display = "block";
-          const originalLog = console.log;
-
-          console.log = function (...args) {
-            originalLog.apply(console, args);
-            consoleDiv.innerHTML += args.join(" ") + "<br>";
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-          };
-          console.log("콘솔 활성화됨");
-          setInterval(() => {
-            const data = window.dpsData.getDpsData();
-            console.log(data);
-          }, 500);
-        }
-      }
-
-      callDebugWindow();
+      dpsApp.start();
     </script>
   </body>
 </html>

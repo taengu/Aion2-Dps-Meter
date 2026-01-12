@@ -23,7 +23,9 @@
   -webkit-user-select: none;
   user-select: none;
 }
-
+.container {
+  position: relative;
+}
 .meter {
   width: 320px;
 
@@ -44,6 +46,8 @@
     align-items: center;
     width: 88px;
     img {
+      -webkit-user-select: none;
+      user-select: none;
       width: 100%;
     }
   }
@@ -83,13 +87,17 @@
   .item {
     position: relative;
     height: 32px;
-    margin-bottom: 12px;
     padding: 0 8px;
     border-radius: var(--rounded-xs);
     overflow: hidden;
     background: rgba(0, 0, 0, 0.3);
   }
-
+  .item:first-child {
+    margin-top: 4px;
+  }
+  .item:last-child {
+    margin-bottom: 12px;
+  }
   .item.isUser {
     cursor: pointer;
   }
@@ -118,7 +126,7 @@
     .classIcon {
       width: 18px;
       height: 18px;
-      background: red;
+      background: transparent;
     }
     .name {
       flex: 1;
@@ -136,26 +144,21 @@
   }
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  display: none;
-  z-index: 50;
-  color: white;
-}
-.overlay.open {
+.detailsPanel.open {
   display: block;
 }
 
 .detailsPanel {
-  position: fixed;
-  left: 320px;
-  top: 24px;
+  position: absolute;
+  color: white;
+  display: none;
+  left: 0px;
+  top: calc(100% + 8px);
   font-weight: bold;
 
   width: 600px;
   border: 1px solid var(--panel-border);
-  background: rgba(12, 22, 40, 0.92);
+  background: rgba(12, 22, 40, 0.7);
   overflow: hidden;
   padding: 12px 24px;
   border-radius: var(--rounded);
@@ -173,9 +176,10 @@
     cursor: pointer;
     user-select: none;
     font-size: 22px;
-    line-height: 1;
     padding: 2px 8px;
     border-radius: 6px;
+    transition: 0.2s;
+    border-radius: 4px;
   }
   .closeX:hover {
     background: rgba(255, 255, 255, 0.08);
