@@ -1,4 +1,3 @@
-
 const createDetailsUI = ({
   detailsPanel,
   detailsClose,
@@ -140,31 +139,11 @@ const createDetailsUI = ({
     render(details, row);
 
     detailsPanel.classList.add("open");
-
-    // 포커스 (키 이벤트 유입 도움)
-    requestAnimationFrame(() => detailsPanel.focus?.());
   };
 
   const close = () => detailsPanel.classList.remove("open");
 
   detailsClose?.addEventListener("click", close);
-
-  // ESC 닫기 (자바가 키를 먹는 환경이면 JS로 안 올 수 있음)
-  document.addEventListener(
-    "keydown",
-    (e) => {
-      if (e.isComposing) return;
-      if (e.key !== "Escape") return;
-      if (!isOpen()) return;
-      e.preventDefault();
-      close();
-    },
-    true
-  );
-
-  // (호스트 호출용) 자바가 ESC를 잡는다면 여기로 닫게 가능
-  // => 이건 "백엔드/호스트 통신용"이라 window 사용 룰에 부합
-  window.__closeDetailsFromHost = close;
 
   return { open, close, isOpen, render };
 };
