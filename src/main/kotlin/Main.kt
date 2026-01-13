@@ -36,6 +36,8 @@ fun main() = runBlocking {
     val dataStorage = DataStorage()
     dataStorage.appendMobCode(8775000,"번견 쿠하푸")
     dataStorage.appendMobCode(77805,"두두카 일꾼")
+    dataStorage.appendMobCode(129675,"오래된 어그린트")
+    dataStorage.appendMobCode(11700000,"누아쿰")
     //임시로 여기서 추가
     val processor = StreamProcessor(dataStorage)
     val assembler = StreamAssembler(processor)

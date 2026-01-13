@@ -8,10 +8,10 @@ class DataStorage {
     private val byTargetStorage = ConcurrentHashMap<Int, ConcurrentSkipListSet<ParsedDamagePacket>>()
     private val byActorStorage = ConcurrentHashMap<Int, ConcurrentSkipListSet<ParsedDamagePacket>>()
     private val nicknameStorage = ConcurrentHashMap<Int, String>()
-    private val summonStorage = HashMap<Int,Int>()
-    private val skillCodeData = HashMap<Int,String>()
-    private val mobCodeData = HashMap<Int,String>()
-    private val mobStorage = HashMap<Int,Int>()
+    private val summonStorage = HashMap<Int, Int>()
+    private val skillCodeData = HashMap<Int, String>()
+    private val mobCodeData = HashMap<Int, String>()
+    private val mobStorage = HashMap<Int, Int>()
 
     @Synchronized
     fun appendDamage(pdp: ParsedDamagePacket) {
@@ -21,21 +21,25 @@ class DataStorage {
             .add(pdp)
     }
 
-    fun appendMobCode(code:Int,name:String){
+    fun appendMobCode(code: Int, name: String) {
         //이건나중에 파일이나 서버에서 불러오는걸로
         mobCodeData[code] = name
     }
 
-    fun appendMob(mid:Int,code:Int){
+    fun appendMob(mid: Int, code: Int) {
         mobStorage[mid] = code
     }
 
-    fun appendSummon(summoner:Int,summon:Int){
+    fun appendSummon(summoner: Int, summon: Int) {
         summonStorage[summon] = summoner
     }
 
     fun appendNickname(uid: Int, nickname: String) {
         if (nicknameStorage[uid] != null && nicknameStorage[uid].equals(nickname)) return
+        if (nicknameStorage[uid] != null &&
+            nickname.toByteArray(Charsets.UTF_8).size == 2 &&
+            nickname.toByteArray(Charsets.UTF_8).size < nicknameStorage[uid]!!.toByteArray(Charsets.UTF_8).size
+        ) return
         nicknameStorage[uid] = nickname
     }
 
@@ -49,15 +53,15 @@ class DataStorage {
         nicknameStorage.clear()
     }
 
-    fun getSkillName(skillCode:Int):String{
-        return skillCodeData[skillCode]?:skillCode.toString()
+    fun getSkillName(skillCode: Int): String {
+        return skillCodeData[skillCode] ?: skillCode.toString()
     }
 
     fun getBossModeData(): ConcurrentHashMap<Int, ConcurrentSkipListSet<ParsedDamagePacket>> {
         return byTargetStorage
     }
 
-    fun getNickname():ConcurrentHashMap<Int, String>{
+    fun getNickname(): ConcurrentHashMap<Int, String> {
         return nicknameStorage
     }
 
@@ -65,11 +69,11 @@ class DataStorage {
         return summonStorage
     }
 
-    fun getMobCodeData(): HashMap<Int,String>{
+    fun getMobCodeData(): HashMap<Int, String> {
         return mobCodeData
     }
 
-    fun getMobData(): HashMap<Int,Int>{
+    fun getMobData(): HashMap<Int, Int> {
         return mobStorage
     }
 }

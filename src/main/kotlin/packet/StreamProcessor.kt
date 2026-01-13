@@ -162,6 +162,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (packet.size > offset) {
                 val mobInfo2 = readVarInt(packet, offset)
                 if (mobInfo.value == mobInfo2.value) {
+                    println("mid: ${summonInfo.value} code: ${mobInfo.value}")
                     dataStorage.appendMob(summonInfo.value, mobInfo.value)
                 }
             }
@@ -304,11 +305,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
         }
 
-//        println(
-//            "피격자: ${pdp.getTargetId()} 공격자: ${pdp.getActorId()} 스위치용변수: ${pdp.getSwitchVariable()} 스킬: ${pdp.getSkillCode1()} 스킬2: ${pdp.getSkillType()}" +
-//                    " 플래그: ${pdp.getFlag()} 타입: ${pdp.getType()}" +
-//                    " unknown : ${pdp.getUnknown()} 데미지: ${pdp.getDamage()} loop: ${pdp.getLoop()}"
-//        )
+        println(
+            "피격자: ${pdp.getTargetId()} 공격자: ${pdp.getActorId()} 스위치용변수: ${pdp.getSwitchVariable()} 스킬: ${pdp.getSkillCode1()} 스킬2: ${pdp.getSkillType()}" +
+                    " 플래그: ${pdp.getFlag()} 타입: ${pdp.getType()}" +
+                    " unknown : ${pdp.getUnknown()} 데미지: ${pdp.getDamage()} loop: ${pdp.getLoop()}"
+        )
 
         dataStorage.appendDamage(pdp)
         return true
