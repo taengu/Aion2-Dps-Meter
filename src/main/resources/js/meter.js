@@ -32,13 +32,18 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) =>
     const nameEl = document.createElement("div");
     nameEl.className = "name";
 
-    const dpsEl = document.createElement("div");
-    dpsEl.className = "dps";
+    const dpsContainer = document.createElement("div");
+    const dpsNumber = document.createElement("p");
+    dpsContainer.className = "dps";
+    const dpsContribution = document.createElement("p");
+    dpsContribution.className = "dpsContribution";
+
+    dpsContainer.appendChild(dpsNumber);
+    dpsContainer.appendChild(dpsContribution);
 
     contentEl.appendChild(classIconEl);
     contentEl.appendChild(nameEl);
-    contentEl.appendChild(dpsEl);
-
+    contentEl.appendChild(dpsContainer);
     rowEl.appendChild(fillEl);
     rowEl.appendChild(contentEl);
 
@@ -46,10 +51,11 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) =>
       id,
       rowEl,
       nameEl,
-      dpsEl,
+      dpsContainer,
       classIconEl,
       classIconImg,
-
+      dpsNumber,
+      dpsContribution,
       fillEl,
       currentRow: null,
       lastSeenAt: 0,
@@ -139,9 +145,10 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) =>
 
       // view.classIconEl.style.display = "";
 
-      const dps = Number(row.dps) || 0;
-      view.dpsEl.textContent = `${dpsFormatter.format(dps)}/초`;
-
+      const dps = row.dps || 0;
+      const damageContribution = row.damageContribution;
+      view.dpsNumber.textContent = `${dpsFormatter.format(dps)}/초`;
+      view.dpsContribution.textContent = `${damageContribution}%`;
       const ratio = Math.max(0, Math.min(1, dps / topDps));
       view.fillEl.style.transform = `scaleX(${ratio})`;
 

@@ -148,6 +148,13 @@
       font-size: var(--font);
       text-shadow: var(--text-shadow);
       font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      .dpsContribution {
+        color:blue
+        font-size: 14px;
+      }
     }
   }
 }
