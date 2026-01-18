@@ -53,6 +53,7 @@ class DataStorage {
     fun flushDamageStorage() {
         byActorStorage.clear()
         byTargetStorage.clear()
+        summonStorage.clear()
         logger.info("데미지 패킷 초기화됨")
     }
 
