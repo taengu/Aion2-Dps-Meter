@@ -170,7 +170,7 @@ class DpsApp {
     }
 
     // 렌더
-    this.elBossName.textContent = targetName ? targetName : "타겟 코드 미수집";
+    this.elBossName.textContent = targetName ? targetName : "";
     this.meterUI.updateFromRows(rowsToRender);
   }
 
