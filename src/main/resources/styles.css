@@ -23,8 +23,8 @@
   font-family: "Spoqa Han Sans Neo", sans-serif;
   margin: 0;
   padding: 0;
-  /* -webkit-user-select: none; */
-  /* user-select: none; */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .container {
@@ -207,8 +207,8 @@
 .detailsPanel {
   position: absolute;
   color: white;
-  /* display: none; */
-  display: block;
+  display: none;
+  /* display: block; */
   /* left: calc(100% + 8px); */
   left: 358px;
   /* top: calc(100% + 4px); */
