@@ -33,6 +33,24 @@ class DpsApp {
     DpsApp.instance = this;
   }
 
+  safeGetStorage(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      globalThis.uiDebug?.log?.("localStorage.get blocked", { key, error: String(e) });
+      return null;
+    }
+  }
+
+  safeSetStorage(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      globalThis.uiDebug?.log?.("localStorage.set blocked", { key, error: String(e) });
+    }
+  }
+
+
   static createInstance() {
     if (!DpsApp.instance) DpsApp.instance = new DpsApp();
     return DpsApp.instance;
@@ -164,7 +182,7 @@ class DpsApp {
       if (shouldBeVisible) {
         this.battleTime.update(now, this._lastBattleTimeMs);
       }
-  
+
       return;
     }
 
@@ -297,7 +315,7 @@ class DpsApp {
       const nameRaw = typeof value.skillName === "string" ? value.skillName.trim() : "";
       const baseName = nameRaw ? nameRaw : `Skill ${code}`;
 
-      // 공통 
+      // 공통
       const pushSkill = ({
         codeKey,
         name,
@@ -427,8 +445,8 @@ class DpsApp {
     this.onlyMeCheckbox = document.querySelector(".onlyMeCheckbox");
     this.discordButton = document.querySelector(".discordButton");
 
-    const storedName = localStorage.getItem(this.storageKeys.userName) || "";
-    const storedOnlyShow = localStorage.getItem(this.storageKeys.onlyShowUser) === "true";
+    const storedName = this.safeGetStorage(this.storageKeys.userName) || "";
+    const storedOnlyShow = this.safeGetStorage(this.storageKeys.onlyShowUser) === "true";
 
     this.setUserName(storedName, { persist: false, syncBackend: true });
     this.setOnlyShowUser(storedOnlyShow, { persist: false });
@@ -590,7 +608,7 @@ const setupDebugConsole = () => {
   return globalThis.uiDebug;
 };
 
-setupDebugConsole();
+// setupDebugConsole();
 const dpsApp = DpsApp.createInstance();
 const debug = globalThis.uiDebug;
 
@@ -621,8 +639,25 @@ const startApp = () => {
   }
 };
 
+const waitForBridgeAndStart = () => {
+  // JavaFX WebView injects these after loadWorker SUCCEEDED (slightly later than DOMContentLoaded)
+  const ready = !!window.javaBridge && !!window.dpsData;
+
+  debug?.log?.("waitForBridge", {
+    readyState: document.readyState,
+    hasDpsData: !!window.dpsData,
+    hasJavaBridge: !!window.javaBridge,
+  });
+
+  if (ready) {
+    startApp();
+    return;
+  }
+  setTimeout(waitForBridgeAndStart, 50);
+};
+
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", startApp, { once: true });
+  document.addEventListener("DOMContentLoaded", waitForBridgeAndStart, { once: true });
 } else {
-  startApp();
+  waitForBridgeAndStart();
 }
