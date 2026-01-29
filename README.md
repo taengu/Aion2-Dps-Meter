@@ -1,119 +1,121 @@
-# AION2Meter4J
+# AION2meter-TW
 
-아이온2 전투분석을 위한 미터기 프로젝트
+A combat analysis (DPS meter) tool for **AION 2**. Lovingly forked from [Aion2-Dps-Meter](https://github.com/TK-open-public/Aion2-Dps-Meter)
+
+🔗 **GitHub Repository:** https://github.com/taengu/Aion2-Dps-Meter  
+💬 **Discord (Support & Community): https://discord.gg/Aion2Global**
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub Issues](https://img.shields.io/github/issues/TK-open-public/Aion2-Dps-Meter)](https://github.com/TK-open-public/Aion2-Dps-Meter/issues)
-[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/TK-open-public/Aion2-Dps-Meter)](https://github.com/TK-open-public/Aion2-Dps-Meter/pulls)
+[![GitHub Issues](https://img.shields.io/github/issues/taengu/Aion2-Dps-Meter)](https://github.com/taengu/Aion2-Dps-Meter/issues)
+[![GitHub Pull Requests](https://img.shields.io/github/issues-pr/taengu/Aion2-Dps-Meter)](https://github.com/taengu/Aion2-Dps-Meter/pulls)
 
-해당 프로젝트는 운영측의 요청, 패킷암호화등의 조치, 공식적인 사용중단 언급이 있다면 중지 및 비공개상태로 전환됩니다.
+> **Important Notice**  
+> This project will be **paused or made private** if requested by the game operator, if packet encryption or other countermeasures are introduced, or if there is an official statement prohibiting its use.
 
-## Table of Contents
+---
 
-- [빌드하기](#빌드하기)
-- [사용법](#사용법)
-- [UI설명](#ui-설명)
-- [FAQ](#FAQ)
-- [다운로드](#다운로드)
+## Usage
 
-## 빌드하기
+1. Install **Npcap**:  
+   https://npcap.com/#download  
+   - You **must** check **“Install Npcap in WinPcap API-compatible Mode”**
+
+2. Download the latest release:  
+   👉 https://github.com/taengu/Aion2-Dps-Meter/releases
+
+3. If AION 2 is already running, **go to the character selection screen first**.
+
+4. Run `aion2meter4j.exe` **as Administrator**.
+
+5. If the UI appears, the application has started successfully.
+
+6. If the DPS meter does not appear:
+   - Teleport using a **Kisk**, **Hideout**, or enter/exit a dungeon
+   - Then repeat steps **3–4**
+
+7. If the meter stops working after previously functioning:
+   - Teleport or enter a dungeon again to refresh packet capture
+   - If it still does not work, restart from step **3**
+
+---
+
+## UI Explanation
+
+- **Blue box** – Monster name display (planned)
+- **Brown box** – Reset current combat data
+- **Pink box** – Expand / collapse DPS meter
+- **Red box** – Class icon (shown when detected)
+- **Orange box** – Player nickname (click for details)
+- **Light blue box** – DPS for current target
+- **Purple box** – Contribution percentage
+- **Green box** – Combat timer  
+  - Green: in combat  
+  - Yellow: no damage detected (paused)  
+  - Grey: combat ended
+
+Clicking a player row opens detailed statistics.
+
+> **Hit count** refers to **successful hits**, not skill casts.
+
+
+## Build Instructions
+> ⚠️ **Regular users do NOT need to build the project.**  
+> This section is for developers only.
 
 ```bash
-# 레포지토리 복사
-git clone https://github.com/TK-open-public/Aion2-Dps-Meter.git
+# Clone the repository
+git clone https://github.com/taengu/Aion2-Dps-Meter.git
 
-# 디렉토리 이동
+# Enter the directory
 cd Aion2-Dps-Meter
 
-# msi 빌드
+# Build the distribution (Windows)
 ./gradlew packageDistributionForCurrentOS
 ```
 
-## 사용법
-
-### 위 빌드하기는 일반 사용자와는 무관합니다.
-
-1. npcap (https://npcap.com/#download) 를 설치합니다. (Install Npcap in WinPcap API-compatible Mode 필수 체크)
-2. [이동](https://github.com/TK-open-public/Aion2-Dps-Meter/releases) 해당 링크에서 aion2meter4j-x.x.x.msi을 다운받아 설치합니다.
-3. **아이온이 켜져있는 상태라면 먼저 캐릭터 선택창으로 이동합니다**.
-4. 프로그램이 설치된 위치 (기본 설치 경로 C:\Program Files\aion2meter4j)의 aion2meter4j.exe 를 **반드시 관리자 권한으로 실행합니다.**
-
-![image](./readme-asset/firstUI.png)
-
-5. 위의 UI가 출력된다면 성공적으로 실행되었습니다.
-6. 만약 미터기가 그려지지 않는다면, 키벨리스크나 아지트로 이동하면서 테스트를 해보거나(던전 내부에서 키벨리스크 이동 포함) 3번과 4번을 반복합니다.
-7. 잘 동작하다가 어느 순간 동작 하지 않는 경우 위 6번과 동일하게 키벨리스크나 던전 진입 등을 통해 이동한다면 높은 확률로 데이터를 다시 받아옵니다. 그래도 동작하지 않는다면 3번부터 다시 진행하세요.
-
-## UI 설명
-
-<br />
-
-![image](./readme-asset/uiDesc.png)
-
-<br />
-
-파란색 박스 - 몬스터의 이름이 출력되는 위치입니다 (예정)
-
-갈색 박스 - 현재 기록을 초기화 합니다. 각 보스가 끝난 이후 다음 보스와 전투를 돌입하기 전 초기화가 필요합니다.
-
-분홍색 박스 - DPS를 펼치거나 접습니다. 미터기를 보고싶지 않을때 유용합니다.
-
-빨간색 박스 - 해당 플레이어의 직업 추론 성공시 직업 아이콘이 출력되는 위치입니다.
-
-주황색 박스 - 플레이어의 닉네임이 출력되는 위치입니다. 클릭시 전투 상세보기 창이 열립니다.
-
-하늘색 박스 - 현재 산정중인 몹을 기준으로 DPS가 출력되는 위치입니다.
-
-보라색 박스 - 현재 산정중인 몹을 기준으로 기여도가 백분율로 출력됩니다.
-
-초록색 박스 - 전투 시간이 표시되는 곳 입니다.
-전투 중 일때 초록색으로 표시됩니다.
-<br />
-데미지가 잡히지 않는 경우 노란색이 되며, 타이머가 멈춥니다.
-<br />
-노란불에서 일정 시간이 경과한다면 전투 종료로 판정하며, 종료 될 경우 회색으로 표시되며 타이머가 중단됩니다.
-
-<br />
-
-![image](./readme-asset/battleAnalyze_2.png)
 
 
-<br />
-
-미터기를 클릭하면 각 유저의 디테일을 조회할 수 있습니다.
-<br />
-타격 횟수는 시전 횟수가 아닌, 명중 횟수 입니다.
-스킬을 1회 시전을 했을 때 3회 타격을 하는 스킬이라면, 명중 횟수는 3회가 표기됩니다.
+---
 
 ## FAQ
 
-- UI는 뜨는데 본인 또는 다른사람의 데미지가 하나도 출력되지 않아요.
-  - npcap이 제대로 설치되었는지 확인해보세요
-  - 미터기를 완전히 종료하고, 캐릭터 선택창에서 실행된것을 확인하고 월드에 접속해보세요
+**Q: What's different from the original meter?**
+- The original was written for KR servers and uses a hard-coded method for finding game packets.
+- This version adds auto-detection and support for VPNs/Ping Reducers. It also has been translated to English skills/spells and UI.
 
-- 허수아비를 치고있는데 제 dps 말고 제 옆사람 dps만 떠요
-  - 현재 수집되는 데미지에서 가장 많은 데미지를 입은 몬스터를 기준으로 DPS를 표시합니다. 같은 허수아비를 치거나,레기온 허수아비 혹은 사나운 암굴 입구앞의 허수아비를 이용하세요
 
-<!-- - 같은 허수아비치는데 치는 사람 이름이 다 안떠요
-  - 미터기가 캐릭터명 수집에 실패한 상태입니다. 캐릭터 선택창에서 미터기를 다시 실행해보세요
-  - 닉네임이 영어 한글자라면 표기가 안될수있습니다. -->
+**Q: The UI appears, but no damage is shown.**  
+- Verify Npcap installation  
+- Exit the app, go to character select, then relaunch
 
-- 미터기엔 혼자 뜨는데 기여도가 100%가 아니에요
-  - 미터기가 캐릭터명 수집에 실패하여 뜨지않고있는 기여자가 있을수있습니다.
+**Q: I see DPS from others but not myself.**  
+- DPS is calculated based on the monster with the highest total damage  
+- Use the same training dummy
 
-- 커맨드 기능이 있나요?
-  - 현재 커맨드 기능은 지원하지 않습니다. 추후 지원을 할 수도 있으나 작업우선도는 낮습니다.
+**Q: Contribution is not 100% while solo.**  
+- Name capture may have failed
 
-- 전투 상세보기에서 명중 횟수가 내가 스킬을 사용한 횟수보다 많이 나와요
-  - 명중 횟수는 정말 말 그대로 명중 횟수입니다. 만약 한번 스킬을 시전했을 경우 3번을 타격하는 스킬이라면, 스킬을 한번 시전했더라도 명중횟수는 3회가 됩니다
+**Q: Are chat or command features supported?**  
+- Not currently
 
-- 스킬명이 이상한 숫자로 나와요
-  - 보통은 신석입니다. 만약 신석이 아닌 스킬으로 보이는 데이터의 스킬명이 숫자로 나온다면 이슈에 남겨주세요
+**Q: Hit count is higher than skill casts.**  
+- Multi-hit skills count each hit separately
 
-## 다운로드
+**Q: Some skills show as numbers.**  
+- These are usually Godstones  
+- Report others via GitHub Issues
 
-### [이동](https://github.com/TK-open-public/Aion2-Dps-Meter/releases)
+---
 
-딜을 잘 못넣는 유저가 있더라도 불평하지마시고 그럴수도있지 라는 마음으로 넘어가주세요
+## Download
 
-해당 프로그램을 사용함으로써 생기는 책임은 사용자 본인에게 있습니다.
+👉 https://github.com/taengu/Aion2-Dps-Meter/releases
+
+Please do not harass players based on DPS results.  
+Use at your own risk.
+
+---
+
+## Community & Support
+
+💬 **Join our Discord:** https://discord.gg/Aion2Global
