@@ -1,6 +1,4 @@
 class DpsApp {
-  static instance;
-
   constructor() {
     if (DpsApp.instance) return DpsApp.instance;
 
@@ -411,7 +409,7 @@ class DpsApp {
       }
 
       iconEl.setAttribute("data-lucide", iconName);
-      lucide.createIcons({ root: this.collapseBtn });
+      window.lucide?.createIcons?.({ root: this.collapseBtn });
     });
     this.resetBtn?.addEventListener("click", () => {
       this.resetAll({ callBackend: true });
@@ -549,6 +547,8 @@ class DpsApp {
   }
 }
 
+DpsApp.instance = null;
+
 // 디버그콘솔
 const setupDebugConsole = () => {
   const g = globalThis;
@@ -592,3 +592,37 @@ const setupDebugConsole = () => {
 
 setupDebugConsole();
 const dpsApp = DpsApp.createInstance();
+const debug = globalThis.uiDebug;
+
+window.addEventListener("error", (event) => {
+  debug?.log?.("window.error", {
+    message: event.message,
+    source: event.filename,
+    line: event.lineno,
+    column: event.colno,
+  });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  debug?.log?.("unhandledrejection", event.reason);
+});
+
+const startApp = () => {
+  debug?.log?.("startApp", {
+    readyState: document.readyState,
+    hasDpsData: !!window.dpsData,
+    hasJavaBridge: !!window.javaBridge,
+  });
+  window.lucide?.createIcons?.();
+  try {
+    dpsApp.start();
+  } catch (err) {
+    debug?.log?.("startApp.error", err);
+  }
+};
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startApp, { once: true });
+} else {
+  startApp();
+}
