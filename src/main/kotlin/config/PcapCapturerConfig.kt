@@ -12,8 +12,8 @@ data class PcapCapturerConfig(
     companion object {
         private val logger = LoggerFactory.getLogger(javaClass.enclosingClass)
         fun loadFromProperties(): PcapCapturerConfig {
-            val ip = PropertyHandler.getProperty("server.ip") ?: "206.127.156.0/24"
-            val port = PropertyHandler.getProperty("server.port") ?: "13328"
+            val ip = PropertyHandler.getProperty("server.ip") ?: "127.0.0.1"
+            val port = PropertyHandler.getProperty("server.port") ?: "50349"
             val timeout = PropertyHandler.getProperty("server.timeout")?.toInt() ?: 10
             val snapSize = PropertyHandler.getProperty("server.maxSnapshotSize")?.toInt() ?: 65536
             logger.debug("{},{},{},{}", ip, port, timeout, snapSize)

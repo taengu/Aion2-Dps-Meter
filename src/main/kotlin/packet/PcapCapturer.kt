@@ -4,16 +4,18 @@ import com.tbread.config.PcapCapturerConfig
 import kotlinx.coroutines.channels.Channel
 import org.pcap4j.core.BpfProgram
 import org.pcap4j.core.PacketListener
-import org.pcap4j.core.PcapNativeException;
+import org.pcap4j.core.PcapNativeException
 import org.pcap4j.core.PcapNetworkInterface
 import org.pcap4j.core.Pcaps
+import org.pcap4j.packet.Packet
 import org.pcap4j.packet.TcpPacket
 import org.slf4j.LoggerFactory
-import java.net.DatagramSocket
-import java.net.InetAddress
 import kotlin.system.exitProcess
 
-class PcapCapturer(private val config: PcapCapturerConfig, private val channel: Channel<ByteArray>) {
+class PcapCapturer(
+    private val config: PcapCapturerConfig,
+    private val channel: Channel<ByteArray>
+) {
 
     companion object {
         private val logger = LoggerFactory.getLogger(javaClass.enclosingClass)
@@ -22,66 +24,74 @@ class PcapCapturer(private val config: PcapCapturerConfig, private val channel: 
             return try {
                 Pcaps.findAllDevs() ?: emptyList()
             } catch (e: PcapNativeException) {
-                logger.error("Pcap 핸들러 초기화 실패",e)
+                logger.error("Failed to initialize pcap", e)
                 exitProcess(2)
             }
         }
     }
 
-    private fun getMainDevice(ip: String): PcapNetworkInterface? {
-        val devices = getAllDevices()
-        for (device in devices) {
-            for (addr in device.addresses) {
-                if (addr.address != null) {
-                    if (addr.address.hostAddress.equals(ip)) {
-                        return device
-                    }
-                }
-            }
+    /**
+     * ExitLag / VPN traffic appears on the Npcap loopback adapter.
+     */
+    private fun getLoopbackDevice(): PcapNetworkInterface? {
+        return getAllDevices().firstOrNull {
+            it.isLoopBack || it.description?.contains("loopback", ignoreCase = true) == true
         }
-        logger.warn("네트워크 디바이스 검색 실패")
-        return null
     }
 
-
     fun start() {
-        val socket = DatagramSocket()
-        socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
-        val ip = socket.localAddress.hostAddress
-        if (ip == null) {
-            logger.error("ip 검색에 실패했습니다.")
-            exitProcess(1)
-            //나중에 gui 연결후 어떻게할지 정리해서 처리
-        }
-        val nif = getMainDevice(ip)
-        if (nif == null){
-            logger.error("네트워크 디바이스 탐색에 실패했습니다.")
+        val nif = getLoopbackDevice()
+        if (nif == null) {
+            logger.error("Failed to find loopback capture device")
             exitProcess(1)
         }
-        val handle = nif.openLive(config.snapshotSize, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, config.timeout)
-        val filter = "src net ${config.serverIp} and port ${config.serverPort}"
+
+        logger.info("Using capture device: {}", nif.description)
+
+        val handle = nif.openLive(
+            config.snapshotSize,
+            PcapNetworkInterface.PromiscuousMode.PROMISCUOUS,
+            config.timeout
+        )
+
+        /*
+         * IMPORTANT:
+         * - Npcap loopback does NOT support tcp.len, flags, etc.
+         * - Keep filter minimal and safe.
+         */
+        val filter = "tcp"
         handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE)
-        logger.info("패킷필터 설정 \"$filter\"")
-        val listener = PacketListener { packet ->
-            if (packet.contains(TcpPacket::class.java)) {
-                val tcpPacket = packet.get(TcpPacket::class.java)
-                val payload = tcpPacket.payload
-                if (payload != null) {
-                    val data = payload.rawData
-                    if (data.isNotEmpty()) {
-                        channel.trySend(data)
-                    }
-                }
+        logger.info("Packet filter set to \"$filter\"")
+
+        val listener = PacketListener { packet: Packet ->
+            val tcp = packet.get(TcpPacket::class.java) ?: return@PacketListener
+            val payload = tcp.payload ?: return@PacketListener
+
+            val data = payload.rawData
+            if (data.isEmpty()) return@PacketListener
+
+            val port = tcp.header.srcPort.valueAsInt()
+
+            /*
+             * Forward packets as follows:
+             * - Before combat port is locked → allow everything
+             * - After lock → only allow matching port
+             *
+             * CombatPortDetector.lock(port) is called later
+             * by StreamProcessor when real combat is parsed.
+             */
+            val lockedPort = CombatPortDetector.currentPort()
+            if (lockedPort == null || lockedPort == port) {
+                channel.trySend(data)
             }
         }
+
         try {
             handle.use { h ->
                 h.loop(-1, listener)
             }
         } catch (e: InterruptedException) {
-            logger.error("채널 소비에서 문제가 발생했습니다.",e)
+            logger.error("Packet capture interrupted", e)
         }
     }
-
-
 }
