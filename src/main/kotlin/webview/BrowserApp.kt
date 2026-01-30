@@ -272,6 +272,25 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
 
     private data class Hotkey(val modifiers: Int, val keyCode: Int)
 
+    private object VirtualKey {
+        const val VK_F1 = 0x70
+        const val VK_NUMPAD0 = 0x60
+        const val VK_SPACE = 0x20
+        const val VK_TAB = 0x09
+        const val VK_RETURN = 0x0D
+        const val VK_ESCAPE = 0x1B
+        const val VK_BACK = 0x08
+        const val VK_DELETE = 0x2E
+        const val VK_HOME = 0x24
+        const val VK_END = 0x23
+        const val VK_PRIOR = 0x21
+        const val VK_NEXT = 0x22
+        const val VK_UP = 0x26
+        const val VK_DOWN = 0x28
+        const val VK_LEFT = 0x25
+        const val VK_RIGHT = 0x27
+    }
+
     private inner class GlobalHotkeyManager(
         private val onHotkey: () -> Unit
     ) {
@@ -391,30 +410,30 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
             if (upper.startsWith("F")) {
                 val number = upper.removePrefix("F").toIntOrNull()
                 if (number != null && number in 1..24) {
-                    return WinUser.VK_F1 + (number - 1)
+                    return VirtualKey.VK_F1 + (number - 1)
                 }
             }
             if (upper.startsWith("NUMPAD")) {
                 val num = upper.removePrefix("NUMPAD").toIntOrNull()
                 if (num != null && num in 0..9) {
-                    return WinUser.VK_NUMPAD0 + num
+                    return VirtualKey.VK_NUMPAD0 + num
                 }
             }
             return when (upper) {
-                "SPACE" -> WinUser.VK_SPACE
-                "TAB" -> WinUser.VK_TAB
-                "ENTER", "RETURN" -> WinUser.VK_RETURN
-                "ESC", "ESCAPE" -> WinUser.VK_ESCAPE
-                "BACKSPACE" -> WinUser.VK_BACK
-                "DELETE" -> WinUser.VK_DELETE
-                "HOME" -> WinUser.VK_HOME
-                "END" -> WinUser.VK_END
-                "PAGEUP", "PAGE UP" -> WinUser.VK_PRIOR
-                "PAGEDOWN", "PAGE DOWN" -> WinUser.VK_NEXT
-                "UP" -> WinUser.VK_UP
-                "DOWN" -> WinUser.VK_DOWN
-                "LEFT" -> WinUser.VK_LEFT
-                "RIGHT" -> WinUser.VK_RIGHT
+                "SPACE" -> VirtualKey.VK_SPACE
+                "TAB" -> VirtualKey.VK_TAB
+                "ENTER", "RETURN" -> VirtualKey.VK_RETURN
+                "ESC", "ESCAPE" -> VirtualKey.VK_ESCAPE
+                "BACKSPACE" -> VirtualKey.VK_BACK
+                "DELETE" -> VirtualKey.VK_DELETE
+                "HOME" -> VirtualKey.VK_HOME
+                "END" -> VirtualKey.VK_END
+                "PAGEUP", "PAGE UP" -> VirtualKey.VK_PRIOR
+                "PAGEDOWN", "PAGE DOWN" -> VirtualKey.VK_NEXT
+                "UP" -> VirtualKey.VK_UP
+                "DOWN" -> VirtualKey.VK_DOWN
+                "LEFT" -> VirtualKey.VK_LEFT
+                "RIGHT" -> VirtualKey.VK_RIGHT
                 else -> null
             }
         }
