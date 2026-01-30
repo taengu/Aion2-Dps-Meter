@@ -41,6 +41,7 @@ class DpsApp {
     this.refreshKeybind = "";
     this.refreshKeybindEnabled = true;
     this.isCapturingKeybind = false;
+    this.lastKeybindTriggerAt = 0;
 
     DpsApp.instance = this;
   }
@@ -600,7 +601,8 @@ class DpsApp {
       });
     }
 
-    window.addEventListener("keydown", (event) => this.handleRefreshKeybind(event), true);
+    document.addEventListener("keydown", (event) => this.handleRefreshKeybind(event), true);
+    document.addEventListener("keyup", (event) => this.handleRefreshKeybind(event), true);
 
     this.settingsBtn?.addEventListener("click", () => {
       this.toggleSettingsPanel();
@@ -726,6 +728,11 @@ class DpsApp {
     const keybind = this.getKeybindFromEvent(event);
     if (!keybind) return;
     if (keybind !== this.refreshKeybind) return;
+    const now = Date.now();
+    if (now - this.lastKeybindTriggerAt < 250) {
+      return;
+    }
+    this.lastKeybindTriggerAt = now;
     event.preventDefault();
     event.stopPropagation();
     this.resetAll({ callBackend: true });
