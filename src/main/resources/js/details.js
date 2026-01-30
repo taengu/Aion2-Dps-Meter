@@ -9,6 +9,8 @@ const createDetailsUI = ({
 }) => {
   let openedRowId = null;
   let openSeq = 0;
+  let lastRow = null;
+  let lastDetails = null;
 
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -213,6 +215,8 @@ const createDetailsUI = ({
     detailsTitle.textContent = formatTitle(currentRowName);
     renderStats(details);
     renderSkills(details);
+    lastRow = row;
+    lastDetails = details;
   };
 
   const isOpen = () => detailsPanel.classList.contains("open");
@@ -236,6 +240,7 @@ const createDetailsUI = ({
     }
 
     openedRowId = rowId;
+    lastRow = row;
 
     currentRowName = String(row.name);
     detailsTitle.textContent = formatTitle(currentRowName);
@@ -265,9 +270,16 @@ const createDetailsUI = ({
     openSeq++;
 
     openedRowId = null;
+    lastRow = null;
+    lastDetails = null;
     detailsPanel.classList.remove("open");
   };
   detailsClose?.addEventListener("click", close);
 
-  return { open, close, isOpen, render, updateLabels };
+  const refresh = () => {
+    if (!detailsPanel.classList.contains("open") || !lastRow) return;
+    open(lastRow, { force: true, restartOnSwitch: false });
+  };
+
+  return { open, close, isOpen, render, updateLabels, refresh };
 };

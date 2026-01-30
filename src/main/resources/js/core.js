@@ -116,6 +116,7 @@ class DpsApp {
         this.languageSelect.value = lang;
       }
       this.detailsUI?.updateLabels?.();
+      this.detailsUI?.refresh?.();
       if (this.battleTime?.setAnalysisTextProvider) {
         this.battleTime.setAnalysisTextProvider(() =>
           this.i18n?.t("battleTime.analysing", "Analysing data...")
