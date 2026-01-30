@@ -27,14 +27,45 @@ const createI18n = ({
   const normalizeLanguage = (lang) =>
     supportedLanguages.includes(lang) ? lang : defaultLanguage;
 
-  const loadJson = async (path) => {
+  const resolveUrl = (path) => {
     try {
-      const res = await fetch(path, { cache: "no-store" });
-      if (!res.ok) return {};
+      return new URL(path, document.baseURI || window.location.href).toString();
+    } catch {
+      return path;
+    }
+  };
+
+  const loadJson = async (path) => {
+    const url = resolveUrl(path);
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok && res.status !== 0) return {};
       const data = await res.json();
       return data && typeof data === "object" ? data : {};
     } catch {
-      return {};
+      return new Promise((resolve) => {
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open("GET", url, true);
+          xhr.responseType = "text";
+          xhr.onload = () => {
+            if (xhr.status && xhr.status !== 200) {
+              resolve({});
+              return;
+            }
+            try {
+              const parsed = JSON.parse(xhr.responseText || "{}");
+              resolve(parsed && typeof parsed === "object" ? parsed : {});
+            } catch {
+              resolve({});
+            }
+          };
+          xhr.onerror = () => resolve({});
+          xhr.send();
+        } catch {
+          resolve({});
+        }
+      });
     }
   };
 
