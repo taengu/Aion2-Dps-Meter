@@ -12,6 +12,7 @@ import javafx.application.HostServices
 import javafx.concurrent.Worker
 import javafx.scene.Scene
 import javafx.scene.paint.Color
+import javafx.scene.input.KeyEvent
 import javafx.scene.web.WebView
 import javafx.stage.Stage
 import javafx.stage.StageStyle
@@ -35,6 +36,16 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
         val port: Int?,
         val locked: Boolean,
         val characterName: String?
+    )
+
+    @Serializable
+    data class KeybindEvent(
+        val key: String?,
+        val code: String?,
+        val ctrlKey: Boolean,
+        val altKey: Boolean,
+        val shiftKey: Boolean,
+        val metaKey: Boolean,
     )
 
     class JSBridge(
@@ -130,6 +141,27 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
 
         val scene = Scene(webView, 1600.0, 1000.0)
         scene.fill = Color.TRANSPARENT
+        scene.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
+            val payload = KeybindEvent(
+                key = event.text?.takeIf { it.isNotBlank() } ?: event.code.name,
+                code = event.code.name,
+                ctrlKey = event.isControlDown,
+                altKey = event.isAltDown,
+                shiftKey = event.isShiftDown,
+                metaKey = event.isMetaDown,
+            )
+            val handled = try {
+                val json = Json.encodeToString(payload)
+                engine.executeScript(
+                    "window.dpsApp?.handleHostKeybindEvent?.($json)"
+                ) as? Boolean
+            } catch (e: Exception) {
+                null
+            }
+            if (handled == true) {
+                event.consume()
+            }
+        }
 
         try {
             val pageField = engine.javaClass.getDeclaredField("page")

@@ -654,10 +654,20 @@ class DpsApp {
 
   normalizeKeyName(key) {
     if (!key) return "";
-    if (key.length === 1) {
-      return key.toUpperCase();
+    const raw = String(key);
+    const digitMatch = raw.match(/^digit(\d)$/i);
+    if (digitMatch) {
+      return digitMatch[1];
     }
-    return key
+    const numpadMatch = raw.match(/^numpad(\d)$/i);
+    if (numpadMatch) {
+      return `Numpad${numpadMatch[1]}`;
+    }
+    if (raw.length === 1) {
+      return raw.toUpperCase();
+    }
+    return raw
+      .replace(/_/g, " ")
       .split(" ")
       .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
       .join(" ");
@@ -669,8 +679,33 @@ class DpsApp {
   }
 
   getKeybindFromEvent(event) {
+    return this.getKeybindFromKeyboardEvent(event);
+  }
+
+  getKeyFromCode(code) {
+    if (!code) return "";
+    const normalized = String(code);
+    if (normalized.startsWith("Key")) {
+      return normalized.slice(3);
+    }
+    const digitMatch = normalized.match(/^Digit(\d)$/i);
+    if (digitMatch) {
+      return digitMatch[1];
+    }
+    const numpadMatch = normalized.match(/^Numpad(\d)$/i);
+    if (numpadMatch) {
+      return `Numpad${numpadMatch[1]}`;
+    }
+    return normalized;
+  }
+
+  getKeybindFromKeyboardEvent(event) {
     if (!event) return "";
-    const key = event.key;
+    const rawKey = event.key;
+    const key =
+      rawKey && rawKey !== "Unidentified" && rawKey !== "Dead"
+        ? rawKey
+        : this.getKeyFromCode(event.code);
     if (!key) return "";
     const normalizedKey = this.normalizeKeyName(key);
     if (["Control", "Shift", "Alt", "Meta"].includes(normalizedKey)) {
@@ -722,20 +757,43 @@ class DpsApp {
   }
 
   handleRefreshKeybind(event) {
-    if (!this.refreshKeybindEnabled) return;
-    if (this.isCapturingKeybind) return;
-    if (this.isEditableElement(document.activeElement)) return;
-    const keybind = this.getKeybindFromEvent(event);
-    if (!keybind) return;
-    if (keybind !== this.refreshKeybind) return;
-    const now = Date.now();
-    if (now - this.lastKeybindTriggerAt < 250) {
-      return;
-    }
-    this.lastKeybindTriggerAt = now;
+    if (!event) return;
+    const keybind = this.getKeybindFromKeyboardEvent(event);
+    if (!this.canTriggerRefreshKeybind(keybind)) return;
     event.preventDefault();
     event.stopPropagation();
+    this.triggerRefreshKeybind();
+  }
+
+  canTriggerRefreshKeybind(keybind) {
+    if (!this.refreshKeybindEnabled) return false;
+    if (this.isCapturingKeybind) return false;
+    if (!keybind) return false;
+    if (keybind !== this.refreshKeybind) return false;
+    if (this.isEditableElement(document.activeElement)) return false;
+    const now = Date.now();
+    if (now - this.lastKeybindTriggerAt < 250) {
+      return false;
+    }
+    this.lastKeybindTriggerAt = now;
+    return true;
+  }
+
+  triggerRefreshKeybind() {
     this.resetAll({ callBackend: true });
+  }
+
+  handleHostKeybindEvent(eventData) {
+    const keybind = this.getKeybindFromKeyboardEvent(eventData);
+    if (!keybind) return false;
+    if (this.isCapturingKeybind) {
+      this.setRefreshKeybind(keybind, { persist: true });
+      this.refreshKeybindInput?.blur();
+      return true;
+    }
+    if (!this.canTriggerRefreshKeybind(keybind)) return false;
+    this.triggerRefreshKeybind();
+    return true;
   }
 
   setupDetailsPanelSettings() {
@@ -982,6 +1040,7 @@ const setupDebugConsole = () => {
 
 // setupDebugConsole();
 const dpsApp = DpsApp.createInstance();
+globalThis.dpsApp = dpsApp;
 const debug = globalThis.uiDebug;
 
 window.addEventListener("error", (event) => {
