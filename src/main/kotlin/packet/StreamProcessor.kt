@@ -126,15 +126,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     val possibleNameBytes = packet.copyOfRange(innerOffset + 6, innerOffset + 6 + possibleNameLength)
                     val possibleName = String(possibleNameBytes, Charsets.UTF_8)
                     val sanitizedName = sanitizeNickname(possibleName)
-                    if (sanitizedName == null) {
-                        continue
+                    if (sanitizedName != null) {
+                        logger.info(
+                            "Potential nickname found in pattern 1: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        dataStorage.appendNickname(info.value, sanitizedName)
                     }
-                    logger.info(
-                        "Potential nickname found in pattern 1: {} (hex={})",
-                        sanitizedName,
-                        toHex(possibleNameBytes)
-                    )
-                    dataStorage.appendNickname(info.value, sanitizedName)
                 }
             }
             if (packet.size > innerOffset + 3 && packet[innerOffset + 1] == 0x00.toByte()) {
@@ -143,15 +142,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     val possibleNameBytes = packet.copyOfRange(innerOffset + 3, innerOffset + possibleNameLength + 3)
                     val possibleName = String(possibleNameBytes, Charsets.UTF_8)
                     val sanitizedName = sanitizeNickname(possibleName)
-                    if (sanitizedName == null) {
-                        continue
+                    if (sanitizedName != null) {
+                        logger.info(
+                            "Potential nickname found in pattern 2: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        dataStorage.appendNickname(info.value, sanitizedName)
                     }
-                    logger.info(
-                        "Potential nickname found in pattern 2: {} (hex={})",
-                        sanitizedName,
-                        toHex(possibleNameBytes)
-                    )
-                    dataStorage.appendNickname(info.value, sanitizedName)
                 }
             }
             if (packet.size > innerOffset + 5) {
@@ -162,15 +160,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                             packet.copyOfRange(innerOffset + 6, innerOffset + possibleNameLength + 6)
                         val possibleName = String(possibleNameBytes, Charsets.UTF_8)
                         val sanitizedName = sanitizeNickname(possibleName)
-                        if (sanitizedName == null) {
-                            continue
+                        if (sanitizedName != null) {
+                            logger.info(
+                                "Potential nickname found in new pattern: {} (hex={})",
+                                sanitizedName,
+                                toHex(possibleNameBytes)
+                            )
+                            dataStorage.appendNickname(info.value, sanitizedName)
                         }
-                        logger.info(
-                            "Potential nickname found in new pattern: {} (hex={})",
-                            sanitizedName,
-                            toHex(possibleNameBytes)
-                        )
-                        dataStorage.appendNickname(info.value, sanitizedName)
                     }
                 }
             }
