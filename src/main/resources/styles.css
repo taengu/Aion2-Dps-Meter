@@ -342,7 +342,7 @@
   font-weight: bold;
   width: 1080px;
   border: 1px solid var(--panel-border);
-  background: rgba(12, 22, 40, var(--details-bg-opacity, 1));
+  background: rgba(12, 22, 40, var(--details-bg-opacity, 0.75));
   padding: 16px 8px;
   border-radius: var(--rounded-lg);
 
@@ -363,9 +363,48 @@
 
       font-size: 12px;
     }
+    .detailsHeaderControls {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .detailsSettingsMenuWrapper {
+      position: relative;
+    }
+    .detailsSettingsBtn {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: inherit;
+      transition: 0.2s;
+    }
+    .detailsSettingsBtn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .detailsSettingsMenu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      min-width: 260px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(12, 22, 40, 0.95);
+      box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+      display: none;
+      z-index: 5;
+    }
+    .detailsSettingsMenu.isOpen {
+      display: block;
+    }
     .closeX {
       cursor: pointer;
-      margin-left: auto;
       user-select: none;
       font-size: 22px;
       padding: 2px 8px;
@@ -393,11 +432,8 @@
 
   .detailsSettings {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 0 28px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-direction: column;
+    gap: 12px;
 
     .detailsSettingsLabel {
       font-size: 12px;
@@ -413,7 +449,7 @@
     }
 
     .detailsOpacityInput {
-      width: 180px;
+      width: 190px;
     }
 
     .detailsOpacityValue {
@@ -805,9 +841,48 @@
   margin-left: 12px;
   font-size: 12px;
 }
+.detailsPanel .detailsHeader .detailsHeaderControls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.detailsPanel .detailsHeader .detailsSettingsMenuWrapper {
+  position: relative;
+}
+.detailsPanel .detailsHeader .detailsSettingsBtn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  transition: 0.2s;
+}
+.detailsPanel .detailsHeader .detailsSettingsBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.detailsPanel .detailsHeader .detailsSettingsMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 260px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 22, 40, 0.95);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+  display: none;
+  z-index: 5;
+}
+.detailsPanel .detailsHeader .detailsSettingsMenu.isOpen {
+  display: block;
+}
 .detailsPanel .detailsHeader .closeX {
   cursor: pointer;
-  margin-left: auto;
   user-select: none;
   font-size: 22px;
   padding: 2px 8px;
@@ -817,6 +892,31 @@
 }
 .detailsPanel .detailsHeader .closeX:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+.detailsPanel .detailsSettings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.detailsPanel .detailsSettings .detailsSettingsLabel {
+  font-size: 12px;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.detailsPanel .detailsSettings .detailsSettingsControl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.detailsPanel .detailsSettings .detailsOpacityInput {
+  width: 190px;
+}
+.detailsPanel .detailsSettings .detailsOpacityValue {
+  font-size: 12px;
+  opacity: 0.75;
+  min-width: 44px;
+  text-align: right;
 }
 .detailsPanel .detailsStats {
   display: grid;

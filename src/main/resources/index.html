@@ -47,24 +47,35 @@
               Damage over time hits are not included in total crit, double, perfect, back attack, or
               parry ratios.
             </div>
-
-            <div class="closeX detailsClose">×</div>
+            <div class="detailsHeaderControls">
+              <div class="detailsSettingsMenuWrapper">
+                <button
+                  class="detailsSettingsBtn"
+                  type="button"
+                  aria-label="Open details settings">
+                  <i data-lucide="settings"></i>
+                </button>
+                <div class="detailsSettingsMenu" role="menu">
+                  <div class="detailsSettings">
+                    <div class="detailsSettingsLabel">Panel background</div>
+                    <div class="detailsSettingsControl">
+                      <input
+                        class="detailsOpacityInput"
+                        type="range"
+                        min="20"
+                        max="100"
+                        step="5"
+                        value="75" />
+                      <span class="detailsOpacityValue">75%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="closeX detailsClose">×</div>
+            </div>
           </div>
 
           <div class="detailsBody">
-            <div class="detailsSettings">
-              <div class="detailsSettingsLabel">Panel background</div>
-              <div class="detailsSettingsControl">
-                <input
-                  class="detailsOpacityInput"
-                  type="range"
-                  min="20"
-                  max="100"
-                  step="5"
-                  value="100" />
-                <span class="detailsOpacityValue">100%</span>
-              </div>
-            </div>
             <div class="detailsStats"></div>
 
             <div class="detailsSkills">

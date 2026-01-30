@@ -6,6 +6,7 @@ import org.pcap4j.core.*
 import org.pcap4j.packet.Packet
 import org.pcap4j.packet.TcpPacket
 import org.slf4j.LoggerFactory
+import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
 class PcapCapturer(
@@ -14,6 +15,7 @@ class PcapCapturer(
 ) {
     companion object {
         private val logger = LoggerFactory.getLogger(javaClass.enclosingClass)
+        private const val FALLBACK_DELAY_MS = 5000L
 
         private fun getAllDevices(): List<PcapNetworkInterface> =
             try { Pcaps.findAllDevs() ?: emptyList() }
@@ -23,45 +25,81 @@ class PcapCapturer(
             }
     }
 
-    private fun getLoopbackDevice(): PcapNetworkInterface? =
-        getAllDevices().firstOrNull {
+    private fun getLoopbackDevice(devices: List<PcapNetworkInterface>): PcapNetworkInterface? =
+        devices.firstOrNull {
             it.isLoopBack || it.description?.contains("loopback", ignoreCase = true) == true
         }
 
+    private fun captureOnDevice(nif: PcapNetworkInterface) = thread(name = "pcap-${nif.name}") {
+        logger.info("Using capture device: {}", nif.description ?: nif.name)
+
+        try {
+            val handle = nif.openLive(
+                config.snapshotSize,
+                PcapNetworkInterface.PromiscuousMode.PROMISCUOUS,
+                config.timeout
+            )
+
+            val filter = "tcp"
+            handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE)
+            logger.info("Packet filter set to \"$filter\" on {}", nif.description ?: nif.name)
+
+            val listener = PacketListener { packet: Packet ->
+                val tcp = packet.get(TcpPacket::class.java) ?: return@PacketListener
+                val payload = tcp.payload ?: return@PacketListener
+                val data = payload.rawData
+                if (data.isEmpty()) return@PacketListener
+
+                val src = tcp.header.srcPort.valueAsInt()
+                val dst = tcp.header.dstPort.valueAsInt()
+
+                channel.trySend(CapturedPayload(src, dst, data))
+            }
+
+            handle.use { h -> h.loop(-1, listener) }
+        } catch (e: Exception) {
+            logger.error("Packet capture failed on {}", nif.description ?: nif.name, e)
+        }
+    }
+
     fun start() {
-        val nif = getLoopbackDevice() ?: run {
-            logger.error("Failed to find loopback capture device")
+        val devices = getAllDevices()
+        if (devices.isEmpty()) {
+            logger.error("No capture devices found")
             exitProcess(1)
         }
 
-        logger.info("Using capture device: {}", nif.description)
+        val loopback = getLoopbackDevice(devices)
+        val started = mutableSetOf<String>()
+        val nonLoopbacks = devices.filterNot { it == loopback || it.isLoopBack }
 
-        val handle = nif.openLive(
-            config.snapshotSize,
-            PcapNetworkInterface.PromiscuousMode.PROMISCUOUS,
-            config.timeout
-        )
-
-        val filter = "tcp"
-        handle.setFilter(filter, BpfProgram.BpfCompileMode.OPTIMIZE)
-        logger.info("Packet filter set to \"$filter\"")
-
-        val listener = PacketListener { packet: Packet ->
-            val tcp = packet.get(TcpPacket::class.java) ?: return@PacketListener
-            val payload = tcp.payload ?: return@PacketListener
-            val data = payload.rawData
-            if (data.isEmpty()) return@PacketListener
-
-            val src = tcp.header.srcPort.valueAsInt()
-            val dst = tcp.header.dstPort.valueAsInt()
-
-            channel.trySend(CapturedPayload(src, dst, data))
+        fun startDevices(targets: List<PcapNetworkInterface>, reason: String) {
+            if (targets.isEmpty()) {
+                logger.warn("No non-loopback adapters available to start ({})", reason)
+                return
+            }
+            logger.info("Starting capture on other adapters ({})", reason)
+            targets.forEach { nif ->
+                if (started.add(nif.name)) {
+                    captureOnDevice(nif)
+                }
+            }
         }
 
-        try {
-            handle.use { h -> h.loop(-1, listener) }
-        } catch (e: InterruptedException) {
-            logger.error("Packet capture interrupted", e)
+        if (loopback != null) {
+            started.add(loopback.name)
+            captureOnDevice(loopback)
+
+            thread(name = "pcap-fallback") {
+                Thread.sleep(FALLBACK_DELAY_MS)
+                if (CombatPortDetector.currentPort() == null) {
+                    logger.warn("No combat port lock detected on loopback; checking other adapters")
+                    startDevices(nonLoopbacks, "fallback from loopback")
+                }
+            }
+        } else {
+            logger.warn("Loopback capture device not found")
+            startDevices(nonLoopbacks, "loopback unavailable")
         }
     }
 }

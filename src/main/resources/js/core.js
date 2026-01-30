@@ -488,6 +488,8 @@ class DpsApp {
   setupDetailsPanelSettings() {
     this.detailsOpacityInput = document.querySelector(".detailsOpacityInput");
     this.detailsOpacityValue = document.querySelector(".detailsOpacityValue");
+    this.detailsSettingsBtn = document.querySelector(".detailsSettingsBtn");
+    this.detailsSettingsMenu = document.querySelector(".detailsSettingsMenu");
 
     const storedOpacity = this.safeGetStorage(this.storageKeys.detailsBackgroundOpacity);
     const initialOpacity = this.parseDetailsOpacity(storedOpacity);
@@ -501,12 +503,39 @@ class DpsApp {
         this.setDetailsBackgroundOpacity(nextOpacity, { persist: true });
       });
     }
+
+    this.detailsSettingsBtn?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.toggleDetailsSettingsMenu();
+    });
+
+    this.detailsSettingsMenu?.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+
+    this.detailsClose?.addEventListener("click", () => {
+      this.closeDetailsSettingsMenu();
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!this.detailsSettingsMenu?.classList.contains("isOpen")) {
+        return;
+      }
+      const target = event.target;
+      if (
+        this.detailsSettingsMenu?.contains(target) ||
+        this.detailsSettingsBtn?.contains(target)
+      ) {
+        return;
+      }
+      this.closeDetailsSettingsMenu();
+    });
   }
 
   parseDetailsOpacity(value) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
-      return 1;
+      return 0.75;
     }
     return Math.min(1, Math.max(0.2, parsed));
   }
@@ -525,6 +554,15 @@ class DpsApp {
     if (persist) {
       this.safeSetStorage(this.storageKeys.detailsBackgroundOpacity, String(clamped));
     }
+  }
+
+  toggleDetailsSettingsMenu() {
+    if (!this.detailsSettingsMenu) return;
+    this.detailsSettingsMenu.classList.toggle("isOpen");
+  }
+
+  closeDetailsSettingsMenu() {
+    this.detailsSettingsMenu?.classList.remove("isOpen");
   }
 
   toggleSettingsPanel() {
