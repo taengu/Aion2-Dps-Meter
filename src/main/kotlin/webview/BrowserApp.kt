@@ -83,6 +83,15 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
                 e.printStackTrace()
             }
         }
+
+        fun readResource(path: String): String? {
+            val normalized = if (path.startsWith("/")) path else "/$path"
+            return try {
+                javaClass.getResourceAsStream(normalized)?.bufferedReader()?.use { it.readText() }
+            } catch (e: Exception) {
+                null
+            }
+        }
         fun exitApp() {
           Platform.exit()     
           exitProcess(0)       

@@ -35,38 +35,64 @@ const createI18n = ({
     }
   };
 
+  const parseJsonText = (text) => {
+    if (typeof text !== "string") return {};
+    try {
+      const parsed = JSON.parse(text);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const normalizeBridgePath = (path) => {
+    if (!path) return "/";
+    const trimmed = path.startsWith("./") ? path.slice(2) : path;
+    return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  };
+
+  const loadJsonFromBridge = (path) => {
+    const raw = window.javaBridge?.readResource?.(normalizeBridgePath(path));
+    return parseJsonText(raw);
+  };
+
   const loadJson = async (path) => {
     const url = resolveUrl(path);
     try {
       const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok && res.status !== 0) return {};
-      const data = await res.json();
-      return data && typeof data === "object" ? data : {};
+      if (res.ok || res.status === 0) {
+        const data = await res.json();
+        if (data && typeof data === "object") return data;
+      }
     } catch {
-      return new Promise((resolve) => {
-        try {
-          const xhr = new XMLHttpRequest();
-          xhr.open("GET", url, true);
-          xhr.responseType = "text";
-          xhr.onload = () => {
-            if (xhr.status && xhr.status !== 200) {
-              resolve({});
-              return;
-            }
-            try {
-              const parsed = JSON.parse(xhr.responseText || "{}");
-              resolve(parsed && typeof parsed === "object" ? parsed : {});
-            } catch {
-              resolve({});
-            }
-          };
-          xhr.onerror = () => resolve({});
-          xhr.send();
-        } catch {
-          resolve({});
-        }
-      });
+      // ignore and fall back
     }
+
+    const xhrText = await new Promise((resolve) => {
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.responseType = "text";
+        xhr.onload = () => {
+          if (xhr.status && xhr.status !== 200) {
+            resolve(null);
+            return;
+          }
+          resolve(xhr.responseText || "");
+        };
+        xhr.onerror = () => resolve(null);
+        xhr.send();
+      } catch {
+        resolve(null);
+      }
+    });
+
+    if (xhrText) {
+      const parsed = parseJsonText(xhrText);
+      if (Object.keys(parsed).length) return parsed;
+    }
+
+    return loadJsonFromBridge(path);
   };
 
   const resolveKey = (obj, key) => {
