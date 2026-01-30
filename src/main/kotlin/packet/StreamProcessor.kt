@@ -178,25 +178,38 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun sanitizeNickname(nickname: String): String? {
         val sanitizedNickname = nickname.substringBefore('\u0000').trim()
         if (sanitizedNickname.isEmpty()) return null
+        val nicknameBuilder = StringBuilder()
         var onlyNumbers = true
         var hasHan = false
         for (ch in sanitizedNickname) {
-            if (ch == '\uFFFD') return null
-            if (Character.isISOControl(ch)) return null
-            if (!Character.isLetterOrDigit(ch)) return null
+            if (!Character.isLetterOrDigit(ch)) {
+                if (nicknameBuilder.isEmpty()) return null
+                break
+            }
+            if (ch == '\uFFFD') {
+                if (nicknameBuilder.isEmpty()) return null
+                break
+            }
+            if (Character.isISOControl(ch)) {
+                if (nicknameBuilder.isEmpty()) return null
+                break
+            }
+            nicknameBuilder.append(ch)
             if (Character.isLetter(ch)) onlyNumbers = false
             if (Character.UnicodeScript.of(ch.code) == Character.UnicodeScript.HAN) {
                 hasHan = true
             }
         }
-        if (sanitizedNickname.length < 3 && !hasHan) return null
+        val trimmedNickname = nicknameBuilder.toString()
+        if (trimmedNickname.isEmpty()) return null
+        if (trimmedNickname.length < 3 && !hasHan) return null
         if (onlyNumbers) return null
-        if (sanitizedNickname.length == 1 &&
-            (sanitizedNickname[0] in 'A'..'Z' || sanitizedNickname[0] in 'a'..'z')
+        if (trimmedNickname.length == 1 &&
+            (trimmedNickname[0] in 'A'..'Z' || trimmedNickname[0] in 'a'..'z')
         ) {
             return null
         }
-        return sanitizedNickname
+        return trimmedNickname
     }
 
     private fun parsePerfectPacket(packet: ByteArray) {
