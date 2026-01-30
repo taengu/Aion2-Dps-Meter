@@ -1,6 +1,6 @@
 {
   "header": {
-    "title": "DPS 計量器"
+    "title": "傷害統計插件"
   },
   "details": {
     "header": "詳細",
@@ -33,7 +33,7 @@
   },
   "settings": {
     "title": "設定",
-    "lockedPort": "鎖定連接埠",
+    "lockedPort": "偵測到的裝置/連接埠",
     "resetDetection": "重置偵測",
     "characterName": "角色名稱",
     "characterNamePlaceholder": "輸入你的角色名稱",
@@ -43,7 +43,7 @@
       "label": "語言"
     },
     "targetSelection": {
-      "label": "目標選擇",
+      "label": "目標選擇（實驗性）",
       "options": {
         "mostDamage": "最高傷害（目前）",
         "mostRecent": "最近受傷目標",
@@ -64,7 +64,8 @@
     "text": "有新更新可用！\n\n目前版本：v.{current}\n最新版本：v.{latest}\n\n請在繼續前更新。"
   },
   "connection": {
-    "auto": "自動"
+    "auto": "自動",
+    "loopback": "本地回環"
   },
   "target": {
     "all": "所有目標"

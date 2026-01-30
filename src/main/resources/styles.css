@@ -169,9 +169,9 @@
   }
 
   .lockedPort::before {
-    content: ":";
+    content: "/";
     opacity: 0.6;
-    margin-right: 4px;
+    margin: 0 6px;
   }
 
   .characterNameInput {
@@ -705,9 +705,9 @@
   font-weight: 700;
 }
 .settingsPanel .lockedPort::before {
-  content: ":";
+  content: "/";
   opacity: 0.6;
-  margin-right: 4px;
+  margin: 0 6px;
 }
 .settingsPanel .characterNameInput {
   flex: 1;

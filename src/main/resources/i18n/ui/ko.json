@@ -33,7 +33,7 @@
   },
   "settings": {
     "title": "설정",
-    "lockedPort": "고정 포트",
+    "lockedPort": "감지된 장치/포트",
     "resetDetection": "감지 초기화",
     "characterName": "캐릭터 이름",
     "characterNamePlaceholder": "캐릭터 이름 입력",
@@ -43,7 +43,7 @@
       "label": "언어"
     },
     "targetSelection": {
-      "label": "대상 선택",
+      "label": "대상 선택 (실험적)",
       "options": {
         "mostDamage": "가장 큰 피해(현재)",
         "mostRecent": "최근 피해 대상",
@@ -64,7 +64,8 @@
     "text": "새 업데이트가 있습니다!\n\n현재 버전: v.{current}\n최신 버전: v.{latest}\n\n계속하기 전에 업데이트해 주세요."
   },
   "connection": {
-    "auto": "자동"
+    "auto": "자동",
+    "loopback": "로컬 루프백"
   },
   "target": {
     "all": "모든 대상"

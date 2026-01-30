@@ -1,6 +1,6 @@
 {
   "header": {
-    "title": "DPS 计量器"
+    "title": "伤害统计插件"
   },
   "details": {
     "header": "详情",
@@ -33,7 +33,7 @@
   },
   "settings": {
     "title": "设置",
-    "lockedPort": "锁定端口",
+    "lockedPort": "检测到的设备/端口",
     "resetDetection": "重置检测",
     "characterName": "角色名称",
     "characterNamePlaceholder": "输入你的角色名称",
@@ -43,7 +43,7 @@
       "label": "语言"
     },
     "targetSelection": {
-      "label": "目标选择",
+      "label": "目标选择（实验性）",
       "options": {
         "mostDamage": "最高伤害（当前）",
         "mostRecent": "最近受伤目标",
@@ -64,7 +64,8 @@
     "text": "有新更新可用！\n\n当前版本：v.{current}\n最新版本：v.{latest}\n\n请在继续前更新。"
   },
   "connection": {
-    "auto": "自动"
+    "auto": "自动",
+    "loopback": "本地回环"
   },
   "target": {
     "all": "所有目标"

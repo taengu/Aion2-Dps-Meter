@@ -33,7 +33,7 @@
   },
   "settings": {
     "title": "Settings",
-    "lockedPort": "Locked port",
+    "lockedPort": "Detected device/port",
     "resetDetection": "Reset detection",
     "characterName": "Character name",
     "characterNamePlaceholder": "Enter your character name",
@@ -43,7 +43,7 @@
       "label": "Language"
     },
     "targetSelection": {
-      "label": "Target selection",
+      "label": "Target selection (experimental)",
       "options": {
         "mostDamage": "Most damage (current)",
         "mostRecent": "Most recently damaged",
@@ -64,7 +64,8 @@
     "text": "A new update is available!\n\nCurrent version: v.{current}\nLatest version: v.{latest}\n\nPlease update before continuing."
   },
   "connection": {
-    "auto": "Auto"
+    "auto": "Auto",
+    "loopback": "Local Loopback"
   },
   "target": {
     "all": "All targets"
