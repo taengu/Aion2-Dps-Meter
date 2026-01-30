@@ -18,6 +18,13 @@ import javafx.stage.Stage
 import javafx.stage.StageStyle
 import javafx.util.Duration
 import javafx.application.Platform
+import com.sun.jna.platform.win32.User32
+import com.sun.jna.platform.win32.WinDef.HWND
+import com.sun.jna.platform.win32.WinUser
+import java.awt.event.KeyEvent as AwtKeyEvent
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -52,6 +59,7 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
         private val stage: Stage,
         private val dpsCalculator: DpsCalculator,
         private val hostServices: HostServices,
+        private val hotkeyManager: GlobalHotkeyManager?,
     ) {
         fun moveWindow(x: Double, y: Double) {
             stage.x = x
@@ -104,7 +112,12 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
                 null
             }
         }
+
+        fun setRefreshHotkey(keybind: String?, enabled: Boolean) {
+            hotkeyManager?.updateHotkey(keybind, enabled)
+        }
         fun exitApp() {
+          hotkeyManager?.stop()
           Platform.exit()     
           exitProcess(0)       
         }
@@ -117,11 +130,13 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
 
     private val version = "0.1.3"
     private var firewallPromptSocket: ServerSocket? = null
+    private var hotkeyManager: GlobalHotkeyManager? = null
 
 
     override fun start(stage: Stage) {
         stage.setOnCloseRequest {
             closeFirewallPrompt()
+            hotkeyManager?.stop()
             exitProcess(0)
         }
         ensureWindowsFirewallPrompt()
@@ -129,7 +144,18 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
         val engine = webView.engine
         engine.load(javaClass.getResource("/index.html")?.toExternalForm())
 
-        val bridge = JSBridge(stage, dpsCalculator, hostServices)
+        hotkeyManager = if (isWindows()) {
+            GlobalHotkeyManager {
+                try {
+                    engine.executeScript("window.dpsApp?.triggerRefreshKeybind?.()")
+                } catch (e: Exception) {
+                    logger.warn("Failed to trigger refresh keybind from global hotkey.", e)
+                }
+            }
+        } else {
+            null
+        }
+        val bridge = JSBridge(stage, dpsCalculator, hostServices, hotkeyManager)
         engine.loadWorker.stateProperty().addListener { _, _, newState ->
             if (newState == Worker.State.SUCCEEDED) {
                 val window = engine.executeScript("window") as JSObject
@@ -233,6 +259,156 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
             logger.warn("Failed to close firewall prompt socket.", e)
         } finally {
             firewallPromptSocket = null
+        }
+    }
+
+    private fun isWindows(): Boolean {
+        val osName = System.getProperty("os.name")?.lowercase().orEmpty()
+        return osName.contains("windows")
+    }
+
+    private inner class GlobalHotkeyManager(
+        private val onHotkey: () -> Unit
+    ) {
+        private val running = AtomicBoolean(false)
+        private val registeredId = AtomicReference<Int?>(null)
+        private val taskQueue = LinkedBlockingQueue<() -> Unit>()
+        private var thread: Thread? = null
+        private var currentHotkey: Hotkey? = null
+
+        fun updateHotkey(keybind: String?, enabled: Boolean) {
+            if (!enabled || keybind.isNullOrBlank()) {
+                enqueue { unregisterHotkey() }
+                return
+            }
+            val parsed = parseKeybind(keybind) ?: return
+            if (parsed == currentHotkey) return
+            enqueue { registerHotkey(parsed) }
+        }
+
+        fun stop() {
+            enqueue {
+                unregisterHotkey()
+                running.set(false)
+            }
+            thread?.interrupt()
+            thread = null
+        }
+
+        private fun enqueue(task: () -> Unit) {
+            if (thread == null) {
+                startThread()
+            }
+            taskQueue.offer(task)
+        }
+
+        private fun startThread() {
+            if (running.getAndSet(true)) return
+            thread = Thread({
+                val msg = WinUser.MSG()
+                while (running.get()) {
+                    while (User32.INSTANCE.PeekMessage(msg, HWND(null), 0, 0, WinUser.PM_REMOVE)) {
+                        if (msg.message == WinUser.WM_HOTKEY) {
+                            Platform.runLater {
+                                onHotkey()
+                            }
+                        }
+                    }
+                    while (true) {
+                        val task = taskQueue.poll() ?: break
+                        task.invoke()
+                    }
+                    try {
+                        Thread.sleep(10)
+                    } catch (_: InterruptedException) {
+                        // continue loop
+                    }
+                }
+            }, "global-hotkey-listener")
+            thread?.isDaemon = true
+            thread?.start()
+        }
+
+        private fun registerHotkey(hotkey: Hotkey) {
+            unregisterHotkey()
+            val id = 1
+            val registered = User32.INSTANCE.RegisterHotKey(
+                HWND(null),
+                id,
+                hotkey.modifiers,
+                hotkey.keyCode
+            )
+            if (registered) {
+                registeredId.set(id)
+                currentHotkey = hotkey
+            } else {
+                logger.warn("Failed to register global hotkey {}", hotkey)
+            }
+        }
+
+        private fun unregisterHotkey() {
+            val id = registeredId.getAndSet(null) ?: return
+            User32.INSTANCE.UnregisterHotKey(HWND(null), id)
+            currentHotkey = null
+        }
+
+        private data class Hotkey(val modifiers: Int, val keyCode: Int)
+
+        private fun parseKeybind(keybind: String): Hotkey? {
+            val parts = keybind.split("+").map { it.trim() }.filter { it.isNotBlank() }
+            if (parts.isEmpty()) return null
+            var modifiers = 0
+            var key: String? = null
+            for (part in parts) {
+                when (part.lowercase()) {
+                    "ctrl", "control" -> modifiers = modifiers or WinUser.MOD_CONTROL
+                    "alt" -> modifiers = modifiers or WinUser.MOD_ALT
+                    "shift" -> modifiers = modifiers or WinUser.MOD_SHIFT
+                    "meta", "cmd", "command", "win", "windows" ->
+                        modifiers = modifiers or WinUser.MOD_WIN
+                    else -> key = part
+                }
+            }
+            val keyCode = key?.let { mapKeyToVirtualKey(it) } ?: return null
+            return Hotkey(modifiers, keyCode)
+        }
+
+        private fun mapKeyToVirtualKey(key: String): Int? {
+            val normalized = key.trim()
+            if (normalized.length == 1) {
+                return AwtKeyEvent.getExtendedKeyCodeForChar(normalized[0].code)
+                    .takeIf { it != AwtKeyEvent.VK_UNDEFINED }
+            }
+            val upper = normalized.uppercase()
+            if (upper.startsWith("F")) {
+                val number = upper.removePrefix("F").toIntOrNull()
+                if (number != null && number in 1..24) {
+                    return AwtKeyEvent.VK_F1 + (number - 1)
+                }
+            }
+            if (upper.startsWith("NUMPAD")) {
+                val num = upper.removePrefix("NUMPAD").toIntOrNull()
+                if (num != null && num in 0..9) {
+                    return AwtKeyEvent.VK_NUMPAD0 + num
+                }
+            }
+            return when (upper) {
+                "SPACE" -> AwtKeyEvent.VK_SPACE
+                "TAB" -> AwtKeyEvent.VK_TAB
+                "ENTER" -> AwtKeyEvent.VK_ENTER
+                "ESC", "ESCAPE" -> AwtKeyEvent.VK_ESCAPE
+                "BACKSPACE" -> AwtKeyEvent.VK_BACK_SPACE
+                "DELETE" -> AwtKeyEvent.VK_DELETE
+                "HOME" -> AwtKeyEvent.VK_HOME
+                "END" -> AwtKeyEvent.VK_END
+                "PAGEUP", "PAGE UP" -> AwtKeyEvent.VK_PAGE_UP
+                "PAGEDOWN", "PAGE DOWN" -> AwtKeyEvent.VK_PAGE_DOWN
+                "UP" -> AwtKeyEvent.VK_UP
+                "DOWN" -> AwtKeyEvent.VK_DOWN
+                "LEFT" -> AwtKeyEvent.VK_LEFT
+                "RIGHT" -> AwtKeyEvent.VK_RIGHT
+                else -> null
+            }
         }
     }
 

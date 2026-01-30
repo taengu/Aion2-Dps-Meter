@@ -730,6 +730,7 @@ class DpsApp {
     if (persist) {
       this.safeSetStorage(this.storageKeys.refreshKeybind, normalized);
     }
+    this.syncRefreshHotkey();
   }
 
   setRefreshKeybindEnabled(enabled, { persist = false } = {}) {
@@ -743,6 +744,7 @@ class DpsApp {
         String(this.refreshKeybindEnabled)
       );
     }
+    this.syncRefreshHotkey();
   }
 
   isEditableElement(element) {
@@ -781,6 +783,14 @@ class DpsApp {
 
   triggerRefreshKeybind() {
     this.resetAll({ callBackend: true });
+  }
+
+  syncRefreshHotkey() {
+    try {
+      window.javaBridge?.setRefreshHotkey?.(this.refreshKeybind, this.refreshKeybindEnabled);
+    } catch (e) {
+      globalThis.uiDebug?.log?.("syncRefreshHotkey.failed", { error: String(e) });
+    }
   }
 
   handleHostKeybindEvent(eventData) {
