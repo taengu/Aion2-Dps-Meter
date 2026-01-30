@@ -127,7 +127,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     val possibleName = String(possibleNameBytes, Charsets.UTF_8)
                     val sanitizedName = sanitizeNickname(possibleName)
                     if (sanitizedName == null) {
-                        originOffset++
                         continue
                     }
                     logger.info(
@@ -136,7 +135,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         toHex(possibleNameBytes)
                     )
                     dataStorage.appendNickname(info.value, sanitizedName)
-                    originOffset++
                 }
             }
             if (packet.size > innerOffset + 3 && packet[innerOffset + 1] == 0x00.toByte()) {
@@ -146,7 +144,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     val possibleName = String(possibleNameBytes, Charsets.UTF_8)
                     val sanitizedName = sanitizeNickname(possibleName)
                     if (sanitizedName == null) {
-                        originOffset++
                         continue
                     }
                     logger.info(
@@ -155,7 +152,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         toHex(possibleNameBytes)
                     )
                     dataStorage.appendNickname(info.value, sanitizedName)
-                    originOffset++
                 }
             }
             if (packet.size > innerOffset + 5) {
@@ -167,7 +163,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         val possibleName = String(possibleNameBytes, Charsets.UTF_8)
                         val sanitizedName = sanitizeNickname(possibleName)
                         if (sanitizedName == null) {
-                            originOffset++
                             continue
                         }
                         logger.info(
@@ -176,7 +171,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                             toHex(possibleNameBytes)
                         )
                         dataStorage.appendNickname(info.value, sanitizedName)
-                        originOffset++
                     }
                 }
             }
