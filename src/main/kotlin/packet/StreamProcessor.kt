@@ -582,6 +582,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (pdp.getDamage() >= suspiciousDamageThreshold) {
             logSuspiciousDamagePacket(
                 packet = packet,
+                skillCode = skillCode,
                 targetInfo = targetInfo,
                 switchInfo = switchInfo,
                 flagInfo = flagInfo,
@@ -590,6 +591,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 damageInfo = damageInfo,
                 loopInfo = loopInfo,
                 specialsLength = tempV,
+                specialsBytes = packet.copyOfRange(start, start + tempV),
                 damageType = damageType
             )
         }
@@ -605,6 +607,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun logSuspiciousDamagePacket(
         packet: ByteArray,
+        skillCode: Int,
         targetInfo: VarIntOutput,
         switchInfo: VarIntOutput,
         flagInfo: VarIntOutput,
@@ -613,15 +616,23 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         damageInfo: VarIntOutput,
         loopInfo: VarIntOutput,
         specialsLength: Int,
+        specialsBytes: ByteArray,
         damageType: Byte
     ) {
         val damageTypeBits =
             String.format("%8s", (damageType.toInt() and 0xFF).toString(2)).replace(' ', '0')
+        val switchMask = switchInfo.value and mask
+        val specialsHex = if (specialsBytes.isNotEmpty()) toHex(specialsBytes) else "-"
+        val selfTarget = actorInfo.value == targetInfo.value
         logger.debug(
-            "Suspicious damage packet: dmg={} typeBits={} specialsLen={} target(id={},len={}) actor(id={},len={}) switch(id={},len={}) flag(id={},len={}) type(id={},len={}) damage(id={},len={}) loop(id={},len={}) packet={}",
+            "Suspicious damage packet: dmg={} skill={} typeBits={} specialsLen={} specialsHex={} switchMask={} selfTarget={} target(id={},len={}) actor(id={},len={}) switch(id={},len={}) flag(id={},len={}) type(id={},len={}) damage(id={},len={}) loop(id={},len={}) packet={}",
             damageInfo.value,
+            skillCode,
             damageTypeBits,
             specialsLength,
+            specialsHex,
+            switchMask,
+            selfTarget,
             targetInfo.value,
             targetInfo.length,
             actorInfo.value,
@@ -640,10 +651,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         )
         DebugLogWriter.debug(
             logger,
-            "Suspicious damage packet: dmg={} typeBits={} specialsLen={} target(id={},len={}) actor(id={},len={}) switch(id={},len={}) flag(id={},len={}) type(id={},len={}) damage(id={},len={}) loop(id={},len={}) packet={}",
+            "Suspicious damage packet: dmg={} skill={} typeBits={} specialsLen={} specialsHex={} switchMask={} selfTarget={} target(id={},len={}) actor(id={},len={}) switch(id={},len={}) flag(id={},len={}) type(id={},len={}) damage(id={},len={}) loop(id={},len={}) packet={}",
             damageInfo.value,
+            skillCode,
             damageTypeBits,
             specialsLength,
+            specialsHex,
+            switchMask,
+            selfTarget,
             targetInfo.value,
             targetInfo.length,
             actorInfo.value,
