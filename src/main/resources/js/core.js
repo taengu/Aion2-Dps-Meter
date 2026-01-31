@@ -10,11 +10,13 @@ class DpsApp {
       onlyShowUser: "dpsMeter.onlyShowUser",
       detailsBackgroundOpacity: "dpsMeter.detailsBackgroundOpacity",
       targetSelection: "dpsMeter.targetSelection",
+      displayMode: "dpsMeter.displayMode",
     };
 
     this.dpsFormatter = new Intl.NumberFormat("en-US");
     this.lastJson = null;
     this.isCollapse = false;
+    this.displayMode = "dps";
 
     // 빈데이터 덮어쓰기 방지 스냅샷
     this.lastSnapshot = null;
@@ -70,6 +72,7 @@ class DpsApp {
 
     this.resetBtn = document.querySelector(".resetBtn");
     this.collapseBtn = document.querySelector(".collapseBtn");
+    this.metricToggleBtn = document.querySelector(".metricToggleBtn");
 
     this.bindHeaderButtons();
     this.bindDragToMoveWindow();
@@ -78,6 +81,7 @@ class DpsApp {
       elList: this.elList,
       dpsFormatter: this.dpsFormatter,
       getUserName: () => this.USER_NAME,
+      getMetric: (row) => this.getMetricForRow(row),
       onClickUserRow: (row) => this.detailsUI.open(row),
     });
 
@@ -117,6 +121,7 @@ class DpsApp {
       }
       this.detailsUI?.updateLabels?.();
       this.detailsUI?.refresh?.();
+      this.updateDisplayToggleLabel();
       if (this.battleTime?.setAnalysisTextProvider) {
         this.battleTime.setAnalysisTextProvider(() =>
           this.i18n?.t("battleTime.analysing", "Analysing data...")
@@ -126,6 +131,9 @@ class DpsApp {
       this.refreshBossLabel();
     });
     window.ReleaseChecker?.start?.();
+
+    const storedDisplayMode = this.safeGetStorage(this.storageKeys.displayMode);
+    this.setDisplayMode(storedDisplayMode || this.displayMode, { persist: false });
 
     this.startPolling();
     this.fetchDps();
@@ -297,6 +305,7 @@ class DpsApp {
 
       const dpsRaw = isObj ? value.dps : value;
       const dps = Math.trunc(Number(dpsRaw));
+      const totalDamage = Math.trunc(Number(isObj ? value.amount : 0));
 
       // 소수점 한자리
       const contribRaw = isObj ? Number(value.damageContribution) : NaN;
@@ -313,6 +322,7 @@ class DpsApp {
         name,
         job,
         dps,
+        totalDamage,
         damageContribution,
         isUser: name === this.USER_NAME,
       });
@@ -469,6 +479,11 @@ class DpsApp {
     this.resetBtn?.addEventListener("click", () => {
       this.resetAll({ callBackend: true });
     });
+    this.metricToggleBtn?.addEventListener("click", () => {
+      const nextMode = this.displayMode === "totalDamage" ? "dps" : "totalDamage";
+      this.setDisplayMode(nextMode, { persist: true });
+      this.renderCurrentRows();
+    });
   }
 
   setupSettingsPanel() {
@@ -481,6 +496,7 @@ class DpsApp {
     this.characterNameInput = document.querySelector(".characterNameInput");
     this.onlyMeCheckbox = document.querySelector(".onlyMeCheckbox");
     this.discordButton = document.querySelector(".discordButton");
+    this.quitButton = document.querySelector(".quitButton");
     this.languageSelect = document.querySelector(".languageSelect");
     this.targetSelect = document.querySelector(".targetSelect");
 
@@ -545,6 +561,10 @@ class DpsApp {
 
     this.discordButton?.addEventListener("click", () => {
       window.javaBridge?.openBrowser?.("https://discord.gg/Aion2Global");
+    });
+
+    this.quitButton?.addEventListener("click", () => {
+      window.javaBridge?.exitApp?.();
     });
   }
 
@@ -679,6 +699,52 @@ class DpsApp {
     if (this.targetSelect && document.activeElement !== this.targetSelect) {
       this.targetSelect.value = this.targetSelection;
     }
+  }
+
+  setDisplayMode(mode, { persist = false } = {}) {
+    this.displayMode = mode === "totalDamage" ? "totalDamage" : "dps";
+    if (persist) {
+      this.safeSetStorage(this.storageKeys.displayMode, this.displayMode);
+    }
+    this.updateDisplayToggleLabel();
+  }
+
+  updateDisplayToggleLabel() {
+    if (!this.metricToggleBtn) return;
+    const label =
+      this.displayMode === "totalDamage"
+        ? this.i18n?.t("header.display.total", "DMG") ?? "DMG"
+        : this.i18n?.t("header.display.dps", "DPS") ?? "DPS";
+    const ariaLabel =
+      this.displayMode === "totalDamage"
+        ? this.i18n?.t("header.display.ariaDamage", "Showing total damage")
+        : this.i18n?.t("header.display.ariaDps", "Showing DPS");
+    this.metricToggleBtn.textContent = label;
+    this.metricToggleBtn.setAttribute("aria-label", ariaLabel);
+  }
+
+  getMetricForRow(row) {
+    if (this.displayMode === "totalDamage") {
+      const totalDamage = Number(row?.totalDamage) || 0;
+      return {
+        value: totalDamage,
+        text: this.dpsFormatter.format(totalDamage),
+      };
+    }
+    const dps = Number(row?.dps) || 0;
+    return {
+      value: dps,
+      text: `${this.dpsFormatter.format(dps)}/s`,
+    };
+  }
+
+  renderCurrentRows() {
+    if (this.isCollapse) return;
+    let rowsToRender = Array.isArray(this.lastSnapshot) ? this.lastSnapshot : [];
+    if (this.onlyShowUser && this.USER_NAME) {
+      rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
+    }
+    this.meterUI?.updateFromRows?.(rowsToRender);
   }
 
   refreshConnectionInfo() {

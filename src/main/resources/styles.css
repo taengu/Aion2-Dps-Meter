@@ -85,6 +85,18 @@
       width: 20px;
       height: 20px;
     }
+    .metricToggleBtn {
+      width: auto;
+      height: auto;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      background: rgba(0, 0, 0, 0.35);
+      color: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
   }
 }
 .settingsPanel {
@@ -211,6 +223,18 @@
     text-shadow: var(--text-shadow);
     width: 100%;
     text-align: center;
+  }
+
+  .quitButton {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--rounded-xs);
+    padding: 8px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    background: linear-gradient(90deg, #b93535, #922c2c);
+    text-shadow: var(--text-shadow);
+    width: 100%;
   }
 }
 .list {
