@@ -161,7 +161,7 @@
   }
 
   .settingsRowInput {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .settingsInfo {
@@ -718,7 +718,7 @@
   align-items: center;
 }
 .settingsPanel .settingsRowInput {
-  align-items: flex-start;
+  align-items: center;
 }
 .settingsPanel .settingsInfo {
   display: flex;
