@@ -874,6 +874,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
     private var mode: Mode = Mode.BOSS_ONLY
     private var currentTarget: Int = 0
     @Volatile private var targetSelectionMode: TargetSelectionMode = TargetSelectionMode.MOST_DAMAGE
+    private val targetSwitchStaleMs = 10_000L
 
     fun setMode(mode: Mode) {
         this.mode = mode
@@ -963,10 +964,12 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         }
         val mostDamageTarget = targetInfoMap.maxByOrNull { it.value.damagedAmount() }?.key ?: 0
         val mostRecentTarget = targetInfoMap.maxByOrNull { it.value.lastDamageTime() }?.key ?: 0
+        val shouldPreferMostRecent = shouldPreferMostRecentTarget(mostDamageTarget, mostRecentTarget)
 
         return when (targetSelectionMode) {
             TargetSelectionMode.MOST_DAMAGE -> {
-                TargetDecision(setOf(mostDamageTarget), resolveTargetName(mostDamageTarget), targetSelectionMode, mostDamageTarget)
+                val selectedTarget = if (shouldPreferMostRecent) mostRecentTarget else mostDamageTarget
+                TargetDecision(setOf(selectedTarget), resolveTargetName(selectedTarget), targetSelectionMode, selectedTarget)
             }
             TargetSelectionMode.MOST_RECENT -> {
                 TargetDecision(setOf(mostRecentTarget), resolveTargetName(mostRecentTarget), targetSelectionMode, mostRecentTarget)
@@ -979,6 +982,18 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 TargetDecision(targetInfoMap.keys.toSet(), "", targetSelectionMode, mostRecentTarget)
             }
         }
+    }
+
+    private fun shouldPreferMostRecentTarget(mostDamageTarget: Int, mostRecentTarget: Int): Boolean {
+        if (mostDamageTarget == 0 || mostRecentTarget == 0 || mostDamageTarget == mostRecentTarget) {
+            return false
+        }
+        val mostDamageInfo = targetInfoMap[mostDamageTarget] ?: return false
+        val mostRecentInfo = targetInfoMap[mostRecentTarget] ?: return false
+        val now = System.currentTimeMillis()
+        val mostDamageStale = now - mostDamageInfo.lastDamageTime() >= targetSwitchStaleMs
+        val mostRecentFresh = now - mostRecentInfo.lastDamageTime() < targetSwitchStaleMs
+        return mostDamageStale && mostRecentFresh
     }
 
     private fun selectTargetLastHitByMe(fallbackTarget: Int): Int {
