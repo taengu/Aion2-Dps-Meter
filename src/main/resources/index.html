@@ -30,6 +30,13 @@
           <div class="headerBtns">
             <div class="headerBtn resetBtn"><i data-lucide="rotate-ccw"></i></div>
             <div class="headerBtn settingsBtn"><i data-lucide="settings"></i></div>
+            <button
+              class="headerBtn metricToggleBtn"
+              type="button"
+              data-i18n="header.display.dps"
+              aria-label="Showing DPS">
+              DPS
+            </button>
             <div class="headerBtn collapseBtn">
               <i
                 class="collapseIcon"
@@ -165,10 +172,19 @@
                   All targets combined
                 </option>
               </select>
+              </div>
+            <div>
+              <label class="settingsCheckbox">
+                <input
+                        type="checkbox"
+                        class="debugLoggingCheckbox" />
+                <span data-i18n="settings.debugLogging">Enable debug logging</span>
+              </label>
             </div>
             <button class="discordButton" data-i18n="settings.discord">
               💬 Get support on our Discord
             </button>
+            <button class="quitButton" data-i18n="settings.quit">Quit</button>
           </div>
         </div>
         <div class="list"></div>

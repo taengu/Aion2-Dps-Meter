@@ -1,6 +1,12 @@
 {
   "header": {
-    "title": "水表"
+    "title": "水表",
+    "display": {
+      "dps": "DPS",
+      "total": "DMG",
+      "ariaDps": "显示 DPS",
+      "ariaDamage": "显示总伤害"
+    }
   },
   "details": {
     "header": "详情",
@@ -38,6 +44,8 @@
     "characterName": "角色名称",
     "characterNamePlaceholder": "输入你的角色名称",
     "onlyMe": "仅显示我的角色",
+    "debugLogging": "启用调试日志",
+    "quit": "退出",
     "discord": "💬 在 Discord 获取支持",
     "language": {
       "label": "语言"

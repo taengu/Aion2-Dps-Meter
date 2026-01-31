@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.tbread"
-version = "0.1.4"
+version = "0.1.5"
 
 repositories {
     mavenCentral()
@@ -40,6 +40,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("org.slf4j:slf4j-simple:1.7.26")
+    implementation("net.java.dev.jna:jna:5.14.0")
+    implementation("net.java.dev.jna:jna-platform:5.14.0")
 
 
 
@@ -58,7 +60,7 @@ compose.desktop {
             }
             targetFormats(TargetFormat.Msi)
             packageName = "aion2meter-tw"
-            packageVersion = "0.1.4"
+            packageVersion = "0.1.5"
             copyright = "Copyright 2026 Taengu Licensed under MIT License"
         }
 

@@ -8,7 +8,7 @@ import kotlinx.serialization.Transient
 data class PersonalData(
     @Required var job: String = "",
     var dps: Double = 0.0,
-    @Transient var amount: Double = 0.0,
+    var amount: Double = 0.0,
     @Required var damageContribution: Double = 0.0,
     @Transient val analyzedData: MutableMap<Int, AnalyzedSkill> = mutableMapOf(),
     val nickname: String

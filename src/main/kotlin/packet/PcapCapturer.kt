@@ -31,7 +31,8 @@ class PcapCapturer(
         }
 
     private fun captureOnDevice(nif: PcapNetworkInterface) = thread(name = "pcap-${nif.name}") {
-        logger.info("Using capture device: {}", nif.description ?: nif.name)
+        val deviceLabel = nif.description ?: nif.name
+        logger.info("Using capture device: {}", deviceLabel)
 
         try {
             val handle = nif.openLive(
@@ -53,7 +54,7 @@ class PcapCapturer(
                 val src = tcp.header.srcPort.valueAsInt()
                 val dst = tcp.header.dstPort.valueAsInt()
 
-                channel.trySend(CapturedPayload(src, dst, data))
+                channel.trySend(CapturedPayload(src, dst, data, deviceLabel))
             }
 
             handle.use { h -> h.loop(-1, listener) }

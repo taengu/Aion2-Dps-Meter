@@ -3,18 +3,24 @@ class DpsApp {
     if (DpsApp.instance) return DpsApp.instance;
 
     this.POLL_MS = 200;
+    this.WINDOW_TITLE_POLL_MS = 30000;
     this.USER_NAME = "";
     this.onlyShowUser = false;
+    this.debugLoggingEnabled = false;
     this.storageKeys = {
       userName: "dpsMeter.userName",
       onlyShowUser: "dpsMeter.onlyShowUser",
       detailsBackgroundOpacity: "dpsMeter.detailsBackgroundOpacity",
       targetSelection: "dpsMeter.targetSelection",
+      displayMode: "dpsMeter.displayMode",
+      language: "dpsMeter.language",
+      debugLogging: "dpsMeter.debugLoggingEnabled",
     };
 
     this.dpsFormatter = new Intl.NumberFormat("en-US");
     this.lastJson = null;
     this.isCollapse = false;
+    this.displayMode = "dps";
 
     // 빈데이터 덮어쓰기 방지 스냅샷
     this.lastSnapshot = null;
@@ -31,6 +37,7 @@ class DpsApp {
     this._lastBattleTimeMs = null;
 
     this._pollTimer = null;
+    this._windowTitleTimer = null;
 
     this.i18n = window.i18n;
     this.targetSelection = "mostDamage";
@@ -57,6 +64,27 @@ class DpsApp {
     }
   }
 
+  safeGetSetting(key) {
+    try {
+      const bridgeValue = window.javaBridge?.getSetting?.(key);
+      if (bridgeValue !== undefined && bridgeValue !== null) {
+        return bridgeValue;
+      }
+    } catch (e) {
+      globalThis.uiDebug?.log?.("getSetting blocked", { key, error: String(e) });
+    }
+    return this.safeGetStorage(key);
+  }
+
+  safeSetSetting(key, value) {
+    try {
+      window.javaBridge?.setSetting?.(key, value);
+    } catch (e) {
+      globalThis.uiDebug?.log?.("setSetting blocked", { key, error: String(e) });
+    }
+    this.safeSetStorage(key, value);
+  }
+
 
   static createInstance() {
     if (!DpsApp.instance) DpsApp.instance = new DpsApp();
@@ -70,6 +98,7 @@ class DpsApp {
 
     this.resetBtn = document.querySelector(".resetBtn");
     this.collapseBtn = document.querySelector(".collapseBtn");
+    this.metricToggleBtn = document.querySelector(".metricToggleBtn");
 
     this.bindHeaderButtons();
     this.bindDragToMoveWindow();
@@ -78,6 +107,7 @@ class DpsApp {
       elList: this.elList,
       dpsFormatter: this.dpsFormatter,
       getUserName: () => this.USER_NAME,
+      getMetric: (row) => this.getMetricForRow(row),
       onClickUserRow: (row) => this.detailsUI.open(row),
     });
 
@@ -117,6 +147,7 @@ class DpsApp {
       }
       this.detailsUI?.updateLabels?.();
       this.detailsUI?.refresh?.();
+      this.updateDisplayToggleLabel();
       if (this.battleTime?.setAnalysisTextProvider) {
         this.battleTime.setAnalysisTextProvider(() =>
           this.i18n?.t("battleTime.analysing", "Analysing data...")
@@ -127,7 +158,11 @@ class DpsApp {
     });
     window.ReleaseChecker?.start?.();
 
+    const storedDisplayMode = this.safeGetStorage(this.storageKeys.displayMode);
+    this.setDisplayMode(storedDisplayMode || this.displayMode, { persist: false });
+
     this.startPolling();
+    this.startWindowTitlePolling();
     this.fetchDps();
   }
 
@@ -150,6 +185,35 @@ class DpsApp {
   startPolling() {
     if (this._pollTimer) return;
     this._pollTimer = setInterval(() => this.fetchDps(), this.POLL_MS);
+  }
+
+  startWindowTitlePolling() {
+    if (this._windowTitleTimer) return;
+    this._windowTitleTimer = setInterval(
+      () => this.checkAion2WindowTitle(),
+      this.WINDOW_TITLE_POLL_MS
+    );
+    this.checkAion2WindowTitle();
+  }
+
+  parseCharacterNameFromWindowTitle(title) {
+    const trimmed = String(title ?? "").trim();
+    if (!trimmed) return "";
+    if (!trimmed.toLowerCase().startsWith("aion2")) return "";
+    const remainder = trimmed.slice(5).trim();
+    if (!remainder) return "";
+    return remainder.replace(/^[|l:-]+/i, "").trim();
+  }
+
+  checkAion2WindowTitle() {
+    const title = window.javaBridge?.getAion2WindowTitle?.();
+    if (!title || typeof title !== "string") return;
+    const detectedName = this.parseCharacterNameFromWindowTitle(title);
+    if (!detectedName || detectedName === this.USER_NAME) return;
+    this.setUserName(detectedName, { persist: true, syncBackend: true });
+    if (this.characterNameInput && document.activeElement !== this.characterNameInput) {
+      this.characterNameInput.value = detectedName;
+    }
   }
 
   stopPolling() {
@@ -297,6 +361,7 @@ class DpsApp {
 
       const dpsRaw = isObj ? value.dps : value;
       const dps = Math.trunc(Number(dpsRaw));
+      const totalDamage = Math.trunc(Number(isObj ? value.amount : 0));
 
       // 소수점 한자리
       const contribRaw = isObj ? Number(value.damageContribution) : NaN;
@@ -313,6 +378,7 @@ class DpsApp {
         name,
         job,
         dps,
+        totalDamage,
         damageContribution,
         isUser: name === this.USER_NAME,
       });
@@ -469,6 +535,11 @@ class DpsApp {
     this.resetBtn?.addEventListener("click", () => {
       this.resetAll({ callBackend: true });
     });
+    this.metricToggleBtn?.addEventListener("click", () => {
+      const nextMode = this.displayMode === "totalDamage" ? "dps" : "totalDamage";
+      this.setDisplayMode(nextMode, { persist: true });
+      this.renderCurrentRows();
+    });
   }
 
   setupSettingsPanel() {
@@ -480,20 +551,28 @@ class DpsApp {
     this.resetDetectBtn = document.querySelector(".resetDetectBtn");
     this.characterNameInput = document.querySelector(".characterNameInput");
     this.onlyMeCheckbox = document.querySelector(".onlyMeCheckbox");
+    this.debugLoggingCheckbox = document.querySelector(".debugLoggingCheckbox");
     this.discordButton = document.querySelector(".discordButton");
+    this.quitButton = document.querySelector(".quitButton");
     this.languageSelect = document.querySelector(".languageSelect");
     this.targetSelect = document.querySelector(".targetSelect");
 
     const storedName = this.safeGetStorage(this.storageKeys.userName) || "";
     const storedOnlyShow = this.safeGetStorage(this.storageKeys.onlyShowUser) === "true";
+    const storedDebugLogging = this.safeGetSetting(this.storageKeys.debugLogging) === "true";
     const storedTargetSelection = this.safeGetStorage(this.storageKeys.targetSelection);
+    const storedLanguage = this.safeGetStorage(this.storageKeys.language);
 
     this.setUserName(storedName, { persist: false, syncBackend: true });
     this.setOnlyShowUser(storedOnlyShow, { persist: false });
+    this.setDebugLogging(storedDebugLogging, { persist: false, syncBackend: true });
     this.setTargetSelection(storedTargetSelection || this.targetSelection, {
       persist: false,
       syncBackend: true,
     });
+    if (storedLanguage) {
+      this.i18n?.setLanguage?.(storedLanguage, { persist: false });
+    }
 
     if (this.characterNameInput) {
       this.characterNameInput.value = this.USER_NAME;
@@ -511,12 +590,21 @@ class DpsApp {
       });
     }
 
+    if (this.debugLoggingCheckbox) {
+      this.debugLoggingCheckbox.checked = this.debugLoggingEnabled;
+      this.debugLoggingCheckbox.addEventListener("change", (event) => {
+        const isChecked = !!event.target?.checked;
+        this.setDebugLogging(isChecked, { persist: true, syncBackend: true });
+      });
+    }
+
     if (this.languageSelect) {
-      const currentLanguage = this.i18n?.getLanguage?.() || "en";
+      const currentLanguage = this.i18n?.getLanguage?.() || storedLanguage || "en";
       this.languageSelect.value = currentLanguage;
       this.languageSelect.addEventListener("change", (event) => {
         const value = event.target?.value;
         if (value) {
+          this.safeSetStorage(this.storageKeys.language, value);
           this.i18n?.setLanguage?.(value, { persist: true });
         }
       });
@@ -545,6 +633,10 @@ class DpsApp {
 
     this.discordButton?.addEventListener("click", () => {
       window.javaBridge?.openBrowser?.("https://discord.gg/Aion2Global");
+    });
+
+    this.quitButton?.addEventListener("click", () => {
+      window.javaBridge?.exitApp?.();
     });
   }
 
@@ -647,6 +739,9 @@ class DpsApp {
   setUserName(name, { persist = false, syncBackend = false } = {}) {
     const trimmed = String(name ?? "").trim();
     this.USER_NAME = trimmed;
+    if (this.characterNameInput && document.activeElement !== this.characterNameInput) {
+      this.characterNameInput.value = trimmed;
+    }
     if (persist) {
       localStorage.setItem(this.storageKeys.userName, trimmed);
     }
@@ -668,6 +763,19 @@ class DpsApp {
     }
   }
 
+  setDebugLogging(enabled, { persist = false, syncBackend = false } = {}) {
+    this.debugLoggingEnabled = !!enabled;
+    if (this.debugLoggingCheckbox && document.activeElement !== this.debugLoggingCheckbox) {
+      this.debugLoggingCheckbox.checked = this.debugLoggingEnabled;
+    }
+    if (persist) {
+      this.safeSetSetting(this.storageKeys.debugLogging, String(this.debugLoggingEnabled));
+    }
+    if (syncBackend) {
+      window.javaBridge?.setDebugLoggingEnabled?.(this.debugLoggingEnabled);
+    }
+  }
+
   setTargetSelection(mode, { persist = false, syncBackend = false } = {}) {
     this.targetSelection = mode || "mostDamage";
     if (persist) {
@@ -681,6 +789,52 @@ class DpsApp {
     }
   }
 
+  setDisplayMode(mode, { persist = false } = {}) {
+    this.displayMode = mode === "totalDamage" ? "totalDamage" : "dps";
+    if (persist) {
+      this.safeSetStorage(this.storageKeys.displayMode, this.displayMode);
+    }
+    this.updateDisplayToggleLabel();
+  }
+
+  updateDisplayToggleLabel() {
+    if (!this.metricToggleBtn) return;
+    const label =
+      this.displayMode === "totalDamage"
+        ? this.i18n?.t("header.display.total", "DMG") ?? "DMG"
+        : this.i18n?.t("header.display.dps", "DPS") ?? "DPS";
+    const ariaLabel =
+      this.displayMode === "totalDamage"
+        ? this.i18n?.t("header.display.ariaDamage", "Showing total damage")
+        : this.i18n?.t("header.display.ariaDps", "Showing DPS");
+    this.metricToggleBtn.textContent = label;
+    this.metricToggleBtn.setAttribute("aria-label", ariaLabel);
+  }
+
+  getMetricForRow(row) {
+    if (this.displayMode === "totalDamage") {
+      const totalDamage = Number(row?.totalDamage) || 0;
+      return {
+        value: totalDamage,
+        text: this.dpsFormatter.format(totalDamage),
+      };
+    }
+    const dps = Number(row?.dps) || 0;
+    return {
+      value: dps,
+      text: `${this.dpsFormatter.format(dps)}/s`,
+    };
+  }
+
+  renderCurrentRows() {
+    if (this.isCollapse) return;
+    let rowsToRender = Array.isArray(this.lastSnapshot) ? this.lastSnapshot : [];
+    if (this.onlyShowUser && this.USER_NAME) {
+      rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
+    }
+    this.meterUI?.updateFromRows?.(rowsToRender);
+  }
+
   refreshConnectionInfo() {
     if (!this.lockedIp || !this.lockedPort) return;
     const raw = window.javaBridge?.getConnectionInfo?.();
@@ -690,11 +844,13 @@ class DpsApp {
       return;
     }
     const info = this.safeParseJSON(raw, {});
+    const deviceName = typeof info?.device === "string" && info.device.trim() ? info.device : "";
     const rawIp = info?.ip || "-";
     const ip =
-      rawIp === "127.0.0.1" || rawIp === "::1"
+      deviceName ||
+      (rawIp === "127.0.0.1" || rawIp === "::1"
         ? this.i18n?.t("connection.loopback", "Local Loopback") ?? "Local Loopback"
-        : rawIp;
+        : rawIp);
     const port = Number.isFinite(Number(info?.port))
       ? String(info.port)
       : this.i18n?.t("connection.auto", "Auto");

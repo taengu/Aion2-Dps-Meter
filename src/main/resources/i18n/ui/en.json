@@ -1,6 +1,12 @@
 {
   "header": {
-    "title": "DPS METER"
+    "title": "DPS METER",
+    "display": {
+      "dps": "DPS",
+      "total": "DMG",
+      "ariaDps": "Showing DPS",
+      "ariaDamage": "Showing total damage"
+    }
   },
   "details": {
     "header": "Details",
@@ -38,6 +44,8 @@
     "characterName": "Character name",
     "characterNamePlaceholder": "Enter your character name",
     "onlyMe": "Only show my character",
+    "debugLogging": "Enable debug logging",
+    "quit": "Quit",
     "discord": "💬 Get support on our Discord",
     "language": {
       "label": "Language"

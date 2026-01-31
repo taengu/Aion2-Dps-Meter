@@ -1,6 +1,12 @@
 {
   "header": {
-    "title": "水錶"
+    "title": "水錶",
+    "display": {
+      "dps": "DPS",
+      "total": "DMG",
+      "ariaDps": "顯示 DPS",
+      "ariaDamage": "顯示總傷害"
+    }
   },
   "details": {
     "header": "詳細",
@@ -38,6 +44,8 @@
     "characterName": "角色名稱",
     "characterNamePlaceholder": "輸入你的角色名稱",
     "onlyMe": "只顯示我的角色",
+    "debugLogging": "啟用除錯記錄",
+    "quit": "結束",
     "discord": "💬 在 Discord 取得支援",
     "language": {
       "label": "語言"

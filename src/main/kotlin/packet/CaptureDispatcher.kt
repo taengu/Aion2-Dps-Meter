@@ -29,8 +29,15 @@ class CaptureDispatcher(
             // "Lock" is informational for now; don't filter until parsing confirmed stable
             if (CombatPortDetector.currentPort() == null && contains(cap.data, MAGIC)) {
                 // Choose srcPort for now (since magic typically comes from the sender)
-                CombatPortDetector.lock(cap.srcPort)
-                logger.info("Magic seen on flow {}-{} (src={}, dst={})", a, b, cap.srcPort, cap.dstPort)
+                CombatPortDetector.lock(cap.srcPort, cap.deviceName)
+                logger.info(
+                    "Magic seen on flow {}-{} (src={}, dst={}, device={})",
+                    a,
+                    b,
+                    cap.srcPort,
+                    cap.dstPort,
+                    cap.deviceName
+                )
             }
 
             assembler.processChunk(cap.data)
