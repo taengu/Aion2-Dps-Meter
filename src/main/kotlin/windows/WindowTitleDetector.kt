@@ -16,6 +16,8 @@ object WindowTitleDetector {
     private val logger = LoggerFactory.getLogger(WindowTitleDetector::class.java)
     private const val AION2_PREFIX = "AION2"
     private const val AION2_PROCESS = "Aion2.exe"
+    @Volatile
+    private var lastLogMessage: String? = null
 
     fun findAion2WindowTitle(): String? {
         if (!isWindows()) return null
@@ -43,10 +45,14 @@ object WindowTitleDetector {
                 true
             }
             User32.INSTANCE.EnumWindows(callback, Pointer.NULL)
-            if (result != null) {
-                logger.info("Detected AION2 window title: {}", result)
+            val message = if (result != null) {
+                "Detected AION2 window title: $result"
             } else {
-                logger.info("AION2 window title not found.")
+                "AION2 window title not found."
+            }
+            if (message != lastLogMessage) {
+                logger.info(message)
+                lastLogMessage = message
             }
             result
         } catch (e: Exception) {
@@ -58,22 +64,42 @@ object WindowTitleDetector {
     private fun getProcessName(hwnd: WinDef.HWND): String? {
         val processId = IntByReference()
         User32.INSTANCE.GetWindowThreadProcessId(hwnd, processId)
-        val handle = Kernel32.INSTANCE.OpenProcess(
-            WinNT.PROCESS_QUERY_INFORMATION or WinNT.PROCESS_VM_READ,
-            false,
-            processId.value
-        ) ?: return null
+        var handle: WinNT.HANDLE? = null
         return try {
+            handle = Kernel32.INSTANCE.OpenProcess(
+                WinNT.PROCESS_QUERY_LIMITED_INFORMATION,
+                false,
+                processId.value
+            )
+            val limitedName = handle?.let { queryProcessImageName(it) }
+            if (limitedName != null) {
+                return limitedName.substringAfterLast('\\')
+            }
+            handle?.let { Kernel32.INSTANCE.CloseHandle(it) }
+            handle = Kernel32.INSTANCE.OpenProcess(
+                WinNT.PROCESS_QUERY_INFORMATION or WinNT.PROCESS_VM_READ,
+                false,
+                processId.value
+            )
             val buffer = CharArray(WinDef.MAX_PATH)
-            val length = Psapi.INSTANCE.GetModuleFileNameExW(handle, null, buffer, buffer.size)
+            val length = handle?.let { Psapi.INSTANCE.GetModuleFileNameExW(it, null, buffer, buffer.size) }
+                ?: return null
             if (length <= 0) return null
             val fullPath = String(buffer, 0, length)
             fullPath.substringAfterLast('\\')
         } catch (e: Exception) {
             null
         } finally {
-            Kernel32.INSTANCE.CloseHandle(handle)
+            handle?.let { Kernel32.INSTANCE.CloseHandle(it) }
         }
+    }
+
+    private fun queryProcessImageName(handle: WinNT.HANDLE): String? {
+        val size = IntByReference(WinDef.MAX_PATH)
+        val buffer = CharArray(WinDef.MAX_PATH)
+        val success = Kernel32.INSTANCE.QueryFullProcessImageName(handle, 0, buffer, size)
+        if (!success || size.value <= 0) return null
+        return String(buffer, 0, size.value)
     }
 
     private fun isWindows(): Boolean {
