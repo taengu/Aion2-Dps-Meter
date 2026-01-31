@@ -11,7 +11,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     data class VarIntOutput(val value: Int, val length: Int)
 
-    private val suspiciousDamageThreshold = 1_000_000
+    private val suspiciousDamageThreshold = 2_000_000
     private val mask = 0x0f
 
     fun onPacketReceived(packet: ByteArray) {
@@ -500,6 +500,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (offset >= packet.size) return false
 
         val damageType = packet[offset]
+        offset += 1
 
         val andResult = switchInfo.value and mask
         val start = offset
