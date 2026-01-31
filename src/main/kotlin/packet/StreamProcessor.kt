@@ -111,8 +111,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun logUnmatchedPacket(reason: String, packet: ByteArray) {
-        logger.debug("Unmatched packet ({}): {}", reason, toHex(packet))
-        DebugLogWriter.debug(logger, "Unmatched packet ({}): {}", reason, toHex(packet))
+        // logger.debug("Unmatched packet ({}): {}", reason, toHex(packet))
+        // DebugLogWriter.debug(logger, "Unmatched packet ({}): {}", reason, toHex(packet))
     }
 
     private fun parseNicknameFromBrokenLengthPacket(packet: ByteArray) {
