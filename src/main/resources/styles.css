@@ -7,8 +7,8 @@
 
   --text-color: rgb(255, 255, 255);
   --text-shadow:
-    1px 0 0 rgba(0, 0, 0, 0.55), -1px 0 0 rgba(0, 0, 0, 0.55), 0 1px 0 rgba(0, 0, 0, 0.55),
-    0 -1px 0 rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.35);
+    0 1px 2px rgba(0, 0, 0, 0.8),
+    0 2px 8px rgba(0, 0, 0, 0.4);
 
   --rounded-lg: 12px;
   --rounded: 10px;
@@ -20,7 +20,7 @@
 }
 
 * {
-  font-family: "Spoqa Han Sans Neo", sans-serif;
+  font-family: "Pretendard", "Noto Sans KR", "Noto Sans SC", "Noto Sans TC", sans-serif;
   margin: 0;
   padding: 0;
   -webkit-user-select: none;
@@ -76,7 +76,7 @@
     align-items: center;
     font-weight: bold;
     color: white;
-    gap: 8px;
+    gap: 6px;
     text-shadow: var(--text-shadow);
     cursor: pointer;
     .headerBtn {
@@ -84,6 +84,19 @@
       align-items: center;
       width: 20px;
       height: 20px;
+    }
+    .metricToggleBtn {
+      width: auto;
+      height: auto;
+      min-width: 26px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
     }
   }
 }
@@ -148,7 +161,7 @@
   }
 
   .settingsRowInput {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .settingsInfo {
@@ -204,13 +217,23 @@
     border: none;
     border-radius: var(--rounded-xs);
     padding: 8px;
-    font-weight: 700;
     color: white;
     cursor: pointer;
     background: linear-gradient(90deg, #5865f2, #4e5bd5);
     text-shadow: var(--text-shadow);
     width: 100%;
     text-align: center;
+  }
+
+  .quitButton {
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: var(--rounded-xs);
+    padding: 8px;
+    color: white;
+    cursor: pointer;
+    background: linear-gradient(90deg, #b93535, #922c2c);
+    text-shadow: var(--text-shadow);
+    width: 100%;
   }
 }
 .list {
@@ -247,6 +270,7 @@
     inset: 0;
 
     background: var(--row-fill);
+    opacity: 0.8;
     transform-origin: left center;
     transform: scaleX(0);
 
@@ -633,7 +657,7 @@
   height: 24px;
   display: flex;
   align-items: center;
-  font-size: 16px;
+  font-size: 15px;
 }
 .header .headerBtns {
   display: flex;
@@ -694,7 +718,7 @@
   align-items: center;
 }
 .settingsPanel .settingsRowInput {
-  align-items: flex-start;
+  align-items: center;
 }
 .settingsPanel .settingsInfo {
   display: flex;
@@ -750,7 +774,6 @@
   border: none;
   border-radius: var(--rounded-xs);
   padding: 8px;
-  font-weight: 700;
   color: white;
   cursor: pointer;
   background: linear-gradient(90deg, #5865f2, #4e5bd5);
@@ -781,6 +804,7 @@
   position: absolute;
   inset: 0;
   background: var(--row-fill);
+  opacity: 0.8;
   transform-origin: left center;
   transform: scaleX(0);
   transition: transform 150ms ease;

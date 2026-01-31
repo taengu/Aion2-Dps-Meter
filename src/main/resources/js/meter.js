@@ -1,4 +1,4 @@
-const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) => {
+const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow, getMetric }) => {
   const MAX_CACHE = 32;
 
   const rowViewById = new Map();
@@ -112,14 +112,25 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) =>
     }
   };
 
+  const resolveMetric = (row) => {
+    if (typeof getMetric === "function") {
+      return getMetric(row);
+    }
+    const dps = Number(row?.dps) || 0;
+    return { value: dps, text: `${dpsFormatter.format(dps)}/s` };
+  };
+
   const renderRows = (rows) => {
     const now = nowMs();
     const nextVisibleIds = new Set();
 
     elList.classList.toggle("hasRows", rows.length > 0);
 
-    let topDps = 1;
-    for (const row of rows) topDps = Math.max(topDps, Number(row?.dps) || 0);
+    let topMetric = 1;
+    for (const row of rows) {
+      const metricValue = Number(resolveMetric(row)?.value) || 0;
+      topMetric = Math.max(topMetric, metricValue);
+    }
 
     for (const row of rows) {
       if (!row) {
@@ -151,7 +162,8 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) =>
 
       // view.classIconEl.style.display = "";
 
-      const dps = Number(row.dps) || 0;
+      const metric = resolveMetric(row) || { value: 0, text: "-" };
+      const metricValue = Number(metric.value) || 0;
       const damageContribution = Number(row.damageContribution) || 0;
 
       let contributionClass = "";
@@ -170,9 +182,9 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) =>
         view.prevContribClass = contributionClass;
       }
 
-      view.dpsNumber.textContent = `${dpsFormatter.format(dps)}/s`;
+      view.dpsNumber.textContent = metric.text;
       view.dpsContribution.textContent = `${damageContribution.toFixed(1)}%`;
-      const ratio = Math.max(0, Math.min(1, dps / topDps));
+      const ratio = Math.max(0, Math.min(1, metricValue / topMetric));
       view.fillEl.style.transform = `scaleX(${ratio})`;
 
       elList.appendChild(view.rowEl);
@@ -191,7 +203,11 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow }) =>
 
   const updateFromRows = (rows) => {
     const arr = Array.isArray(rows) ? rows.slice() : [];
-    arr.sort((a, b) => (Number(b?.dps) || 0) - (Number(a?.dps) || 0));
+    arr.sort((a, b) => {
+      const aMetric = Number(resolveMetric(a)?.value) || 0;
+      const bMetric = Number(resolveMetric(b)?.value) || 0;
+      return bMetric - aMetric;
+    });
     renderRows(getDisplayRows(arr));
   };
   const onResetMeterUi = () => {

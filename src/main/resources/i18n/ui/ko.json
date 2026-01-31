@@ -1,6 +1,12 @@
 {
   "header": {
-    "title": "DPS 미터"
+    "title": "DPS 미터",
+    "display": {
+      "dps": "DPS",
+      "total": "DMG",
+      "ariaDps": "DPS 표시 중",
+      "ariaDamage": "총 피해 표시 중"
+    }
   },
   "details": {
     "header": "상세",
@@ -38,6 +44,7 @@
     "characterName": "캐릭터 이름",
     "characterNamePlaceholder": "캐릭터 이름 입력",
     "onlyMe": "내 캐릭터만 표시",
+    "quit": "종료",
     "discord": "💬 디스코드에서 지원 받기",
     "language": {
       "label": "언어"
