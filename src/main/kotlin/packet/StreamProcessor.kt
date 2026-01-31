@@ -188,36 +188,31 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     }
                 }
             }
-            val pattern3ScanEnd = minOf(packet.size - 4, innerOffset + 20)
+            val scanEnd = minOf(packet.size - 1, innerOffset + 24)
             var scanOffset = innerOffset + 1
-            while (scanOffset <= pattern3ScanEnd) {
-                if (packet[scanOffset] == 0x01.toByte() &&
-                    packet[scanOffset + 1] == 0x07.toByte() &&
-                    packet[scanOffset + 2] == 0x00.toByte()
-                ) {
-                    val possibleNameLength = parseUInt16le(packet, scanOffset + 1)
-                    if (possibleNameLength in 3..72 &&
-                        scanOffset + 3 + possibleNameLength <= packet.size
+            while (scanOffset <= scanEnd) {
+                val possibleNameLength = packet[scanOffset].toInt() and 0xff
+                if (possibleNameLength in 3..72 && scanOffset + 1 + possibleNameLength <= packet.size) {
+                    val possibleNameBytes =
+                        packet.copyOfRange(scanOffset + 1, scanOffset + 1 + possibleNameLength)
+                    val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+                    val sanitizedName = sanitizeNickname(possibleName)
+                    if (sanitizedName != null &&
+                        sanitizedName.toByteArray(Charsets.UTF_8).size == possibleNameLength
                     ) {
-                        val possibleNameBytes =
-                            packet.copyOfRange(scanOffset + 3, scanOffset + 3 + possibleNameLength)
-                        val possibleName = String(possibleNameBytes, Charsets.UTF_8)
-                        val sanitizedName = sanitizeNickname(possibleName)
-                        if (sanitizedName != null) {
-                            logger.info(
-                                "Potential nickname found in pattern 3: {} (hex={})",
-                                sanitizedName,
-                                toHex(possibleNameBytes)
-                            )
-                            DebugLogWriter.info(
-                                logger,
-                                "Potential nickname found in pattern 3: {} (hex={})",
-                                sanitizedName,
-                                toHex(possibleNameBytes)
-                            )
-                            dataStorage.appendNickname(info.value, sanitizedName)
-                            break
-                        }
+                        logger.info(
+                            "Potential nickname found in pattern 3: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        DebugLogWriter.info(
+                            logger,
+                            "Potential nickname found in pattern 3: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        dataStorage.appendNickname(info.value, sanitizedName)
+                        break
                     }
                 }
                 scanOffset++
