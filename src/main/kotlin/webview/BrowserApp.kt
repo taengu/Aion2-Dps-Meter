@@ -2,6 +2,7 @@ package com.tbread.webview
 
 import com.tbread.DpsCalculator
 import com.tbread.entity.DpsData
+import com.tbread.logging.DebugLogWriter
 import com.tbread.packet.CombatPortDetector
 import com.tbread.packet.LocalPlayer
 import com.tbread.packet.PropertyHandler
@@ -109,6 +110,11 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
         fun setSetting(key: String, value: String) {
             PropertyHandler.setProperty(key, value)
         }
+
+        fun setDebugLoggingEnabled(enabled: Boolean) {
+            DebugLogWriter.setEnabled(enabled)
+            PropertyHandler.setProperty(DebugLogWriter.SETTING_KEY, enabled.toString())
+        }
         fun exitApp() {
           Platform.exit()     
           exitProcess(0)       
@@ -124,6 +130,7 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
 
 
     override fun start(stage: Stage) {
+        DebugLogWriter.loadFromSettings()
         stage.setOnCloseRequest {
             exitProcess(0)
         }

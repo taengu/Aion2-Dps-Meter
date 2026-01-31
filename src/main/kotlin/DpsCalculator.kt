@@ -5,6 +5,7 @@ import com.tbread.entity.JobClass
 import com.tbread.entity.ParsedDamagePacket
 import com.tbread.entity.PersonalData
 import com.tbread.entity.TargetInfo
+import com.tbread.logging.DebugLogWriter
 import org.slf4j.LoggerFactory
 import kotlin.math.roundToInt
 import java.util.UUID
@@ -1009,10 +1010,12 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             val possibleOrigin = skillCode - offset
             if (SKILL_CODES.binarySearch(possibleOrigin) >= 0) {
                 logger.debug("Inferred original skill code: {}", possibleOrigin)
+                DebugLogWriter.debug(logger, "Inferred original skill code: {}", possibleOrigin)
                 return possibleOrigin
             }
         }
         logger.debug("Failed to infer skill code")
+        DebugLogWriter.debug(logger, "Failed to infer skill code")
         return null
     }
 
@@ -1026,7 +1029,16 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         val dpsData = getDps()
         dpsData.map.forEach { (_, pData) ->
             logger.debug("-----------------------------------------")
+            DebugLogWriter.debug(logger, "-----------------------------------------")
             logger.debug(
+                "Nickname: {} job: {} total damage: {} contribution: {}",
+                pData.nickname,
+                pData.job,
+                pData.amount,
+                pData.damageContribution
+            )
+            DebugLogWriter.debug(
+                logger,
                 "Nickname: {} job: {} total damage: {} contribution: {}",
                 pData.nickname,
                 pData.job,
@@ -1039,7 +1051,20 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                     SKILL_MAP[key] ?: key,
                     data.damageAmount
                 )
+                DebugLogWriter.debug(
+                    logger,
+                    "Skill (code): {} total damage: {}",
+                    SKILL_MAP[key] ?: key,
+                    data.damageAmount
+                )
                 logger.debug(
+                    "Uses: {} critical hits: {} critical hit rate: {}",
+                    data.times,
+                    data.critTimes,
+                    data.critTimes / data.times * 100
+                )
+                DebugLogWriter.debug(
+                    logger,
                     "Uses: {} critical hits: {} critical hit rate: {}",
                     data.times,
                     data.critTimes,
@@ -1049,8 +1074,14 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                     "Skill damage share: {}%",
                     (data.damageAmount / pData.amount * 100).roundToInt()
                 )
+                DebugLogWriter.debug(
+                    logger,
+                    "Skill damage share: {}%",
+                    (data.damageAmount / pData.amount * 100).roundToInt()
+                )
             }
             logger.debug("-----------------------------------------")
+            DebugLogWriter.debug(logger, "-----------------------------------------")
         }
     }
 

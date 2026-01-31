@@ -6,6 +6,7 @@ class DpsApp {
     this.WINDOW_TITLE_POLL_MS = 30000;
     this.USER_NAME = "";
     this.onlyShowUser = false;
+    this.debugLoggingEnabled = false;
     this.storageKeys = {
       userName: "dpsMeter.userName",
       onlyShowUser: "dpsMeter.onlyShowUser",
@@ -13,6 +14,7 @@ class DpsApp {
       targetSelection: "dpsMeter.targetSelection",
       displayMode: "dpsMeter.displayMode",
       language: "dpsMeter.language",
+      debugLogging: "dpsMeter.debugLoggingEnabled",
     };
 
     this.dpsFormatter = new Intl.NumberFormat("en-US");
@@ -60,6 +62,27 @@ class DpsApp {
     } catch (e) {
       globalThis.uiDebug?.log?.("localStorage.set blocked", { key, error: String(e) });
     }
+  }
+
+  safeGetSetting(key) {
+    try {
+      const bridgeValue = window.javaBridge?.getSetting?.(key);
+      if (bridgeValue !== undefined && bridgeValue !== null) {
+        return bridgeValue;
+      }
+    } catch (e) {
+      globalThis.uiDebug?.log?.("getSetting blocked", { key, error: String(e) });
+    }
+    return this.safeGetStorage(key);
+  }
+
+  safeSetSetting(key, value) {
+    try {
+      window.javaBridge?.setSetting?.(key, value);
+    } catch (e) {
+      globalThis.uiDebug?.log?.("setSetting blocked", { key, error: String(e) });
+    }
+    this.safeSetStorage(key, value);
   }
 
 
@@ -528,6 +551,7 @@ class DpsApp {
     this.resetDetectBtn = document.querySelector(".resetDetectBtn");
     this.characterNameInput = document.querySelector(".characterNameInput");
     this.onlyMeCheckbox = document.querySelector(".onlyMeCheckbox");
+    this.debugLoggingCheckbox = document.querySelector(".debugLoggingCheckbox");
     this.discordButton = document.querySelector(".discordButton");
     this.quitButton = document.querySelector(".quitButton");
     this.languageSelect = document.querySelector(".languageSelect");
@@ -535,11 +559,13 @@ class DpsApp {
 
     const storedName = this.safeGetStorage(this.storageKeys.userName) || "";
     const storedOnlyShow = this.safeGetStorage(this.storageKeys.onlyShowUser) === "true";
+    const storedDebugLogging = this.safeGetSetting(this.storageKeys.debugLogging) === "true";
     const storedTargetSelection = this.safeGetStorage(this.storageKeys.targetSelection);
     const storedLanguage = this.safeGetStorage(this.storageKeys.language);
 
     this.setUserName(storedName, { persist: false, syncBackend: true });
     this.setOnlyShowUser(storedOnlyShow, { persist: false });
+    this.setDebugLogging(storedDebugLogging, { persist: false, syncBackend: true });
     this.setTargetSelection(storedTargetSelection || this.targetSelection, {
       persist: false,
       syncBackend: true,
@@ -561,6 +587,14 @@ class DpsApp {
       this.onlyMeCheckbox.addEventListener("change", (event) => {
         const isChecked = !!event.target?.checked;
         this.setOnlyShowUser(isChecked, { persist: true });
+      });
+    }
+
+    if (this.debugLoggingCheckbox) {
+      this.debugLoggingCheckbox.checked = this.debugLoggingEnabled;
+      this.debugLoggingCheckbox.addEventListener("change", (event) => {
+        const isChecked = !!event.target?.checked;
+        this.setDebugLogging(isChecked, { persist: true, syncBackend: true });
       });
     }
 
@@ -726,6 +760,19 @@ class DpsApp {
     }
     if (!this.isCollapse) {
       this.fetchDps();
+    }
+  }
+
+  setDebugLogging(enabled, { persist = false, syncBackend = false } = {}) {
+    this.debugLoggingEnabled = !!enabled;
+    if (this.debugLoggingCheckbox && document.activeElement !== this.debugLoggingCheckbox) {
+      this.debugLoggingCheckbox.checked = this.debugLoggingEnabled;
+    }
+    if (persist) {
+      this.safeSetSetting(this.storageKeys.debugLogging, String(this.debugLoggingEnabled));
+    }
+    if (syncBackend) {
+      window.javaBridge?.setDebugLoggingEnabled?.(this.debugLoggingEnabled);
     }
   }
 

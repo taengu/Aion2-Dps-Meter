@@ -44,6 +44,7 @@
     "characterName": "캐릭터 이름",
     "characterNamePlaceholder": "캐릭터 이름 입력",
     "onlyMe": "내 캐릭터만 표시",
+    "debugLogging": "디버그 로그 활성화",
     "quit": "종료",
     "discord": "💬 디스코드에서 지원 받기",
     "language": {

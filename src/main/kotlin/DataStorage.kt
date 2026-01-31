@@ -1,6 +1,7 @@
 package com.tbread
 
 import com.tbread.entity.ParsedDamagePacket
+import com.tbread.logging.DebugLogWriter
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListSet
@@ -52,9 +53,16 @@ class DataStorage {
             nickname.toByteArray(Charsets.UTF_8).size < nicknameStorage[uid]!!.toByteArray(Charsets.UTF_8).size
         ) {
             logger.debug("Nickname registration skipped {} -x> {}", nicknameStorage[uid], nickname)
+            DebugLogWriter.debug(
+                logger,
+                "Nickname registration skipped {} -x> {}",
+                nicknameStorage[uid],
+                nickname
+            )
             return
         }
         logger.debug("Nickname registered {} -> {}", nicknameStorage[uid], nickname)
+        DebugLogWriter.debug(logger, "Nickname registered {} -> {}", nicknameStorage[uid], nickname)
         nicknameStorage[uid] = nickname
     }
 

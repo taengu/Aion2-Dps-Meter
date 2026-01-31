@@ -44,6 +44,7 @@
     "characterName": "Character name",
     "characterNamePlaceholder": "Enter your character name",
     "onlyMe": "Only show my character",
+    "debugLogging": "Enable debug logging",
     "quit": "Quit",
     "discord": "💬 Get support on our Discord",
     "language": {
