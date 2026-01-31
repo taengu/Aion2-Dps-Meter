@@ -975,7 +975,8 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 TargetDecision(setOf(mostRecentTarget), resolveTargetName(mostRecentTarget), targetSelectionMode, mostRecentTarget)
             }
             TargetSelectionMode.LAST_HIT_BY_ME -> {
-                val targetId = selectTargetLastHitByMe(mostRecentTarget)
+                val fallbackTarget = if (currentTarget != 0) currentTarget else mostRecentTarget
+                val targetId = selectTargetLastHitByMe(fallbackTarget)
                 TargetDecision(setOf(targetId), resolveTargetName(targetId), targetSelectionMode, targetId)
             }
             TargetSelectionMode.ALL_TARGETS -> {
@@ -1046,6 +1047,10 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             }
         }
 
+        if (mostRecentTime < 0) {
+            return fallbackTarget
+        }
+
         if (recentCounts.size > 1) {
             val frequentTarget = recentCounts.entries.maxWithOrNull(
                 compareBy<Map.Entry<Int, Int>> { it.value }
@@ -1058,7 +1063,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             return recentCounts.keys.first()
         }
 
-        return if (mostRecentTime >= 0) mostRecentTarget else fallbackTarget
+        return mostRecentTarget
     }
 
     private fun resolveTargetName(target: Int): String {
