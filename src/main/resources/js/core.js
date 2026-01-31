@@ -704,6 +704,9 @@ class DpsApp {
   setUserName(name, { persist = false, syncBackend = false } = {}) {
     const trimmed = String(name ?? "").trim();
     this.USER_NAME = trimmed;
+    if (this.characterNameInput && document.activeElement !== this.characterNameInput) {
+      this.characterNameInput.value = trimmed;
+    }
     if (persist) {
       localStorage.setItem(this.storageKeys.userName, trimmed);
     }
