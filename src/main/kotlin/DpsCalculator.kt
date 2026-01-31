@@ -875,6 +875,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
     private var currentTarget: Int = 0
     @Volatile private var targetSelectionMode: TargetSelectionMode = TargetSelectionMode.MOST_DAMAGE
     private val targetSwitchStaleMs = 10_000L
+    private var lastLocalHitTime: Long = -1L
 
     fun setMode(mode: Mode) {
         this.mode = mode
@@ -1051,19 +1052,24 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             return fallbackTarget
         }
 
-        if (recentCounts.size > 1) {
+        if (mostRecentTime <= lastLocalHitTime) {
+            return fallbackTarget
+        }
+
+        val selectedTarget = if (recentCounts.size > 1) {
             val frequentTarget = recentCounts.entries.maxWithOrNull(
                 compareBy<Map.Entry<Int, Int>> { it.value }
                     .thenBy { recentTimes[it.key] ?: 0L }
             )?.key
-            if (frequentTarget != null) {
-                return frequentTarget
-            }
+            frequentTarget ?: mostRecentTarget
         } else if (recentCounts.size == 1) {
-            return recentCounts.keys.first()
+            recentCounts.keys.first()
+        } else {
+            mostRecentTarget
         }
 
-        return mostRecentTarget
+        lastLocalHitTime = mostRecentTime
+        return selectedTarget
     }
 
     private fun resolveTargetName(target: Int): String {
