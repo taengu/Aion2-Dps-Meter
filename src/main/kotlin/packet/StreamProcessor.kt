@@ -509,14 +509,24 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         val unknownInfo = readVarInt(packet, offset)
         if (unknownInfo.length < 0) return false
-        pdp.setUnknown(unknownInfo)
-        offset += unknownInfo.length
-        if (offset >= packet.size) return false
-
-        val damageInfo = readVarInt(packet, offset)
+        val damageInfoOffset = offset + unknownInfo.length
+        if (damageInfoOffset >= packet.size) return false
+        val damageInfo = readVarInt(packet, damageInfoOffset)
         if (damageInfo.length < 0) return false
-        pdp.setDamage(damageInfo)
-        offset += damageInfo.length
+
+        // Some packets omit the unknown field; detect that case by preferring a larger first varint
+        // when the second value is an unusually small damage (common misalignment scenario).
+        val shouldUseUnknownField =
+            damageInfo.value > 3 || unknownInfo.value <= 0xFF || unknownInfo.length <= 1
+        val resolvedUnknown = if (shouldUseUnknownField) unknownInfo else VarIntOutput(0, 0)
+        val resolvedDamage = if (shouldUseUnknownField) damageInfo else unknownInfo
+        pdp.setUnknown(resolvedUnknown)
+        pdp.setDamage(resolvedDamage)
+        offset += if (shouldUseUnknownField) {
+            unknownInfo.length + damageInfo.length
+        } else {
+            unknownInfo.length
+        }
         if (offset >= packet.size) return false
 
         val loopInfo = readVarInt(packet, offset)
