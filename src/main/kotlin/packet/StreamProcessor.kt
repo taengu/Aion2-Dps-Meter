@@ -70,7 +70,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 val damageKeyword = damageOpcodes + targetBytes
                 val dotKeyword = dotOpcodes + targetBytes
                 val damageIdx = findArrayIndex(packet, damageKeyword)
-                val dotIdx = findArrayIndex(packet,dotKeyword)
+                val dotIdx = findArrayIndex(packet, dotKeyword)
                 val (idx, handler) = when {
                     damageIdx > 0 && dotIdx > 0 -> {
                         if (damageIdx < dotIdx) damageIdx to ::parsingDamage
@@ -82,8 +82,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 }
                 if (idx > 0 && handler != null){
                     val packetLengthInfo = readVarInt(packet, idx - 1)
-                    if (packetLengthInfo.length == 1) {
-                        val startIdx = idx - 1
+                    if (packetLengthInfo.length >= 1) {
+                        val startIdx = idx - packetLengthInfo.length
                         val endIdx = idx - 1 + packetLengthInfo.value - 3
                         if (startIdx in 0..<endIdx && endIdx <= packet.size) {
                             val extractedPacket = packet.copyOfRange(startIdx, endIdx)
@@ -94,6 +94,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                                 parseBrokenLengthPacket(remainingPacket, false)
                             }
                         }
+                    } else {
+                        logUnmatchedPacket("broken packet length decode failed", packet)
                     }
                 }
             }
@@ -105,6 +107,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         }
         val newPacket = packet.copyOfRange(10, packet.size)
         onPacketReceived(newPacket)
+    }
+
+    private fun logUnmatchedPacket(reason: String, packet: ByteArray) {
+        logger.debug("Unmatched packet ({}): {}", reason, toHex(packet))
+        DebugLogWriter.debug(logger, "Unmatched packet ({}): {}", reason, toHex(packet))
     }
 
     private fun parseNicknameFromBrokenLengthPacket(packet: ByteArray) {
@@ -218,50 +225,53 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (flag) return
         flag = parseSummonPacket(packet)
         if (flag) return
-        parseDoTPacket(packet)
+        val dotMatched = parseDoTPacket(packet)
+        if (!dotMatched) {
+            logUnmatchedPacket("no matching parser", packet)
+        }
 
     }
 
-    private fun parseDoTPacket(packet:ByteArray){
+    private fun parseDoTPacket(packet: ByteArray): Boolean {
         var offset = 0
         val pdp = ParsedDamagePacket()
         pdp.setDot(true)
         val packetLengthInfo = readVarInt(packet)
-        if (packetLengthInfo.length < 0) return
+        if (packetLengthInfo.length < 0) return false
         offset += packetLengthInfo.length
 
-        if (packet[offset] != 0x05.toByte()) return
-        if (packet[offset+1] != 0x38.toByte()) return
+        if (packet[offset] != 0x05.toByte()) return false
+        if (packet[offset + 1] != 0x38.toByte()) return false
         offset += 2
-        if (packet.size < offset) return
+        if (packet.size < offset) return false
 
-        val targetInfo = readVarInt(packet,offset)
-        if (targetInfo.length < 0) return
+        val targetInfo = readVarInt(packet, offset)
+        if (targetInfo.length < 0) return false
         offset += targetInfo.length
-        if (packet.size < offset) return
+        if (packet.size < offset) return false
         pdp.setTargetId(targetInfo)
 
         offset += 1
-        if (packet.size < offset) return
+        if (packet.size < offset) return false
 
-        val actorInfo = readVarInt(packet,offset)
-        if (actorInfo.length < 0) return
-        if (actorInfo.value == targetInfo.value) return
+        val actorInfo = readVarInt(packet, offset)
+        if (actorInfo.length < 0) return false
+        if (actorInfo.value == targetInfo.value) return false
         offset += actorInfo.length
-        if (packet.size < offset) return
+        if (packet.size < offset) return false
         pdp.setActorId(actorInfo)
 
-        val unknownInfo = readVarInt(packet,offset)
-        if (unknownInfo.length <0) return
+        val unknownInfo = readVarInt(packet, offset)
+        if (unknownInfo.length < 0) return false
         offset += unknownInfo.length
 
-        val skillCode:Int = parseUInt32le(packet,offset) / 100
+        val skillCode: Int = parseUInt32le(packet, offset) / 100
         offset += 4
-        if (packet.size <= offset) return
+        if (packet.size <= offset) return false
         pdp.setSkillCode(skillCode)
 
-        val damageInfo = readVarInt(packet,offset)
-        if (damageInfo.length < 0) return
+        val damageInfo = readVarInt(packet, offset)
+        if (damageInfo.length < 0) return false
         pdp.setDamage(damageInfo)
 
         logger.debug("{}", toHex(packet))
@@ -286,7 +296,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (pdp.getActorId() != pdp.getTargetId()) {
             dataStorage.appendDamage(pdp)
         }
-
+        return true
     }
 
     private fun findArrayIndex(data: ByteArray, vararg pattern: Int): Int {
@@ -498,7 +508,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             5 -> 12
             6 -> 10
             7 -> 14
-            else -> return false
+            else -> {
+                logUnmatchedPacket("unknown switchInfo mask=$andResult", packet)
+                return false
+            }
         }
         if (start+tempV > packet.size) return false
         pdp.setSpecials(parseSpecialDamageFlags(packet.copyOfRange(start, start + tempV)))
