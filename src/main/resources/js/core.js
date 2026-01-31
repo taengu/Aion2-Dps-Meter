@@ -46,6 +46,7 @@ class DpsApp {
     this._lastRenderedRowsSignature = "";
     this._lastRenderedTargetLabel = "";
     this._lastTargetSelection = this.targetSelection;
+    this._lastRenderedRowsSummary = null;
 
     DpsApp.instance = this;
   }
@@ -236,6 +237,7 @@ class DpsApp {
     this.lastTargetName = "";
     this._lastRenderedRowsSignature = "";
     this._lastRenderedTargetLabel = "";
+    this._lastRenderedRowsSummary = null;
 
     this._battleTimeVisible = false;
     this._lastBattleTimeMs = null;
@@ -368,13 +370,17 @@ class DpsApp {
       );
       this._lastRenderedTargetLabel = nextTargetLabel;
     }
-    const rowsSignature = this.getRowsSignature(rowsToRender);
-    if (rowsSignature !== this._lastRenderedRowsSignature) {
-      const reasonText = renderReasons.length ? renderReasons.join("; ") : "payload update";
+    const rowsSummary = this.getRowsSummary(rowsToRender);
+    if (rowsSummary.signature !== this._lastRenderedRowsSignature) {
+      const changeReasons = this.describeRowsChange(rowsSummary, this._lastRenderedRowsSummary);
+      const reasonText = [...changeReasons, ...renderReasons].filter(Boolean).join("; ");
       this.logDebug(
-        `Meter list changed (${rowsToRender.length} rows). reason: ${reasonText}.`
+        `Meter list changed (${rowsToRender.length} rows). reason: ${
+          reasonText || "rows signature changed"
+        }.`
       );
-      this._lastRenderedRowsSignature = rowsSignature;
+      this._lastRenderedRowsSignature = rowsSummary.signature;
+      this._lastRenderedRowsSummary = rowsSummary;
     }
     this.meterUI.updateFromRows(rowsToRender);
   }
@@ -908,9 +914,9 @@ class DpsApp {
     if (this.onlyShowUser && this.USER_NAME) {
       rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
     }
-    const rowsSignature = this.getRowsSignature(rowsToRender);
-    if (rowsSignature !== this._lastRenderedRowsSignature) {
-      const reasons = [];
+    const rowsSummary = this.getRowsSummary(rowsToRender);
+    if (rowsSummary.signature !== this._lastRenderedRowsSignature) {
+      const reasons = this.describeRowsChange(rowsSummary, this._lastRenderedRowsSummary);
       if (!Array.isArray(this.lastSnapshot) || this.lastSnapshot.length === 0) {
         reasons.push("no snapshot available");
       } else {
@@ -920,9 +926,12 @@ class DpsApp {
         reasons.push(`filtered to user ${this.USER_NAME}`);
       }
       this.logDebug(
-        `Meter list changed (${rowsToRender.length} rows). reason: ${reasons.join("; ")}.`
+        `Meter list changed (${rowsToRender.length} rows). reason: ${
+          reasons.join("; ") || "rows signature changed"
+        }.`
       );
-      this._lastRenderedRowsSignature = rowsSignature;
+      this._lastRenderedRowsSignature = rowsSummary.signature;
+      this._lastRenderedRowsSummary = rowsSummary;
     }
     this.meterUI?.updateFromRows?.(rowsToRender);
   }
@@ -963,6 +972,50 @@ class DpsApp {
         return `${id}:${name}:${job}:${dps}:${totalDamage}:${contrib}`;
       })
       .join("|");
+  }
+
+  getRowsSummary(rows) {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    const ids = safeRows.map((row) => String(row?.id ?? "")).sort();
+    const names = safeRows.map((row) => String(row?.name ?? "")).sort();
+    return {
+      count: safeRows.length,
+      ids,
+      names,
+      signature: this.getRowsSignature(safeRows),
+    };
+  }
+
+  describeRowsChange(nextSummary, previousSummary) {
+    const reasons = [];
+    if (!previousSummary) {
+      reasons.push("initial meter render");
+      return reasons;
+    }
+    if (previousSummary.count !== nextSummary.count) {
+      reasons.push(`row count ${previousSummary.count} -> ${nextSummary.count}`);
+    }
+    const idsChanged =
+      previousSummary.ids.length !== nextSummary.ids.length ||
+      previousSummary.ids.some((id, index) => id !== nextSummary.ids[index]);
+    if (idsChanged) {
+      reasons.push("row ids changed");
+    }
+    const namesChanged =
+      previousSummary.names.length !== nextSummary.names.length ||
+      previousSummary.names.some((name, index) => name !== nextSummary.names[index]);
+    if (namesChanged && !idsChanged) {
+      reasons.push("row names changed");
+    }
+    if (
+      nextSummary.signature !== previousSummary.signature &&
+      !idsChanged &&
+      !namesChanged &&
+      previousSummary.count === nextSummary.count
+    ) {
+      reasons.push("row metrics updated");
+    }
+    return reasons;
   }
 
   logDebug(message) {
