@@ -43,6 +43,10 @@ class DpsApp {
     this.targetSelection = "mostDamage";
     this.lastTargetMode = "";
     this.lastTargetName = "";
+    this._lastRenderedListSignature = "";
+    this._lastRenderedTargetLabel = "";
+    this._lastTargetSelection = this.targetSelection;
+    this._lastRenderedRowsSummary = null;
 
     DpsApp.instance = this;
   }
@@ -95,6 +99,7 @@ class DpsApp {
     this.elList = document.querySelector(".list");
     this.elBossName = document.querySelector(".bossName");
     this.elBossName.textContent = this.getDefaultTargetLabel();
+    this._lastRenderedTargetLabel = this.elBossName.textContent;
 
     this.resetBtn = document.querySelector(".resetBtn");
     this.collapseBtn = document.querySelector(".collapseBtn");
@@ -230,6 +235,9 @@ class DpsApp {
     this.lastJson = null;
     this.lastTargetMode = "";
     this.lastTargetName = "";
+    this._lastRenderedListSignature = "";
+    this._lastRenderedTargetLabel = "";
+    this._lastRenderedRowsSummary = null;
 
     this._battleTimeVisible = false;
     this._lastBattleTimeMs = null;
@@ -242,6 +250,8 @@ class DpsApp {
     if (this.elBossName) {
       this.elBossName.textContent = this.getDefaultTargetLabel();
     }
+    this.logDebug("Target label reset: resetAll invoked.");
+    this.logDebug("Meter list reset: resetAll invoked.");
     if (callBackend) {
       window.javaBridge?.resetDps?.();
     }
@@ -279,6 +289,8 @@ class DpsApp {
 
     this.lastJson = raw;
 
+    const previousTargetName = this.lastTargetName;
+    const previousTargetMode = this.lastTargetMode;
     const { rows, targetName, targetMode, battleTimeMs } = this.buildRowsFromPayload(raw);
     this._lastBattleTimeMs = battleTimeMs;
     this.lastTargetMode = targetMode;
@@ -300,6 +312,7 @@ class DpsApp {
     }
     // 빈값은 ui 안덮어씀
     let rowsToRender = rows;
+    const listReasons = [];
     if (rows.length === 0) {
       if (this.lastSnapshot) rowsToRender = this.lastSnapshot;
       else {
@@ -328,10 +341,45 @@ class DpsApp {
 
     if (this.onlyShowUser && this.USER_NAME) {
       rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
+      listReasons.push(`filtered to user ${this.USER_NAME}`);
     }
 
     // render
-    this.elBossName.textContent = targetName ? targetName : this.getDefaultTargetLabel(targetMode);
+    const nextTargetLabel = targetName ? targetName : this.getDefaultTargetLabel(targetMode);
+    if (this.elBossName) {
+      this.elBossName.textContent = nextTargetLabel;
+    }
+    if (
+      nextTargetLabel !== this._lastRenderedTargetLabel ||
+      previousTargetName !== targetName ||
+      previousTargetMode !== targetMode
+    ) {
+      const reasons = [];
+      if (previousTargetName !== targetName || previousTargetMode !== targetMode) {
+        reasons.push("payload target changed");
+      }
+      if (!targetName) {
+        reasons.push(`default label for mode ${targetMode || "unknown"}`);
+      }
+      this.logDebug(
+        `Target label changed: "${this._lastRenderedTargetLabel}" -> "${nextTargetLabel}" (reason: ${reasons.join(
+          "; "
+        )}).`
+      );
+      this._lastRenderedTargetLabel = nextTargetLabel;
+    }
+    const rowsSummary = this.getRowsSummary(rowsToRender);
+    if (rowsSummary.listSignature !== this._lastRenderedListSignature) {
+      const changeReasons = this.describeRowsChange(rowsSummary, this._lastRenderedRowsSummary);
+      const reasonText = [...changeReasons, ...listReasons].filter(Boolean).join("; ");
+      this.logDebug(
+        `Meter list changed (${rowsToRender.length} rows). reason: ${
+          reasonText || "list membership changed"
+        }.`
+      );
+      this._lastRenderedListSignature = rowsSummary.listSignature;
+      this._lastRenderedRowsSummary = rowsSummary;
+    }
     this.meterUI.updateFromRows(rowsToRender);
   }
 
@@ -569,6 +617,7 @@ class DpsApp {
     this.setTargetSelection(storedTargetSelection || this.targetSelection, {
       persist: false,
       syncBackend: true,
+      reason: storedTargetSelection ? "restore from storage" : "default selection",
     });
     if (storedLanguage) {
       this.i18n?.setLanguage?.(storedLanguage, { persist: false });
@@ -615,7 +664,11 @@ class DpsApp {
       this.targetSelect.addEventListener("change", (event) => {
         const value = event.target?.value;
         if (value) {
-          this.setTargetSelection(value, { persist: true, syncBackend: true });
+          this.setTargetSelection(value, {
+            persist: true,
+            syncBackend: true,
+            reason: "user selection",
+          });
         }
       });
     }
@@ -776,7 +829,8 @@ class DpsApp {
     }
   }
 
-  setTargetSelection(mode, { persist = false, syncBackend = false } = {}) {
+  setTargetSelection(mode, { persist = false, syncBackend = false, reason = "update" } = {}) {
+    const previousSelection = this.targetSelection;
     this.targetSelection = mode || "mostDamage";
     if (persist) {
       localStorage.setItem(this.storageKeys.targetSelection, String(this.targetSelection));
@@ -786,6 +840,12 @@ class DpsApp {
     }
     if (this.targetSelect && document.activeElement !== this.targetSelect) {
       this.targetSelect.value = this.targetSelection;
+    }
+    if (previousSelection !== this.targetSelection) {
+      this.logDebug(
+        `Target selection changed: "${previousSelection}" -> "${this.targetSelection}" (reason: ${reason}).`
+      );
+      this._lastTargetSelection = this.targetSelection;
     }
   }
 
@@ -852,6 +912,25 @@ class DpsApp {
     if (this.onlyShowUser && this.USER_NAME) {
       rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
     }
+    const rowsSummary = this.getRowsSummary(rowsToRender);
+    if (rowsSummary.listSignature !== this._lastRenderedListSignature) {
+      const reasons = this.describeRowsChange(rowsSummary, this._lastRenderedRowsSummary);
+      if (!Array.isArray(this.lastSnapshot) || this.lastSnapshot.length === 0) {
+        reasons.push("no snapshot available");
+      } else {
+        reasons.push("renderCurrentRows refresh");
+      }
+      if (this.onlyShowUser && this.USER_NAME) {
+        reasons.push(`filtered to user ${this.USER_NAME}`);
+      }
+      this.logDebug(
+        `Meter list changed (${rowsToRender.length} rows). reason: ${
+          reasons.join("; ") || "list membership changed"
+        }.`
+      );
+      this._lastRenderedListSignature = rowsSummary.listSignature;
+      this._lastRenderedRowsSummary = rowsSummary;
+    }
     this.meterUI?.updateFromRows?.(rowsToRender);
   }
 
@@ -876,6 +955,51 @@ class DpsApp {
       : this.i18n?.t("connection.auto", "Auto");
     this.lockedIp.textContent = ip;
     this.lockedPort.textContent = port;
+  }
+
+  getRowsSummary(rows) {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    const ids = safeRows.map((row) => String(row?.id ?? "")).sort();
+    const names = safeRows.map((row) => String(row?.name ?? "")).sort();
+    return {
+      count: safeRows.length,
+      ids,
+      names,
+      listSignature: ids.join("|"),
+    };
+  }
+
+  describeRowsChange(nextSummary, previousSummary) {
+    const reasons = [];
+    if (!previousSummary) {
+      reasons.push("initial meter render");
+      return reasons;
+    }
+    if (previousSummary.count !== nextSummary.count) {
+      reasons.push(`row count ${previousSummary.count} -> ${nextSummary.count}`);
+    }
+    const idsChanged =
+      previousSummary.ids.length !== nextSummary.ids.length ||
+      previousSummary.ids.some((id, index) => id !== nextSummary.ids[index]);
+    if (idsChanged) {
+      reasons.push("row ids changed");
+    }
+    const namesChanged =
+      previousSummary.names.length !== nextSummary.names.length ||
+      previousSummary.names.some((name, index) => name !== nextSummary.names[index]);
+    if (namesChanged && !idsChanged) {
+      reasons.push("row names changed");
+    }
+    return reasons;
+  }
+
+  logDebug(message) {
+    if (!message) return;
+    try {
+      window.javaBridge?.logDebug?.(String(message));
+    } catch (e) {
+      globalThis.uiDebug?.log?.("logDebug blocked", { message: String(message), error: String(e) });
+    }
   }
 
   getDefaultTargetLabel(targetMode = "") {
