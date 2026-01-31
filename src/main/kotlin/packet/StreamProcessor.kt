@@ -188,14 +188,19 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     }
                 }
             }
-            val pattern3ScanEnd = minOf(packet.size - 2, innerOffset + 20)
+            val pattern3ScanEnd = minOf(packet.size - 4, innerOffset + 20)
             var scanOffset = innerOffset + 1
             while (scanOffset <= pattern3ScanEnd) {
-                if (packet[scanOffset] == 0x03.toByte() && packet[scanOffset - 1] == 0xF8.toByte()) {
-                    val possibleNameLength = packet[scanOffset + 1].toInt() and 0xff
-                    if (possibleNameLength in 3..72 && scanOffset + 2 + possibleNameLength <= packet.size) {
+                if (packet[scanOffset] == 0x01.toByte() &&
+                    packet[scanOffset + 1] == 0x07.toByte() &&
+                    packet[scanOffset + 2] == 0x00.toByte()
+                ) {
+                    val possibleNameLength = parseUInt16le(packet, scanOffset + 1)
+                    if (possibleNameLength in 3..72 &&
+                        scanOffset + 3 + possibleNameLength <= packet.size
+                    ) {
                         val possibleNameBytes =
-                            packet.copyOfRange(scanOffset + 2, scanOffset + 2 + possibleNameLength)
+                            packet.copyOfRange(scanOffset + 3, scanOffset + 3 + possibleNameLength)
                         val possibleName = String(possibleNameBytes, Charsets.UTF_8)
                         val sanitizedName = sanitizeNickname(possibleName)
                         if (sanitizedName != null) {
