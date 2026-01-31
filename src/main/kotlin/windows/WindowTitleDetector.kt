@@ -43,6 +43,11 @@ object WindowTitleDetector {
                 true
             }
             User32.INSTANCE.EnumWindows(callback, Pointer.NULL)
+            if (result != null) {
+                logger.info("Detected AION2 window title: {}", result)
+            } else {
+                logger.info("AION2 window title not found.")
+            }
             result
         } catch (e: Exception) {
             logger.debug("Failed to detect AION2 window title", e)
