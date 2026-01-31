@@ -73,11 +73,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 val dotIdx = findArrayIndex(packet,dotKeyword)
                 val (idx, handler) = when {
                     damageIdx > 0 && dotIdx > 0 -> {
-                        if (damageIdx < dotIdx) damageIdx to ::parsingDamage
-                        else dotIdx to ::parseDoTPacket
+                        if (damageIdx < dotIdx) damageIdx to { slice: ByteArray -> parsingDamage(slice) }
+                        else dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
                     }
-                    damageIdx > 0 -> damageIdx to ::parsingDamage
-                    dotIdx > 0 -> dotIdx to ::parseDoTPacket
+                    damageIdx > 0 -> damageIdx to { slice: ByteArray -> parsingDamage(slice) }
+                    dotIdx > 0 -> dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
                     else -> -1 to null
                 }
                 processed = processBrokenPacketSlice(packet, idx, handler)
@@ -87,11 +87,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 val dotIdx = findArrayIndex(packet, byteArrayOf(0x05, 0x38))
                 val (idx, handler) = when {
                     damageIdx > 0 && dotIdx > 0 -> {
-                        if (damageIdx < dotIdx) damageIdx to ::parsingDamage
-                        else dotIdx to ::parseDoTPacket
+                        if (damageIdx < dotIdx) damageIdx to { slice: ByteArray -> parsingDamage(slice) }
+                        else dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
                     }
-                    damageIdx > 0 -> damageIdx to ::parsingDamage
-                    dotIdx > 0 -> dotIdx to ::parseDoTPacket
+                    damageIdx > 0 -> damageIdx to { slice: ByteArray -> parsingDamage(slice) }
+                    dotIdx > 0 -> dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
                     else -> -1 to null
                 }
                 processed = processBrokenPacketSlice(packet, idx, handler)
@@ -109,7 +109,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun processBrokenPacketSlice(
         packet: ByteArray,
         idx: Int,
-        handler: ((ByteArray) -> Unit)?
+        handler: ((ByteArray) -> Boolean)?
     ): Boolean {
         if (idx <= 0 || handler == null) return false
         val packetLengthInfo = readVarInt(packet, idx - 1)
@@ -118,12 +118,12 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val endIdx = idx - 1 + packetLengthInfo.value - 3
         if (startIdx !in 0..<endIdx || endIdx > packet.size) return false
         val extractedPacket = packet.copyOfRange(startIdx, endIdx)
-        handler(extractedPacket)
-        if (endIdx < packet.size) {
+        val handled = handler(extractedPacket)
+        if (handled && endIdx < packet.size) {
             val remainingPacket = packet.copyOfRange(endIdx, packet.size)
             parseBrokenLengthPacket(remainingPacket, false)
         }
-        return true
+        return handled
     }
 
     private fun parseNicknameFromBrokenLengthPacket(packet: ByteArray) {
