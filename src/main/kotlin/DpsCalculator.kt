@@ -1010,12 +1010,10 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             val possibleOrigin = skillCode - offset
             if (SKILL_CODES.binarySearch(possibleOrigin) >= 0) {
                 logger.debug("Inferred original skill code: {}", possibleOrigin)
-                DebugLogWriter.debug(logger, "Inferred original skill code: {}", possibleOrigin)
                 return possibleOrigin
             }
         }
         logger.debug("Failed to infer skill code")
-        DebugLogWriter.debug(logger, "Failed to infer skill code")
         return null
     }
 
