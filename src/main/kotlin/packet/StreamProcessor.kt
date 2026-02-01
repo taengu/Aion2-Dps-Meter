@@ -622,6 +622,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun scanMarkerNicknames(packet: ByteArray): Boolean {
+        if (scanMarkerNicknamesInPacket(packet)) return true
         var found = false
         var searchOffset = 0
         while (searchOffset <= packet.size - packetStartMarker.size) {
