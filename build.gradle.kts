@@ -56,6 +56,7 @@ compose.desktop {
         nativeDistributions {
             windows{
                 includeAllModules = true
+                iconFile.set(project.file("src/main/resources/icon.ico"))
             }
             targetFormats(TargetFormat.Msi)
             packageName = "aion2meter-tw"
