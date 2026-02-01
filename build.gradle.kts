@@ -56,12 +56,12 @@ compose.desktop {
         nativeDistributions {
             windows{
                 includeAllModules = true
-                installerOptions.add("--win-uac-admin")
             }
             targetFormats(TargetFormat.Msi)
             packageName = "aion2meter-tw"
             packageVersion = "0.1.5"
             copyright = "Copyright 2026 Taengu Licensed under MIT License"
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("appResources"))
         }
 
 
