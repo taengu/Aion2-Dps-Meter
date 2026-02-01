@@ -732,7 +732,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 continue
             }
             val info = readVarInt(bytes, start)
-            if (info.length > 0 && start + info.length == markerOffset) {
+            if (info.length == 2 && start + info.length == markerOffset) {
                 return info
             }
         }
