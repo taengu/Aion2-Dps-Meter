@@ -16,9 +16,20 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     fun onPacketReceived(packet: ByteArray) {
         val packetLengthInfo = readVarInt(packet)
-        if (packetLengthInfo.length < 0) return
+        if (packetLengthInfo.length < 0) {
+            logger.warn("Broken packet: failed to read varint length {}", toHex(packet))
+            return
+        }
         val packetSize = computePacketSize(packetLengthInfo)
-        if (packetSize <= 0) return
+        if (packetSize <= 0) {
+            logger.warn(
+                "Broken packet: invalid computed size {} from length {} (varint length {})",
+                packetSize,
+                packetLengthInfo.value,
+                packetLengthInfo.length
+            )
+            return
+        }
         if (packet.size == packetSize) {
             logger.trace(
                 "Current byte length matches expected length: {}",
@@ -31,7 +42,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (packet.size <= 3) return
         // 매직패킷 단일로 올때 무시
         if (packetSize > packet.size) {
-            logger.trace("Current byte length is shorter than expected: {}", toHex(packet))
+            logger.warn("Broken packet: current byte length is shorter than expected: {}", toHex(packet))
             val resyncIdx = findArrayIndex(packet, packetStartMarker)
             if (resyncIdx > 0) {
                 onPacketReceived(packet.copyOfRange(resyncIdx, packet.size))
@@ -39,10 +50,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 parseBrokenLengthPacket(packet)
             }
             //길이헤더가 실제패킷보다 김 보통 여기 닉네임이 몰려있는듯?
-            return
-        }
-        if (packetSize <= 3) {
-            onPacketReceived(packet.copyOfRange(1, packet.size))
             return
         }
 
@@ -68,6 +75,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun parseBrokenLengthPacket(packet: ByteArray, flag: Boolean = true) {
+        logger.warn("Broken packet buffer detected: {}", toHex(packet))
         if (packet[2] != 0xff.toByte() || packet[3] != 0xff.toByte()) {
             logger.trace("Remaining packet buffer: {}", toHex(packet))
             val target = dataStorage.getCurrentTarget()
