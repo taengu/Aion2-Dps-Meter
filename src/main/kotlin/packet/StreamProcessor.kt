@@ -253,10 +253,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun parsePerfectPacket(packet: ByteArray) {
         if (packet.size < 3) return
         var flag = parsingDamage(packet)
-        if (flag) {
-            scanMarkerNicknames(packet)
-            return
-        }
+        if (flag) return
         flag = parsingNickname(packet)
         if (flag) return
         flag = parseSummonPacket(packet)
@@ -613,6 +610,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             //혹시 나중에 자기자신에게 데미지주는 보스 기믹이 나오면..
             dataStorage.appendDamage(pdp)
         }
+        scanMarkerNicknames(packet)
         return true
 
     }
