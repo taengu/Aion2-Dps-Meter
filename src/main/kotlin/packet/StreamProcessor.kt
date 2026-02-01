@@ -12,6 +12,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     data class VarIntOutput(val value: Int, val length: Int)
 
     private val mask = 0x0f
+    private val recentTargetWindowMs = 5_000L
+    private var lastNonCombinedTargetId: Int? = null
+    private var lastNonCombinedTargetAt: Long = 0
 
     fun onPacketReceived(packet: ByteArray) {
         val packetLengthInfo = readVarInt(packet)
@@ -112,7 +115,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private data class CombinedParseAttempt(
         val startOffset: Int,
         val parsed: List<ParsedDamagePacket>,
-        val matchedActors: Int
+        val matchedActors: Int,
+        val validSkillCodes: Int
     )
 
     private fun parseCombinedDamagePacket(packet: ByteArray): Boolean {
@@ -129,6 +133,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (targetInfo.length < 0) return false
         offset += targetInfo.length
         if (offset + 1 >= packet.size) return false
+        if (!isRecentTarget(targetInfo.value)) return false
         val markerSearchEnd = if (packet.size < offset + 8) packet.size else offset + 8
         val markerRelativeIdx = findArrayIndex(packet.copyOfRange(offset, markerSearchEnd), 0xff, 0xff)
         if (markerRelativeIdx == -1) return false
@@ -146,37 +151,45 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             } else {
                 parsed.count { knownActors.contains(it.getActorId()) }
             }
-            attempts.add(CombinedParseAttempt(probeOffset, parsed, matched))
+            val validSkillCodes = parsed.count { isValidSkillCode(it.getSkillCode1()) }
+            attempts.add(CombinedParseAttempt(probeOffset, parsed, matched, validSkillCodes))
         }
 
         attempts.forEach { attempt ->
             val actorList = attempt.parsed.joinToString(limit = 6, truncated = "…") { it.getActorId().toString() }
+            val skillList = attempt.parsed.joinToString(limit = 6, truncated = "…") { it.getSkillCode1().toString() }
             DebugLogWriter.debug(
                 logger,
-                "FF FF combined probe offset {} target {} matched {} actors [{}]",
+                "FF FF combined probe offset {} target {} matched {} actors [{}] valid skills {} [{}]",
                 attempt.startOffset,
                 targetInfo.value,
                 attempt.matchedActors,
-                actorList
+                actorList,
+                attempt.validSkillCodes,
+                skillList
             )
         }
 
         val bestAttempt = attempts.maxWithOrNull(
-            compareBy<CombinedParseAttempt> { it.matchedActors }.thenBy { it.parsed.size }
+            compareBy<CombinedParseAttempt> { it.validSkillCodes }
+                .thenBy { it.matchedActors }
+                .thenBy { it.parsed.size }
         ) ?: return false
 
-        val hasMatches = if (knownActors.isEmpty()) bestAttempt.parsed.isNotEmpty() else bestAttempt.matchedActors > 0
-        if (!hasMatches) {
+        val hasValidSkills = bestAttempt.validSkillCodes > 0
+        val hasActorMatches =
+            if (knownActors.isEmpty()) bestAttempt.parsed.isNotEmpty() else bestAttempt.matchedActors > 0
+        if (!hasActorMatches || !hasValidSkills) {
             DebugLogWriter.debug(
                 logger,
-                "FF FF combined packet parsed no confident attackers (target {})",
+                "FF FF combined packet parsed no confident attackers/skills (target {})",
                 targetInfo.value
             )
             return true
         }
 
         bestAttempt.parsed.forEach { pdp ->
-            if (pdp.getActorId() != pdp.getTargetId()) {
+            if (pdp.getActorId() != pdp.getTargetId() && isValidSkillCode(pdp.getSkillCode1())) {
                 dataStorage.appendDamage(pdp)
             }
         }
@@ -266,6 +279,22 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         offset += loopInfo.length
 
         return DamageSegmentResult(pdp, offset)
+    }
+
+    private fun updateRecentTarget(targetId: Int) {
+        lastNonCombinedTargetId = targetId
+        lastNonCombinedTargetAt = System.currentTimeMillis()
+    }
+
+    private fun isRecentTarget(targetId: Int): Boolean {
+        val lastTarget = lastNonCombinedTargetId ?: return false
+        if (lastTarget != targetId) return false
+        return System.currentTimeMillis() - lastNonCombinedTargetAt <= recentTargetWindowMs
+    }
+
+    private fun isValidSkillCode(skillCode: Int): Boolean {
+        if (skillCode <= 0) return false
+        return skillCode != -1
     }
 
     private fun parseDoTPacket(packet:ByteArray){
@@ -616,6 +645,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             //혹시 나중에 자기자신에게 데미지주는 보스 기믹이 나오면..
             dataStorage.appendDamage(pdp)
         }
+        updateRecentTarget(pdp.getTargetId())
         return true
 
     }
