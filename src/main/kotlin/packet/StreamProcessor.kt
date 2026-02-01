@@ -259,6 +259,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val possibleName = String(possibleNameBytes, Charsets.UTF_8)
             val sanitizedName = sanitizeNickname(possibleName) ?: continue
             val actorInfo = findVarIntEndingAtOffset(packet, offset)
+            if (knownActorId != null && actorInfo?.value != knownActorId) continue
             candidates.add(offset to sanitizedName)
 
             if (actorInfo != null) {
