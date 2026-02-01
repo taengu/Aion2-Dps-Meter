@@ -18,4 +18,38 @@ object LocalPlayer {
      */
     @Volatile
     var playerId: Long? = null
+
+    /**
+     * User-provided actor ID for debugging/association purposes.
+     */
+    @Volatile
+    var knownActorId: Int? = null
+
+    /**
+     * User-provided nickname for debugging/association purposes.
+     */
+    @Volatile
+    var knownNickname: String? = null
+
+    data class KnownIdentity(val actorId: Int?, val nickname: String?)
+
+    fun loadKnownIdentity(): KnownIdentity {
+        val actorId = PropertyHandler.getProperty("player.knownActorId")?.toIntOrNull()
+        val nickname = PropertyHandler.getProperty("player.knownNickname")?.trim()?.takeIf { it.isNotEmpty() }
+
+        if (actorId != null) {
+            knownActorId = actorId
+            if (playerId == null) {
+                playerId = actorId.toLong()
+            }
+        }
+        if (nickname != null) {
+            knownNickname = nickname
+            if (characterName == null) {
+                characterName = nickname
+            }
+        }
+
+        return KnownIdentity(actorId, nickname)
+    }
 }

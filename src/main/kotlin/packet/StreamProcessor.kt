@@ -14,6 +14,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private val mask = 0x0f
 
     fun onPacketReceived(packet: ByteArray) {
+        deepInspectPacket(packet)
         val packetLengthInfo = readVarInt(packet)
         if (packet.size == packetLengthInfo.value) {
             logger.trace(
@@ -239,6 +240,141 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (flag) return
         parseDoTPacket(packet)
 
+    }
+
+    private fun deepInspectPacket(packet: ByteArray) {
+        val knownActorId = LocalPlayer.knownActorId
+        val knownNickname = LocalPlayer.knownNickname
+        if (knownActorId == null && knownNickname == null) return
+
+        val candidates = mutableSetOf<Pair<Int, String>>()
+        val maxLength = 72
+        val minLength = 3
+        for (offset in 0 until packet.size) {
+            val length = packet[offset].toInt() and 0xff
+            if (length < minLength || length > maxLength) continue
+            if (offset + 1 + length > packet.size) continue
+
+            val possibleNameBytes = packet.copyOfRange(offset + 1, offset + 1 + length)
+            val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+            val sanitizedName = sanitizeNickname(possibleName) ?: continue
+            val actorInfo = findVarIntEndingAtOffset(packet, offset)
+            candidates.add(offset to sanitizedName)
+
+            if (actorInfo != null) {
+                logger.debug(
+                    "Deep inspect candidate actor {} name {} offset {} context {}",
+                    actorInfo.value,
+                    sanitizedName,
+                    offset,
+                    toHex(sliceAround(packet, offset))
+                )
+                DebugLogWriter.debug(
+                    logger,
+                    "Deep inspect candidate actor {} name {} offset {} context {}",
+                    actorInfo.value,
+                    sanitizedName,
+                    offset,
+                    toHex(sliceAround(packet, offset))
+                )
+                val matchesKnownActor = knownActorId != null && actorInfo.value == knownActorId
+                val matchesKnownNickname = knownNickname != null && sanitizedName == knownNickname
+                if (matchesKnownActor || matchesKnownNickname) {
+                    dataStorage.appendNickname(actorInfo.value, sanitizedName)
+                    logger.info(
+                        "Deep inspect nickname match actor {} name {} offset {} context {}",
+                        actorInfo.value,
+                        sanitizedName,
+                        offset,
+                        toHex(sliceAround(packet, offset))
+                    )
+                    DebugLogWriter.info(
+                        logger,
+                        "Deep inspect nickname match actor {} name {} offset {} context {}",
+                        actorInfo.value,
+                        sanitizedName,
+                        offset,
+                        toHex(sliceAround(packet, offset))
+                    )
+                }
+            }
+        }
+
+        if (knownActorId != null) {
+            val actorBytes = convertVarInt(knownActorId)
+            val actorIdx = findArrayIndex(packet, actorBytes)
+            if (actorIdx >= 0) {
+                logger.info(
+                    "Deep inspect known actor id {} found at offset {} context {}",
+                    knownActorId,
+                    actorIdx,
+                    toHex(sliceAround(packet, actorIdx))
+                )
+                DebugLogWriter.info(
+                    logger,
+                    "Deep inspect known actor id {} found at offset {} context {}",
+                    knownActorId,
+                    actorIdx,
+                    toHex(sliceAround(packet, actorIdx))
+                )
+            }
+        }
+
+        if (knownNickname != null && candidates.isNotEmpty()) {
+            val matches = candidates.filter { it.second == knownNickname }
+            for ((offset, nickname) in matches) {
+                logger.info(
+                    "Deep inspect known nickname {} found at offset {} context {}",
+                    nickname,
+                    offset,
+                    toHex(sliceAround(packet, offset))
+                )
+                DebugLogWriter.info(
+                    logger,
+                    "Deep inspect known nickname {} found at offset {} context {}",
+                    nickname,
+                    offset,
+                    toHex(sliceAround(packet, offset))
+                )
+            }
+        }
+    }
+
+    private fun findVarIntEndingAtOffset(packet: ByteArray, offset: Int): VarIntOutput? {
+        val maxLookback = 5
+        val start = (offset - maxLookback).coerceAtLeast(0)
+        for (idx in offset - 1 downTo start) {
+            val info = tryReadVarInt(packet, idx) ?: continue
+            if (idx + info.length == offset) return info
+        }
+        return null
+    }
+
+    private fun tryReadVarInt(bytes: ByteArray, offset: Int = 0): VarIntOutput? {
+        var value = 0
+        var shift = 0
+        var count = 0
+        while (true) {
+            if (offset + count >= bytes.size) {
+                return null
+            }
+            val byteVal = bytes[offset + count].toInt() and 0xff
+            count++
+            value = value or (byteVal and 0x7F shl shift)
+            if ((byteVal and 0x80) == 0) {
+                return VarIntOutput(value, count)
+            }
+            shift += 7
+            if (shift >= 32) {
+                return null
+            }
+        }
+    }
+
+    private fun sliceAround(packet: ByteArray, offset: Int, radius: Int = 24): ByteArray {
+        val start = (offset - radius).coerceAtLeast(0)
+        val end = (offset + radius).coerceAtMost(packet.size)
+        return packet.copyOfRange(start, end)
     }
 
     private fun parseDoTPacket(packet:ByteArray){

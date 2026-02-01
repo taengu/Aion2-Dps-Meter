@@ -60,6 +60,19 @@ Clicking a player row opens detailed statistics.
 
 > **Hit count** refers to **successful hits**, not skill casts.
 
+## Advanced settings (optional)
+
+You can add the following entries to `settings.properties` (next to the executable) to help
+identify names when detection is failing:
+
+```properties
+# Optional: known player identity for deep packet inspection
+player.knownActorId=1234567
+player.knownNickname=YourNickname
+```
+
+When set, the meter will use these values to try to associate actor IDs with nicknames during
+deep packet inspection, and will log matching contexts when debug logging is enabled.
 
 ## Build Instructions
 > ⚠️ **Regular users do NOT need to build the project.**  
