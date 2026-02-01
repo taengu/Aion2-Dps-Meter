@@ -12,44 +12,60 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     data class VarIntOutput(val value: Int, val length: Int)
 
     private val mask = 0x0f
+    private val packetStartMarker = byteArrayOf(0x06, 0x00, 0x36)
 
     fun onPacketReceived(packet: ByteArray) {
         val packetLengthInfo = readVarInt(packet)
-        if (packet.size == packetLengthInfo.value) {
+        if (packetLengthInfo.length < 0) {
+            logger.warn("Broken packet: failed to read varint length {}", toHex(packet))
+            return
+        }
+        val packetSize = computePacketSize(packetLengthInfo)
+        if (packetSize <= 0) {
+            logger.warn(
+                "Broken packet: invalid computed size {} from length {} (varint length {})",
+                packetSize,
+                packetLengthInfo.value,
+                packetLengthInfo.length
+            )
+            return
+        }
+        if (packet.size == packetSize) {
             logger.trace(
                 "Current byte length matches expected length: {}",
-                toHex(packet.copyOfRange(0, packet.size - 3))
+                toHex(packet.copyOfRange(0, packetSize))
             )
-            parsePerfectPacket(packet.copyOfRange(0, packet.size - 3))
+            parsePerfectPacket(packet.copyOfRange(0, packetSize))
             //더이상 자를필요가 없는 최종 패킷뭉치
             return
         }
         if (packet.size <= 3) return
         // 매직패킷 단일로 올때 무시
-        if (packetLengthInfo.value > packet.size) {
-            logger.trace("Current byte length is shorter than expected: {}", toHex(packet))
-            parseBrokenLengthPacket(packet)
+        if (packetSize > packet.size) {
+            logger.warn("Broken packet: current byte length is shorter than expected: {}", toHex(packet))
+            val resyncIdx = findArrayIndex(packet, packetStartMarker)
+            if (resyncIdx > 0) {
+                onPacketReceived(packet.copyOfRange(resyncIdx, packet.size))
+            } else {
+                parseBrokenLengthPacket(packet)
+            }
             //길이헤더가 실제패킷보다 김 보통 여기 닉네임이 몰려있는듯?
-            return
-        }
-        if (packetLengthInfo.value <= 3) {
-            onPacketReceived(packet.copyOfRange(1, packet.size))
             return
         }
 
         try {
-            if (packet.copyOfRange(0, packetLengthInfo.value - 3).size != 3) {
-                if (packet.copyOfRange(0, packetLengthInfo.value - 3).isNotEmpty()) {
+            if (packet.copyOfRange(0, packetSize).size != 3) {
+                if (packet.copyOfRange(0, packetSize).isNotEmpty()) {
                     logger.trace(
                         "Packet split succeeded: {}",
-                        toHex(packet.copyOfRange(0, packetLengthInfo.value - 3))
+                        toHex(packet.copyOfRange(0, packetSize))
                     )
-                    parsePerfectPacket(packet.copyOfRange(0, packetLengthInfo.value - 3))
+                    parsePerfectPacket(packet.copyOfRange(0, packetSize))
                     //매직패킷이 빠져있는 패킷뭉치
                 }
             }
 
-            onPacketReceived(packet.copyOfRange(packetLengthInfo.value - 3, packet.size))
+            onPacketReceived(packet.copyOfRange(packetSize, packet.size))
             //남은패킷 재처리
         } catch (e: Exception) {
             logger.error("Exception while consuming packet {}", toHex(packet), e)
@@ -59,6 +75,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun parseBrokenLengthPacket(packet: ByteArray, flag: Boolean = true) {
+        logger.warn("Broken packet buffer detected: {}", toHex(packet))
         if (packet[2] != 0xff.toByte() || packet[3] != 0xff.toByte()) {
             logger.trace("Remaining packet buffer: {}", toHex(packet))
             val target = dataStorage.getCurrentTarget()
@@ -115,7 +132,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val packetLengthInfo = readVarInt(packet, idx - 1)
         if (packetLengthInfo.length != 1) return false
         val startIdx = idx - 1
-        val endIdx = idx - 1 + packetLengthInfo.value - 3
+        val packetSize = computePacketSize(packetLengthInfo)
+        if (packetSize <= 0) return false
+        val endIdx = startIdx + packetSize
         if (startIdx !in 0..<endIdx || endIdx > packet.size) return false
         val extractedPacket = packet.copyOfRange(startIdx, endIdx)
         val handled = handler(extractedPacket)
@@ -596,6 +615,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun toHex(bytes: ByteArray): String {
         //출력테스트용
         return bytes.joinToString(" ") { "%02X".format(it) }
+    }
+
+    private fun computePacketSize(info: VarIntOutput): Int {
+        return info.value + info.length - 4
     }
 
     private fun readVarInt(bytes: ByteArray, offset: Int = 0): VarIntOutput {
