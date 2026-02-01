@@ -643,7 +643,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         var found = false
         var offset = 0
         while (offset + 3 < packet.size) {
-            val actorInfo = readVarInt(packet, offset)
+            val actorInfo = readTwoByteVarInt(packet, offset)
             if (actorInfo.length != 2 || actorInfo.value < 1000) {
                 offset++
                 continue
@@ -749,10 +749,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val maxBacktrack = min(8, opcodeOffset)
         for (backtrack in 2..maxBacktrack) {
             val start = opcodeOffset - backtrack
-            val info = readVarInt(packet, start)
-                if (info.length == 2 && start + info.length == opcodeOffset) {
-                    return info
-                }
+            val info = readTwoByteVarInt(packet, start)
+            if (info.length == 2 && start + info.length == opcodeOffset) {
+                return info
+            }
         }
         return VarIntOutput(-1, -1)
     }
@@ -812,12 +812,21 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val expectedLength = 2
         if (markerOffset < expectedLength) return VarIntOutput(-1, -1)
         val start = markerOffset - expectedLength
-        val info = readVarInt(bytes, start)
+        val info = readTwoByteVarInt(bytes, start)
         return if (info.length == expectedLength && start + info.length == markerOffset) {
             info
         } else {
             VarIntOutput(-1, -1)
         }
+    }
+
+    private fun readTwoByteVarInt(bytes: ByteArray, offset: Int): VarIntOutput {
+        if (offset < 0 || offset + 1 >= bytes.size) return VarIntOutput(-1, -1)
+        val b0 = bytes[offset].toInt() and 0xff
+        val b1 = bytes[offset + 1].toInt() and 0xff
+        if ((b0 and 0x80) == 0 || (b1 and 0x80) != 0) return VarIntOutput(-1, -1)
+        val value = (b0 and 0x7f) or ((b1 and 0x7f) shl 7)
+        return VarIntOutput(value, 2)
     }
 
     private fun computePacketSize(info: VarIntOutput): Int {
