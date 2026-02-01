@@ -652,40 +652,46 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         var markerOffset = 0
         while (markerOffset + 2 < packet.size) {
             if (packet[markerOffset] == 0xF8.toByte() &&
-                packet[markerOffset + 1] == 0x03.toByte() &&
-                packet[markerOffset + 2] == 0x06.toByte()
+                packet[markerOffset + 1] == 0x03.toByte()
             ) {
+                val nicknameLength = packet[markerOffset + 2].toInt() and 0xff
                 val actorInfo = decodeVarIntBeforeMarker(packet, markerOffset)
+                val actorIdLe = if (markerOffset >= 2) parseUInt16le(packet, markerOffset - 2) else -1
+                val actorId = when {
+                    actorInfo.length > 0 && actorInfo.length == 2 && actorIdLe != actorInfo.value -> actorIdLe
+                    actorInfo.length > 0 -> actorInfo.value
+                    actorIdLe > 0 -> actorIdLe
+                    else -> -1
+                }
                 val nicknameStart = markerOffset + 3
-                if (actorInfo.length > 0 && nicknameStart < packet.size) {
-                    var nicknameEnd = nicknameStart
-                    while (nicknameEnd < packet.size && packet[nicknameEnd] != 0x00.toByte()) {
-                        nicknameEnd++
-                    }
-                    if (nicknameEnd > nicknameStart) {
-                        val possibleNameBytes = packet.copyOfRange(nicknameStart, nicknameEnd)
-                        val possibleName = String(possibleNameBytes, Charsets.UTF_8)
-                        val sanitizedName = sanitizeNickname(possibleName)
-                        if (sanitizedName != null) {
-                            logger.info(
-                                "Marker nickname mapped: actor={} nickname={}",
-                                actorInfo.value,
-                                sanitizedName
-                            )
-                            logger.info(
-                                "Potential nickname found in marker pattern: {} (hex={})",
-                                sanitizedName,
-                                toHex(possibleNameBytes)
-                            )
-                            DebugLogWriter.info(
-                                logger,
-                                "Potential nickname found in marker pattern: {} (hex={})",
-                                sanitizedName,
-                                toHex(possibleNameBytes)
-                            )
-                            dataStorage.appendNickname(actorInfo.value, sanitizedName)
-                            found = true
-                        }
+                val nicknameEnd = nicknameStart + nicknameLength
+                if (actorId > 0 &&
+                    nicknameLength > 0 &&
+                    nicknameStart < packet.size &&
+                    nicknameEnd <= packet.size
+                ) {
+                    val possibleNameBytes = packet.copyOfRange(nicknameStart, nicknameEnd)
+                    val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+                    val sanitizedName = sanitizeNickname(possibleName)
+                    if (sanitizedName != null) {
+                        logger.info(
+                            "Marker nickname mapped: actor={} nickname={}",
+                            actorId,
+                            sanitizedName
+                        )
+                        logger.info(
+                            "Potential nickname found in marker pattern: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        DebugLogWriter.info(
+                            logger,
+                            "Potential nickname found in marker pattern: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        dataStorage.appendNickname(actorId, sanitizedName)
+                        found = true
                     }
                 }
             }
