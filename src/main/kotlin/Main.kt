@@ -2,6 +2,7 @@ package com.tbread
 
 import com.tbread.config.PcapCapturerConfig
 import com.tbread.packet.*
+import com.tbread.windows.NpcapInstaller
 import com.tbread.webview.BrowserApp
 import javafx.application.Platform
 import javafx.stage.Stage
@@ -17,6 +18,7 @@ fun main() = runBlocking {
     }
 
     WindowsFirewallListener.openOnStartup()
+    NpcapInstaller.ensureInstalled()
 
     val channel = Channel<CapturedPayload>(Channel.UNLIMITED)
     val config = PcapCapturerConfig.loadFromProperties()

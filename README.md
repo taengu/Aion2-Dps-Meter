@@ -18,8 +18,8 @@ A combat analysis (DPS meter) tool for **AION 2**. Lovingly forked from [Aion2-D
 ## Usage
 
 1. Install **Npcap**:  
-   https://npcap.com/#download  
-   - You **must** check **“Install Npcap in WinPcap API-compatible Mode”**
+   - The Windows installer bundles Npcap and will launch it automatically if it is missing.
+   - If you install manually, download from https://npcap.com/#download and check **“Install Npcap in WinPcap API-compatible Mode”**
 
 2. Download the latest release and install:  
    👉 https://github.com/taengu/Aion2-Dps-Meter/releases

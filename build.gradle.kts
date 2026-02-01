@@ -54,6 +54,7 @@ compose.desktop {
 
 
         nativeDistributions {
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("installer-resources"))
             windows{
                 includeAllModules = true
             }
