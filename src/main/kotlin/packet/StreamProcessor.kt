@@ -656,16 +656,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             ) {
                 val nicknameLength = packet[markerOffset + 2].toInt() and 0xff
                 val actorInfo = decodeVarIntBeforeMarker(packet, markerOffset)
-                val actorIdLe = if (markerOffset >= 2) parseUInt16le(packet, markerOffset - 2) else -1
-                val actorId = when {
-                    actorInfo.length > 0 && actorInfo.length == 2 && actorIdLe != actorInfo.value -> actorIdLe
-                    actorInfo.length > 0 -> actorInfo.value
-                    actorIdLe > 0 -> actorIdLe
-                    else -> -1
-                }
+                val actorId = actorInfo.value
                 val nicknameStart = markerOffset + 3
                 val nicknameEnd = nicknameStart + nicknameLength
-                if (actorId > 0 &&
+                if (actorInfo.length > 0 &&
                     nicknameLength > 0 &&
                     nicknameStart < packet.size &&
                     nicknameEnd <= packet.size
@@ -703,14 +697,19 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun decodeVarIntBeforeMarker(bytes: ByteArray, markerOffset: Int): VarIntOutput {
         if (markerOffset <= 0) return VarIntOutput(-1, -1)
         val maxBacktrack = min(5, markerOffset)
+        var best = VarIntOutput(-1, -1)
         for (backtrack in 1..maxBacktrack) {
             val start = markerOffset - backtrack
             val info = readVarInt(bytes, start)
             if (info.length > 0 && start + info.length == markerOffset) {
-                return info
+                val prefer = info.length > best.length ||
+                    (info.length == best.length && info.value > best.value)
+                if (prefer) {
+                    best = info
+                }
             }
         }
-        return VarIntOutput(-1, -1)
+        return best
     }
 
     private fun computePacketSize(info: VarIntOutput): Int {
