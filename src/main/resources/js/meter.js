@@ -1,5 +1,5 @@
 const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow, getMetric }) => {
-  const MAX_CACHE = 32;
+  const MAX_CACHE = 16;
 
   const rowViewById = new Map();
   let lastVisibleIds = new Set();
