@@ -253,6 +253,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun parsePerfectPacket(packet: ByteArray) {
         if (packet.size < 3) return
+        scanMarkerNicknames(packet)
         var flag = parsingDamage(packet)
         if (flag) return
         flag = parsingNickname(packet)
