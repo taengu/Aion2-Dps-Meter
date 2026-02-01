@@ -28,8 +28,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         // 매직패킷 단일로 올때 무시
         if (packetLengthInfo.value > packet.size) {
             logger.trace("Current byte length is shorter than expected: {}", toHex(packet))
-            parseBrokenLengthPacket(packet)
-            //길이헤더가 실제패킷보다 김 보통 여기 닉네임이 몰려있는듯?
             return
         }
         if (packetLengthInfo.value <= 3) {
@@ -56,140 +54,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             return
         }
 
-    }
-
-    private fun parseBrokenLengthPacket(packet: ByteArray, flag: Boolean = true) {
-        if (packet[2] != 0xff.toByte() || packet[3] != 0xff.toByte()) {
-            logger.trace("Remaining packet buffer: {}", toHex(packet))
-            val target = dataStorage.getCurrentTarget()
-            var processed = false
-            if (target != 0) {
-                val targetBytes = convertVarInt(target)
-                val damageOpcodes = byteArrayOf(0x04, 0x38)
-                val dotOpcodes = byteArrayOf(0x05, 0x38)
-                val damageKeyword = damageOpcodes + targetBytes
-                val dotKeyword = dotOpcodes + targetBytes
-                val damageIdx = findArrayIndex(packet, damageKeyword)
-                val dotIdx = findArrayIndex(packet,dotKeyword)
-                val (idx, handler) = when {
-                    damageIdx > 0 && dotIdx > 0 -> {
-                        if (damageIdx < dotIdx) damageIdx to { slice: ByteArray -> parsingDamage(slice) }
-                        else dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
-                    }
-                    damageIdx > 0 -> damageIdx to { slice: ByteArray -> parsingDamage(slice) }
-                    dotIdx > 0 -> dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
-                    else -> -1 to null
-                }
-                processed = processBrokenPacketSlice(packet, idx, handler)
-            }
-            if (!processed) {
-                val damageIdx = findArrayIndex(packet, byteArrayOf(0x04, 0x38))
-                val dotIdx = findArrayIndex(packet, byteArrayOf(0x05, 0x38))
-                val (idx, handler) = when {
-                    damageIdx > 0 && dotIdx > 0 -> {
-                        if (damageIdx < dotIdx) damageIdx to { slice: ByteArray -> parsingDamage(slice) }
-                        else dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
-                    }
-                    damageIdx > 0 -> damageIdx to { slice: ByteArray -> parsingDamage(slice) }
-                    dotIdx > 0 -> dotIdx to { slice: ByteArray -> parseDoTPacket(slice); true }
-                    else -> -1 to null
-                }
-                processed = processBrokenPacketSlice(packet, idx, handler)
-            }
-            if (flag && !processed) {
-                logger.debug("Remaining packet {}", toHex(packet))
-                parseNicknameFromBrokenLengthPacket(packet)
-            }
-            return
-        }
-        val newPacket = packet.copyOfRange(10, packet.size)
-        onPacketReceived(newPacket)
-    }
-
-    private fun processBrokenPacketSlice(
-        packet: ByteArray,
-        idx: Int,
-        handler: ((ByteArray) -> Boolean)?
-    ): Boolean {
-        if (idx <= 0 || handler == null) return false
-        val packetLengthInfo = readVarInt(packet, idx - 1)
-        if (packetLengthInfo.length != 1) return false
-        val startIdx = idx - 1
-        val endIdx = idx - 1 + packetLengthInfo.value - 3
-        if (startIdx !in 0..<endIdx || endIdx > packet.size) return false
-        val extractedPacket = packet.copyOfRange(startIdx, endIdx)
-        val handled = handler(extractedPacket)
-        if (handled && endIdx < packet.size) {
-            val remainingPacket = packet.copyOfRange(endIdx, packet.size)
-            parseBrokenLengthPacket(remainingPacket, false)
-        }
-        return handled
-    }
-
-    private fun parseNicknameFromBrokenLengthPacket(packet: ByteArray) {
-        var originOffset = 0
-        while (originOffset < packet.size) {
-            val info = readVarInt(packet, originOffset)
-            if (info.length == -1) {
-                return
-            }
-            val innerOffset = originOffset + info.length
-
-            if (innerOffset + 6 >= packet.size) {
-                originOffset++
-                continue
-            }
-
-            if (packet[innerOffset + 3] == 0x01.toByte() && packet[innerOffset + 4] == 0x07.toByte()) {
-                val possibleNameLength = packet[innerOffset + 5].toInt() and 0xff
-                if (innerOffset + 6 + possibleNameLength <= packet.size) {
-                    val possibleNameBytes = packet.copyOfRange(innerOffset + 6, innerOffset + 6 + possibleNameLength)
-                    val possibleName = String(possibleNameBytes, Charsets.UTF_8)
-                    val sanitizedName = sanitizeNickname(possibleName)
-                    if (sanitizedName != null) {
-                        logger.info(
-                            "Potential nickname found in pattern 1: {} (hex={})",
-                            sanitizedName,
-                            toHex(possibleNameBytes)
-                        )
-                        DebugLogWriter.info(
-                            logger,
-                            "Potential nickname found in pattern 1: {} (hex={})",
-                            sanitizedName,
-                            toHex(possibleNameBytes)
-                        )
-                        dataStorage.appendNickname(info.value, sanitizedName)
-                    }
-                }
-            }
-            // Pattern 2 disabled temporarily due to unreliable results.
-            if (packet.size > innerOffset + 5) {
-                if (packet[innerOffset + 3] == 0x00.toByte() && packet[innerOffset + 4] == 0x07.toByte()) {
-                    val possibleNameLength = packet[innerOffset + 5].toInt() and 0xff
-                    if (packet.size > innerOffset + possibleNameLength + 6) {
-                        val possibleNameBytes =
-                            packet.copyOfRange(innerOffset + 6, innerOffset + possibleNameLength + 6)
-                        val possibleName = String(possibleNameBytes, Charsets.UTF_8)
-                        val sanitizedName = sanitizeNickname(possibleName)
-                        if (sanitizedName != null) {
-                            logger.info(
-                                "Potential nickname found in new pattern: {} (hex={})",
-                                sanitizedName,
-                                toHex(possibleNameBytes)
-                            )
-                            DebugLogWriter.info(
-                                logger,
-                                "Potential nickname found in new pattern: {} (hex={})",
-                                sanitizedName,
-                                toHex(possibleNameBytes)
-                            )
-                            dataStorage.appendNickname(info.value, sanitizedName)
-                        }
-                    }
-                }
-            }
-            originOffset++
-        }
     }
 
     private fun sanitizeNickname(nickname: String): String? {
@@ -231,7 +95,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun parsePerfectPacket(packet: ByteArray) {
         if (packet.size < 3) return
-        var flag = parsingDamage(packet)
+        var flag = parseCombinedDamagePacket(packet)
+        if (flag) return
+        flag = parsingDamage(packet)
         if (flag) return
         flag = parsingNickname(packet)
         if (flag) return
@@ -239,6 +105,167 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (flag) return
         parseDoTPacket(packet)
 
+    }
+
+    private data class DamageSegmentResult(val packet: ParsedDamagePacket, val nextOffset: Int)
+
+    private data class CombinedParseAttempt(
+        val startOffset: Int,
+        val parsed: List<ParsedDamagePacket>,
+        val matchedActors: Int
+    )
+
+    private fun parseCombinedDamagePacket(packet: ByteArray): Boolean {
+        if (packet.size < 6) return false
+        var offset = 0
+        val packetLengthInfo = readVarInt(packet)
+        if (packetLengthInfo.length < 0) return false
+        offset += packetLengthInfo.length
+        if (offset + 1 >= packet.size) return false
+        if (packet[offset] != 0x04.toByte()) return false
+        if (packet[offset + 1] != 0x38.toByte()) return false
+        offset += 2
+        val targetInfo = readVarInt(packet, offset)
+        if (targetInfo.length < 0) return false
+        offset += targetInfo.length
+        if (offset + 1 >= packet.size) return false
+        val markerSearchEnd = if (packet.size < offset + 8) packet.size else offset + 8
+        val markerRelativeIdx = findArrayIndex(packet.copyOfRange(offset, markerSearchEnd), 0xff, 0xff)
+        if (markerRelativeIdx == -1) return false
+        val markerOffset = offset + markerRelativeIdx
+        val baseOffset = markerOffset + 2
+        if (baseOffset >= packet.size) return false
+
+        val knownActors = dataStorage.getActorIds()
+        val maxOffsetProbe = if (packet.size < baseOffset + 8) packet.size else baseOffset + 8
+        val attempts = mutableListOf<CombinedParseAttempt>()
+        for (probeOffset in baseOffset until maxOffsetProbe) {
+            val parsed = parseCombinedSegments(packet, probeOffset, targetInfo.value)
+            val matched = if (knownActors.isEmpty()) {
+                parsed.size
+            } else {
+                parsed.count { knownActors.contains(it.getActorId()) }
+            }
+            attempts.add(CombinedParseAttempt(probeOffset, parsed, matched))
+        }
+
+        attempts.forEach { attempt ->
+            val actorList = attempt.parsed.joinToString(limit = 6, truncated = "…") { it.getActorId().toString() }
+            DebugLogWriter.debug(
+                logger,
+                "FF FF combined probe offset {} target {} matched {} actors [{}]",
+                attempt.startOffset,
+                targetInfo.value,
+                attempt.matchedActors,
+                actorList
+            )
+        }
+
+        val bestAttempt = attempts.maxWithOrNull(
+            compareBy<CombinedParseAttempt> { it.matchedActors }.thenBy { it.parsed.size }
+        ) ?: return false
+
+        val hasMatches = if (knownActors.isEmpty()) bestAttempt.parsed.isNotEmpty() else bestAttempt.matchedActors > 0
+        if (!hasMatches) {
+            DebugLogWriter.debug(
+                logger,
+                "FF FF combined packet parsed no confident attackers (target {})",
+                targetInfo.value
+            )
+            return true
+        }
+
+        bestAttempt.parsed.forEach { pdp ->
+            if (pdp.getActorId() != pdp.getTargetId()) {
+                dataStorage.appendDamage(pdp)
+            }
+        }
+        return true
+    }
+
+    private fun parseCombinedSegments(packet: ByteArray, startOffset: Int, targetId: Int): List<ParsedDamagePacket> {
+        var offset = startOffset
+        val parsed = mutableListOf<ParsedDamagePacket>()
+        while (offset < packet.size) {
+            val result = parseCombinedDamageSegment(packet, offset, targetId) ?: break
+            parsed.add(result.packet)
+            offset = result.nextOffset
+        }
+        return parsed
+    }
+
+    private fun parseCombinedDamageSegment(
+        packet: ByteArray,
+        startOffset: Int,
+        targetId: Int
+    ): DamageSegmentResult? {
+        var offset = startOffset
+        val pdp = ParsedDamagePacket()
+        pdp.setTargetId(VarIntOutput(targetId, 0))
+
+        val switchInfo = readVarInt(packet, offset)
+        if (switchInfo.length < 0) return null
+        pdp.setSwitchVariable(switchInfo)
+        offset += switchInfo.length
+        if (offset >= packet.size) return null
+
+        val flagInfo = readVarInt(packet, offset)
+        if (flagInfo.length < 0) return null
+        pdp.setFlag(flagInfo)
+        offset += flagInfo.length
+        if (offset >= packet.size) return null
+
+        val actorInfo = readVarInt(packet, offset)
+        if (actorInfo.length < 0) return null
+        pdp.setActorId(actorInfo)
+        offset += actorInfo.length
+        if (offset >= packet.size) return null
+
+        if (offset + 5 >= packet.size) return null
+        val temp = offset
+        val skillCode = parseUInt32le(packet, offset)
+        pdp.setSkillCode(skillCode)
+        offset = temp + 5
+        if (offset >= packet.size) return null
+
+        val typeInfo = readVarInt(packet, offset)
+        if (typeInfo.length < 0) return null
+        pdp.setType(typeInfo)
+        offset += typeInfo.length
+        if (offset >= packet.size) return null
+
+        val start = offset
+        val andResult = switchInfo.value and mask
+        val tempV = when (andResult) {
+            4 -> 8
+            5 -> 12
+            6 -> 10
+            7 -> 14
+            else -> return null
+        }
+        if (start + tempV > packet.size) return null
+        pdp.setSpecials(parseSpecialDamageFlags(packet.copyOfRange(start, start + tempV)))
+        offset += tempV
+        if (offset >= packet.size) return null
+
+        val unknownInfo = readVarInt(packet, offset)
+        if (unknownInfo.length < 0) return null
+        pdp.setUnknown(unknownInfo)
+        offset += unknownInfo.length
+        if (offset >= packet.size) return null
+
+        val damageInfo = readVarInt(packet, offset)
+        if (damageInfo.length < 0) return null
+        pdp.setDamage(damageInfo)
+        offset += damageInfo.length
+        if (offset >= packet.size) return null
+
+        val loopInfo = readVarInt(packet, offset)
+        if (loopInfo.length < 0) return null
+        pdp.setLoop(loopInfo)
+        offset += loopInfo.length
+
+        return DamageSegmentResult(pdp, offset)
     }
 
     private fun parseDoTPacket(packet:ByteArray){

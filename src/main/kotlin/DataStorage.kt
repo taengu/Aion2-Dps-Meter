@@ -90,6 +90,10 @@ class DataStorage {
         return byActorStorage
     }
 
+    fun getActorIds(): Set<Int> {
+        return byActorStorage.keys.toSet()
+    }
+
     fun getNickname(): ConcurrentHashMap<Int, String> {
         return nicknameStorage
     }
