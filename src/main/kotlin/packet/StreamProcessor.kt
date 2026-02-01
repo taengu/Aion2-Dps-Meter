@@ -153,8 +153,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 packet[markerOffset + 2] == 0x05.toByte()
             ) {
                 val actorOffset = markerOffset - 2
-                val actorInfo = readVarInt(packet, actorOffset)
-                if (actorInfo.length == 2) {
+                val actorInfo = decodeTwoByteVarInt(packet, actorOffset)
+                if (actorInfo.length > 0) {
                     val nicknameStart = markerOffset + 3
                     if (nicknameStart < packet.size) {
                         var nicknameEnd = nicknameStart
@@ -655,6 +655,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun toHex(bytes: ByteArray): String {
         //출력테스트용
         return bytes.joinToString(" ") { "%02X".format(it) }
+    }
+
+    private fun decodeTwoByteVarInt(bytes: ByteArray, offset: Int): VarIntOutput {
+        if (offset < 0 || offset + 1 >= bytes.size) return VarIntOutput(-1, -1)
+        val first = bytes[offset].toInt() and 0xFF
+        val second = bytes[offset + 1].toInt() and 0xFF
+        val value = (first and 0x7F) or ((second and 0x7F) shl 7)
+        return VarIntOutput(value, 2)
     }
 
     private fun computePacketSize(info: VarIntOutput): Int {
