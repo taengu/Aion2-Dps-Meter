@@ -694,6 +694,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (scanTaggedNicknamePattern(packet)) {
             found = true
         }
+        if (scanLengthTaggedNicknamePattern(packet)) {
+            found = true
+        }
         return found
     }
 
@@ -735,6 +738,65 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             offset++
         }
         return found
+    }
+
+    private fun scanLengthTaggedNicknamePattern(packet: ByteArray): Boolean {
+        var found = false
+        var offset = 0
+        while (offset + 3 < packet.size) {
+            if (packet[offset] == 0x01.toByte() && packet[offset + 1] == 0x07.toByte()) {
+                val nameLength = packet[offset + 2].toInt() and 0xff
+                if (nameLength in 1..72) {
+                    val nameStart = offset + 3
+                    val nameEnd = nameStart + nameLength
+                    if (nameEnd <= packet.size) {
+                        val actorInfo = findVarIntBeforeOffset(packet, offset, maxBacktrack = 8, maxGap = 4)
+                        if (actorInfo != null) {
+                            val possibleNameBytes = packet.copyOfRange(nameStart, nameEnd)
+                            val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+                            val sanitizedName = sanitizeNickname(possibleName)
+                            if (sanitizedName != null) {
+                                logger.info(
+                                    "Potential nickname found in length-tag pattern: {} (hex={})",
+                                    sanitizedName,
+                                    toHex(possibleNameBytes)
+                                )
+                                DebugLogWriter.info(
+                                    logger,
+                                    "Potential nickname found in length-tag pattern: {} (hex={})",
+                                    sanitizedName,
+                                    toHex(possibleNameBytes)
+                                )
+                                dataStorage.appendNickname(actorInfo.value, sanitizedName)
+                                found = true
+                            }
+                        }
+                    }
+                }
+            }
+            offset++
+        }
+        return found
+    }
+
+    private fun findVarIntBeforeOffset(
+        packet: ByteArray,
+        offset: Int,
+        maxBacktrack: Int,
+        maxGap: Int
+    ): VarIntOutput? {
+        val startLimit = max(0, offset - maxBacktrack)
+        for (start in offset - 1 downTo startLimit) {
+            if (start >= packet.size) continue
+            val info = readVarInt(packet, start)
+            if (info.length > 0) {
+                val end = start + info.length
+                if (end <= offset && offset - end <= maxGap) {
+                    return info
+                }
+            }
+        }
+        return null
     }
 
     private fun decodeVarIntBeforeMarker(bytes: ByteArray, markerOffset: Int): VarIntOutput {
