@@ -568,17 +568,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         pdp.setLoop(loopInfo)
         offset += loopInfo.length
 
-        if (offset <= packet.size) {
-            val endOffset = min(offset + 10, packet.size)
-            logger.info(
-                "Remaining damage packet bytes (next {}): {}",
-                endOffset - offset,
-                toHex(packet.copyOfRange(offset, endOffset))
-            )
-        } else {
-            logger.info("Remaining damage packet bytes: <out of bounds>")
-        }
-
 //        if (loopInfo.value != 0 && offset >= packet.size) return false
 //
 //        if (loopInfo.value != 0) {
@@ -633,6 +622,30 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun scanMarkerNicknames(packet: ByteArray): Boolean {
+        var found = false
+        var searchOffset = 0
+        while (searchOffset <= packet.size - packetStartMarker.size) {
+            val markerIndex = findArrayIndex(packet.copyOfRange(searchOffset, packet.size), packetStartMarker)
+            if (markerIndex < 0) break
+            val packetStart = searchOffset + markerIndex
+            val lengthInfo = readVarInt(packet, packetStart)
+            if (lengthInfo.length > 0) {
+                val packetSize = computePacketSize(lengthInfo)
+                val packetEnd = packetStart + packetSize
+                if (packetSize > 0 && packetEnd <= packet.size) {
+                    if (scanMarkerNicknamesInPacket(packet.copyOfRange(packetStart, packetEnd))) {
+                        found = true
+                    }
+                    searchOffset = packetEnd
+                    continue
+                }
+            }
+            searchOffset = packetStart + 1
+        }
+        return found
+    }
+
+    private fun scanMarkerNicknamesInPacket(packet: ByteArray): Boolean {
         var found = false
         var markerOffset = 0
         while (markerOffset + 2 < packet.size) {
