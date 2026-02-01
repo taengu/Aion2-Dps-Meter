@@ -638,36 +638,33 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         while (markerOffset + 2 < packet.size) {
             if (packet[markerOffset] == 0xF8.toByte() &&
                 packet[markerOffset + 1] == 0x03.toByte() &&
-                packet[markerOffset + 2] == 0x05.toByte()
+                packet[markerOffset + 2] == 0x06.toByte()
             ) {
-                val actorOffset = markerOffset - 2
-                val actorInfo = decodeTwoByteVarInt(packet, actorOffset)
-                if (actorInfo.length > 0) {
-                    val nicknameStart = markerOffset + 3
-                    if (nicknameStart < packet.size) {
-                        var nicknameEnd = nicknameStart
-                        while (nicknameEnd < packet.size && packet[nicknameEnd] != 0x00.toByte()) {
-                            nicknameEnd++
-                        }
-                        if (nicknameEnd > nicknameStart) {
-                            val possibleNameBytes = packet.copyOfRange(nicknameStart, nicknameEnd)
-                            val possibleName = String(possibleNameBytes, Charsets.UTF_8)
-                            val sanitizedName = sanitizeNickname(possibleName)
-                            if (sanitizedName != null) {
-                                logger.info(
-                                    "Potential nickname found in marker pattern: {} (hex={})",
-                                    sanitizedName,
-                                    toHex(possibleNameBytes)
-                                )
-                                DebugLogWriter.info(
-                                    logger,
-                                    "Potential nickname found in marker pattern: {} (hex={})",
-                                    sanitizedName,
-                                    toHex(possibleNameBytes)
-                                )
-                                dataStorage.appendNickname(actorInfo.value, sanitizedName)
-                                found = true
-                            }
+                val actorInfo = decodeVarIntBeforeMarker(packet, markerOffset)
+                val nicknameStart = markerOffset + 3
+                if (actorInfo.length > 0 && nicknameStart < packet.size) {
+                    var nicknameEnd = nicknameStart
+                    while (nicknameEnd < packet.size && packet[nicknameEnd] != 0x00.toByte()) {
+                        nicknameEnd++
+                    }
+                    if (nicknameEnd > nicknameStart) {
+                        val possibleNameBytes = packet.copyOfRange(nicknameStart, nicknameEnd)
+                        val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+                        val sanitizedName = sanitizeNickname(possibleName)
+                        if (sanitizedName != null) {
+                            logger.info(
+                                "Potential nickname found in marker pattern: {} (hex={})",
+                                sanitizedName,
+                                toHex(possibleNameBytes)
+                            )
+                            DebugLogWriter.info(
+                                logger,
+                                "Potential nickname found in marker pattern: {} (hex={})",
+                                sanitizedName,
+                                toHex(possibleNameBytes)
+                            )
+                            dataStorage.appendNickname(actorInfo.value, sanitizedName)
+                            found = true
                         }
                     }
                 }
@@ -677,12 +674,17 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return found
     }
 
-    private fun decodeTwoByteVarInt(bytes: ByteArray, offset: Int): VarIntOutput {
-        if (offset < 0 || offset + 1 >= bytes.size) return VarIntOutput(-1, -1)
-        val first = bytes[offset].toInt() and 0xFF
-        val second = bytes[offset + 1].toInt() and 0xFF
-        val value = (first and 0x7F) or ((second and 0x7F) shl 7)
-        return VarIntOutput(value, 2)
+    private fun decodeVarIntBeforeMarker(bytes: ByteArray, markerOffset: Int): VarIntOutput {
+        if (markerOffset <= 0) return VarIntOutput(-1, -1)
+        val maxBacktrack = min(5, markerOffset)
+        for (backtrack in 1..maxBacktrack) {
+            val start = markerOffset - backtrack
+            val info = readVarInt(bytes, start)
+            if (info.length > 0 && start + info.length == markerOffset) {
+                return info
+            }
+        }
+        return VarIntOutput(-1, -1)
     }
 
     private fun computePacketSize(info: VarIntOutput): Int {
