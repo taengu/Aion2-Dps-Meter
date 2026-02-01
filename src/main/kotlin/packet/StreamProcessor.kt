@@ -611,6 +611,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun scanMarkerNicknames(packet: ByteArray): Boolean {
         if (scanMarkerNicknamesInPacket(packet)) return true
         if (scanOpcodeNicknamesInPacket(packet)) return true
+        if (scanLengthPrefixedNicknamesInPacket(packet)) return true
         var found = false
         var searchOffset = 0
         while (searchOffset <= packet.size - packetStartMarker.size) {
@@ -623,7 +624,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 val packetEnd = packetStart + packetSize
                 if (packetSize > 0 && packetEnd <= packet.size) {
                     val packetSlice = packet.copyOfRange(packetStart, packetEnd)
-                    if (scanMarkerNicknamesInPacket(packetSlice) || scanOpcodeNicknamesInPacket(packetSlice)) {
+                    if (scanMarkerNicknamesInPacket(packetSlice) ||
+                        scanOpcodeNicknamesInPacket(packetSlice) ||
+                        scanLengthPrefixedNicknamesInPacket(packetSlice)
+                    ) {
                         found = true
                     }
                     searchOffset = packetEnd
@@ -631,6 +635,52 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 }
             }
             searchOffset = packetStart + 1
+        }
+        return found
+    }
+
+    private fun scanLengthPrefixedNicknamesInPacket(packet: ByteArray): Boolean {
+        var found = false
+        var offset = 0
+        while (offset + 3 < packet.size) {
+            val actorInfo = readVarInt(packet, offset)
+            if (actorInfo.length != 2 || actorInfo.value < 1000) {
+                offset++
+                continue
+            }
+            val nicknameLength = packet[offset + actorInfo.length].toInt() and 0xff
+            val nicknameStart = offset + actorInfo.length + 1
+            val nicknameEnd = nicknameStart + nicknameLength
+            if (nicknameLength == 0 || nicknameLength > 72 || nicknameEnd > packet.size) {
+                offset++
+                continue
+            }
+            val possibleNameBytes = packet.copyOfRange(nicknameStart, nicknameEnd)
+            val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+            val sanitizedName = sanitizeNickname(possibleName)
+            if (sanitizedName != null) {
+                logger.info(
+                    "Length nickname mapped: actor={} nickname={}",
+                    actorInfo.value,
+                    sanitizedName
+                )
+                logger.info(
+                    "Potential nickname found in length pattern: {} (hex={})",
+                    sanitizedName,
+                    toHex(possibleNameBytes)
+                )
+                DebugLogWriter.info(
+                    logger,
+                    "Potential nickname found in length pattern: {} (hex={})",
+                    sanitizedName,
+                    toHex(possibleNameBytes)
+                )
+                dataStorage.appendNickname(actorInfo.value, sanitizedName)
+                found = true
+                offset = nicknameEnd
+                continue
+            }
+            offset++
         }
         return found
     }
