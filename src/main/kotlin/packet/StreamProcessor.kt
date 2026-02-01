@@ -699,9 +699,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         for (backtrack in 2..maxBacktrack) {
             val start = opcodeOffset - backtrack
             val info = readVarInt(packet, start)
-            if (info.length == 2 && start + info.length <= opcodeOffset) {
-                return info
-            }
+                if (info.length == 2 && start + info.length == opcodeOffset) {
+                    return info
+                }
         }
         return VarIntOutput(-1, -1)
     }
