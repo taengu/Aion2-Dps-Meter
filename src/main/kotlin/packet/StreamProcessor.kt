@@ -666,6 +666,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         val sanitizedName = sanitizeNickname(possibleName)
                         if (sanitizedName != null) {
                             logger.info(
+                                "Marker nickname mapped: actor={} nickname={}",
+                                actorInfo.value,
+                                sanitizedName
+                            )
+                            logger.info(
                                 "Potential nickname found in marker pattern: {} (hex={})",
                                 sanitizedName,
                                 toHex(possibleNameBytes)
