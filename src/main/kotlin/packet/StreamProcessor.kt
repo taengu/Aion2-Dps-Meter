@@ -146,6 +146,46 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun parseNicknameFromBrokenLengthPacket(packet: ByteArray) {
+        var markerOffset = 2
+        while (markerOffset + 2 < packet.size) {
+            if (packet[markerOffset] == 0xF8.toByte() &&
+                packet[markerOffset + 1] == 0x03.toByte() &&
+                packet[markerOffset + 2] == 0x05.toByte()
+            ) {
+                val actorOffset = markerOffset - 2
+                val actorInfo = readVarInt(packet, actorOffset)
+                if (actorInfo.length == 2) {
+                    val nicknameStart = markerOffset + 3
+                    if (nicknameStart < packet.size) {
+                        var nicknameEnd = nicknameStart
+                        while (nicknameEnd < packet.size && packet[nicknameEnd] != 0x00.toByte()) {
+                            nicknameEnd++
+                        }
+                        if (nicknameEnd > nicknameStart) {
+                            val possibleNameBytes = packet.copyOfRange(nicknameStart, nicknameEnd)
+                            val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+                            val sanitizedName = sanitizeNickname(possibleName)
+                            if (sanitizedName != null) {
+                                logger.info(
+                                    "Potential nickname found in marker pattern: {} (hex={})",
+                                    sanitizedName,
+                                    toHex(possibleNameBytes)
+                                )
+                                DebugLogWriter.info(
+                                    logger,
+                                    "Potential nickname found in marker pattern: {} (hex={})",
+                                    sanitizedName,
+                                    toHex(possibleNameBytes)
+                                )
+                                dataStorage.appendNickname(actorInfo.value, sanitizedName)
+                            }
+                        }
+                    }
+                }
+            }
+            markerOffset++
+        }
+
         var originOffset = 0
         while (originOffset < packet.size) {
             val info = readVarInt(packet, originOffset)
