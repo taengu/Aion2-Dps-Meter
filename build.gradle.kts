@@ -56,6 +56,7 @@ compose.desktop {
         nativeDistributions {
             windows{
                 includeAllModules = true
+                installerOptions.add("--win-uac-admin")
             }
             targetFormats(TargetFormat.Msi)
             packageName = "aion2meter-tw"
