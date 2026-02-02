@@ -745,7 +745,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         var found = false
         var offset = 0
         while (offset + 3 < packet.size) {
-            if (packet[offset] == 0x01.toByte() && packet[offset + 1] == 0x07.toByte()) {
+            if ((packet[offset] == 0x01.toByte() || packet[offset] == 0x00.toByte()) &&
+                packet[offset + 1] == 0x07.toByte()
+            ) {
                 val nameLength = packet[offset + 2].toInt() and 0xff
                 if (nameLength in 1..72) {
                     val nameStart = offset + 3
