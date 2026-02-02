@@ -734,8 +734,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         var found = false
         var offset = 2
         while (offset + 6 < packet.size) {
-            if (packet[offset] == 0x03.toByte() &&
-                packet[offset + 1] == 0x20.toByte() &&
+            val hasTaggedPrefix =
+                (packet[offset] == 0x03.toByte() && packet[offset + 1] == 0x20.toByte()) ||
+                    (packet[offset] == 0x1D.toByte() && packet[offset + 1] == 0x30.toByte())
+            if (hasTaggedPrefix &&
                 packet[offset + 2] == 0xA0.toByte() &&
                 packet[offset + 3] == 0x01.toByte() &&
                 packet[offset + 4] == 0x07.toByte()
