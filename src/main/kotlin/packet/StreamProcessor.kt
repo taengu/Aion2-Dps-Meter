@@ -672,7 +672,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                                 found = mapMarkerNickname(
                                     actorId,
                                     packet.copyOfRange(nicknameStart, nicknameEnd),
-                                    "marker"
+                                    "marker",
+                                    packet,
+                                    nicknameEnd
                                 ) || found
                             }
                         }
@@ -684,7 +686,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                             found = mapMarkerNickname(
                                 actorId,
                                 packet.copyOfRange(nameStart, nameEnd),
-                                "marker-length"
+                                "marker-length",
+                                packet,
+                                nameEnd
                             ) || found
                         }
                     }
@@ -709,9 +713,19 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return selectActorVarInt(packet, markerOffset, maxBacktrack = 24, maxGap = 12)?.value
     }
 
-    private fun mapMarkerNickname(actorId: Int, nameBytes: ByteArray, label: String): Boolean {
+    private fun mapMarkerNickname(
+        actorId: Int,
+        nameBytes: ByteArray,
+        label: String,
+        packet: ByteArray,
+        nameEnd: Int
+    ): Boolean {
         val possibleName = String(nameBytes, Charsets.UTF_8)
         val sanitizedName = sanitizeNickname(possibleName) ?: return false
+        if (isGuildNameContext(packet, nameEnd)) {
+            logger.debug("Skipped guild name candidate in {} pattern: {}", label, sanitizedName)
+            return false
+        }
         logger.info("Marker nickname mapped: actor={} nickname={}", actorId, sanitizedName)
         logger.info(
             "Potential nickname found in {} pattern: {} (hex={})",
@@ -728,6 +742,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         )
         dataStorage.appendNickname(actorId, sanitizedName)
         return true
+    }
+
+    private fun isGuildNameContext(packet: ByteArray, nameEnd: Int): Boolean {
+        if (nameEnd >= packet.size) return false
+        val lookahead = min(packet.size, nameEnd + 96)
+        val slice = packet.copyOfRange(nameEnd, lookahead)
+        val text = String(slice, Charsets.UTF_8)
+        return text.contains("boss_group_id")
     }
 
     private fun scanTaggedNicknamePattern(packet: ByteArray): Boolean {
