@@ -243,7 +243,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val trimmedNickname = nicknameBuilder.toString()
         if (trimmedNickname.isEmpty()) return null
         if (trimmedNickname.length < 3 && !hasHan) return null
+        if (trimmedNickname.length > 12) return null
         if (onlyNumbers) return null
+        if (trimmedNickname[0] in '0'..'9') return null
         if (trimmedNickname.length == 1 &&
             (trimmedNickname[0] in 'A'..'Z' || trimmedNickname[0] in 'a'..'z')
         ) {
@@ -665,7 +667,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     val nameStart = markerOffset + 3
                     val nameEnd = nameStart + nameLength
                     val shouldTreatAsLength =
-                        nameLength in 1..72 &&
+                        nameLength in 1..12 &&
                             nameEnd <= packet.size &&
                             (packet[markerOffset + 2] != 0x06.toByte() || packet[nameEnd] != 0x00.toByte())
                     if (shouldTreatAsLength) {
@@ -826,7 +828,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 packet[offset + 1] == 0x07.toByte()
             ) {
                 val nameLength = packet[offset + 2].toInt() and 0xff
-                if (nameLength in 1..72) {
+                if (nameLength in 1..12) {
                     val nameStart = offset + 3
                     val nameEnd = nameStart + nameLength
                     if (nameEnd <= packet.size) {
