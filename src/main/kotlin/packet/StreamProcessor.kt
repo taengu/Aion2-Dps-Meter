@@ -661,35 +661,36 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             ) {
                 val actorId = resolveMarkerActorId(packet, markerOffset)
                 if (actorId != null) {
-                    if (packet[markerOffset + 2] == 0x06.toByte()) {
-                        val nicknameStart = markerOffset + 3
-                        if (nicknameStart < packet.size) {
-                            var nicknameEnd = nicknameStart
+                    val nameLength = packet[markerOffset + 2].toInt() and 0xff
+                    val nameStart = markerOffset + 3
+                    val nameEnd = nameStart + nameLength
+                    val shouldTreatAsLength =
+                        nameLength in 1..72 &&
+                            nameEnd <= packet.size &&
+                            (packet[markerOffset + 2] != 0x06.toByte() || packet[nameEnd] != 0x00.toByte())
+                    if (shouldTreatAsLength) {
+                        found = mapMarkerNickname(
+                            actorId,
+                            packet.copyOfRange(nameStart, nameEnd),
+                            "marker-length",
+                            packet,
+                            nameEnd
+                        ) || found
+                    } else {
+                        if (nameStart < packet.size) {
+                            var nicknameEnd = nameStart
                             while (nicknameEnd < packet.size && packet[nicknameEnd] != 0x00.toByte()) {
                                 nicknameEnd++
                             }
-                            if (nicknameEnd > nicknameStart) {
+                            if (nicknameEnd > nameStart) {
                                 found = mapMarkerNickname(
                                     actorId,
-                                    packet.copyOfRange(nicknameStart, nicknameEnd),
+                                    packet.copyOfRange(nameStart, nicknameEnd),
                                     "marker",
                                     packet,
                                     nicknameEnd
                                 ) || found
                             }
-                        }
-                    } else {
-                        val nameLength = packet[markerOffset + 2].toInt() and 0xff
-                        val nameStart = markerOffset + 3
-                        val nameEnd = nameStart + nameLength
-                        if (nameLength in 1..72 && nameEnd <= packet.size) {
-                            found = mapMarkerNickname(
-                                actorId,
-                                packet.copyOfRange(nameStart, nameEnd),
-                                "marker-length",
-                                packet,
-                                nameEnd
-                            ) || found
                         }
                     }
                 }
