@@ -2,7 +2,7 @@
 
 A combat analysis (DPS meter) tool for **AION 2**, Taiwan or Korea servers.
 
-Our goal is to make a community tool that doesn't rely on methods that might intefere with the game in ways that break the terms of service. This tool is offered **for free**, ready to install, with [instructions below.](https://github.com/taengu/Aion2-Dps-Meter?tab=readme-ov-file#how-to-install)
+Our goal is to make a community tool that doesn't rely on methods that might intefere with the game in ways that break the terms of service. This tool is offered **for free**, ready to install, with [instructions below.](#how-to-install)
 
 If you'd like to get involved, you can reach us on Discord from the link below!
 
