@@ -249,11 +249,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         ) {
             return null
         }
-        if (trimmedNickname.length <= 3 &&
-            trimmedNickname.all { it in 'a'..'z' }
-        ) {
-            return null
-        }
         return trimmedNickname
     }
 
@@ -732,6 +727,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             logger.debug("Skipped nickname candidate with actorId=0 in {} pattern: {}", label, sanitizedName)
             return false
         }
+        if (!isValidNicknameBoundary(packet, nameEnd)) {
+            logger.debug("Skipped nickname candidate with invalid boundary in {} pattern: {}", label, sanitizedName)
+            return false
+        }
         if (isGuildNameContext(packet, nameEnd)) {
             logger.debug("Skipped guild name candidate in {} pattern: {}", label, sanitizedName)
             return false
@@ -762,6 +761,18 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return text.contains("boss_group_id")
     }
 
+    private fun isValidNicknameBoundary(packet: ByteArray, nameEnd: Int): Boolean {
+        if (nameEnd >= packet.size) return true
+        val boundary = packet[nameEnd].toInt() and 0xff
+        return !isAsciiLetterOrDigit(boundary)
+    }
+
+    private fun isAsciiLetterOrDigit(value: Int): Boolean {
+        return (value in 'a'.code..'z'.code) ||
+            (value in 'A'.code..'Z'.code) ||
+            (value in '0'.code..'9'.code)
+    }
+
     private fun scanTaggedNicknamePattern(packet: ByteArray): Boolean {
         var found = false
         var offset = 2
@@ -785,6 +796,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         val actorInfo = selectActorVarInt(packet, offset, maxBacktrack = 8, maxGap = 4)
                         val actorId = actorInfo?.value ?: parseUInt16le(packet, offset - 2)
                         if (actorId == 0) continue
+                        if (!isValidNicknameBoundary(packet, nameEnd)) continue
                         logger.info(
                             "Potential nickname found in tagged pattern: {} (hex={})",
                             sanitizedName,
@@ -825,6 +837,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                             val sanitizedName = sanitizeNickname(possibleName)
                             if (sanitizedName != null) {
                                 if (actorInfo.value == 0) continue
+                                if (!isValidNicknameBoundary(packet, nameEnd)) continue
                                 logger.info(
                                     "Potential nickname found in length-tag pattern: {} (hex={})",
                                     sanitizedName,
