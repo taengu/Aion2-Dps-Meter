@@ -222,6 +222,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 }
             }
             parseEntityNameBindingRules(packet)
+            parseLootAttributionEntityName(packet)
             originOffset++
         }
     }
@@ -271,6 +272,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (flag) return
         flag = parseEntityNameBindingRules(packet)
         if (flag) return
+        flag = parseLootAttributionEntityName(packet)
+        if (flag) return
         flag = parseSummonPacket(packet)
         if (flag) return
         parseDoTPacket(packet)
@@ -318,6 +321,61 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             i++
         }
         return false
+    }
+
+    private fun parseLootAttributionEntityName(packet: ByteArray): Boolean {
+        if (packet.any { it == 0x36.toByte() }) return false
+        var offset = 0
+        while (offset < packet.size) {
+            if (!canReadVarInt(packet, offset)) {
+                offset++
+                continue
+            }
+            val entityInfo = readVarInt(packet, offset)
+            if (entityInfo.length <= 0 || entityInfo.value < 1000) {
+                offset++
+                continue
+            }
+            val opcodeIdx = offset + entityInfo.length
+            if (opcodeIdx + 2 >= packet.size) {
+                offset++
+                continue
+            }
+            if (packet[opcodeIdx] != 0xF8.toByte() || packet[opcodeIdx + 1] != 0x03.toByte()) {
+                offset++
+                continue
+            }
+            val lengthIdx = opcodeIdx + 2
+            val nameLength = packet[lengthIdx].toInt() and 0xff
+            if (nameLength !in 1..16) {
+                offset++
+                continue
+            }
+            val nameStart = lengthIdx + 1
+            val nameEnd = nameStart + nameLength
+            if (nameEnd > packet.size) {
+                offset++
+                continue
+            }
+            if (!entityExists(entityInfo.value) || dataStorage.getNickname()[entityInfo.value] != null) {
+                offset++
+                continue
+            }
+            val nameBytes = packet.copyOfRange(nameStart, nameEnd)
+            if (!isPrintableAscii(nameBytes)) {
+                offset++
+                continue
+            }
+            return registerAsciiNickname(packet, entityInfo.value, nameStart, nameLength)
+        }
+        return false
+    }
+
+    private fun entityExists(entityId: Int): Boolean {
+        return dataStorage.getNickname().containsKey(entityId) ||
+            dataStorage.getActorData().containsKey(entityId) ||
+            dataStorage.getBossModeData().containsKey(entityId) ||
+            dataStorage.getSummonData().containsKey(entityId)
     }
 
     private data class EntityAnchor(val entityId: Int, val startIndex: Int, val endIndex: Int)
