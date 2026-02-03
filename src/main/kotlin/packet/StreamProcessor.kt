@@ -270,7 +270,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun parseLootAttributionActorName(packet: ByteArray): Boolean {
-        var foundAny = false
+        val candidates = mutableListOf<ActorNameCandidate>()
         var idx = 0
         while (idx + 2 < packet.size) {
             val marker = packet[idx].toInt() and 0xff
@@ -287,11 +287,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     idx++
                     continue
                 }
-                if (actorInfo.value !in 100..99999) {
-                    idx++
-                    continue
-                }
-                if (actorInfo.value == 0 || !actorAppearsInCombat(actorInfo.value)) {
+                if (actorInfo.value !in 100..99999 || actorInfo.value == 0) {
                     idx++
                     continue
                 }
@@ -322,27 +318,34 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     idx = nameEnd
                     continue
                 }
-                if (dataStorage.getNickname()[actorInfo.value] == null) {
-                    logger.info(
-                        "Loot attribution actor name found {} -> {} (hex={})",
-                        actorInfo.value,
-                        sanitizedName,
-                        toHex(nameBytes)
-                    )
-                    DebugLogWriter.info(
-                        logger,
-                        "Loot attribution actor name found {} -> {} (hex={})",
-                        actorInfo.value,
-                        sanitizedName,
-                        toHex(nameBytes)
-                    )
-                    dataStorage.appendNickname(actorInfo.value, sanitizedName)
-                    foundAny = true
-                }
+                candidates.add(ActorNameCandidate(actorInfo.value, sanitizedName, nameBytes))
                 idx = skipGuildName(packet, nameEnd)
                 continue
             }
             idx++
+        }
+
+        if (candidates.isEmpty()) return false
+        val allowPrepopulate = candidates.size > 1
+        var foundAny = false
+        for (candidate in candidates) {
+            if (!allowPrepopulate && !actorAppearsInCombat(candidate.actorId)) continue
+            if (dataStorage.getNickname()[candidate.actorId] != null) continue
+            logger.info(
+                "Loot attribution actor name found {} -> {} (hex={})",
+                candidate.actorId,
+                candidate.name,
+                toHex(candidate.nameBytes)
+            )
+            DebugLogWriter.info(
+                logger,
+                "Loot attribution actor name found {} -> {} (hex={})",
+                candidate.actorId,
+                candidate.name,
+                toHex(candidate.nameBytes)
+            )
+            dataStorage.appendNickname(candidate.actorId, candidate.name)
+            foundAny = true
         }
         return foundAny
     }
@@ -382,6 +385,12 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val possibleName = decodeUtf8Strict(nameBytes) ?: return startIndex
         return nameEnd
     }
+
+    private data class ActorNameCandidate(
+        val actorId: Int,
+        val name: String,
+        val nameBytes: ByteArray
+    )
 
     private data class ActorAnchor(val actorId: Int, val startIndex: Int, val endIndex: Int)
 
