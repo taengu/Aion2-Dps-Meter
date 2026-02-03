@@ -174,6 +174,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun sanitizeNickname(nickname: String): String? {
         val sanitizedNickname = nickname.substringBefore('\u0000').trim()
         if (sanitizedNickname.isEmpty()) return null
+        if (sanitizedNickname.contains('\uFFFD')) return null
         val nicknameBuilder = StringBuilder()
         var onlyNumbers = true
         var hasHan = false
@@ -280,104 +281,67 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             val marker = packet[idx].toInt() and 0xff
             val markerNext = packet[idx + 1].toInt() and 0xff
-            val isMarker = markerNext == 0x03 && (marker == 0xF8 || marker == 0xF5)
+            val isMarker = marker == 0xF8 && markerNext == 0x03
             if (isMarker) {
-                val nameBeforeStart = idx - 1
-                if (nameBeforeStart >= 0) {
-                    val nameBeforeEnd = idx
-                    var matchedBefore = false
-                    for (nameLength in 3..16) {
-                        val nameLenIndex = nameBeforeEnd - nameLength - 1
-                        if (nameLenIndex < 0) break
-                        val possibleLength = packet[nameLenIndex].toInt() and 0xff
-                        if (possibleLength != nameLength) continue
-                        val nameStart = nameLenIndex + 1
-                        val nameEnd = nameStart + nameLength
-                        if (nameEnd != nameBeforeEnd) continue
-                        val nameBytes = packet.copyOfRange(nameStart, nameEnd)
-                        val possibleName = String(nameBytes, Charsets.UTF_8)
-                        val sanitizedName = sanitizeNickname(possibleName)
-                        if (sanitizedName == null) continue
-                        val scanStart = maxOf(0, nameLenIndex - 32)
-                        var scanOffset = nameLenIndex - 1
-                        while (scanOffset >= scanStart) {
-                            if (!canReadVarInt(packet, scanOffset)) {
-                                scanOffset--
-                                continue
-                            }
-                            val actorInfo = readVarInt(packet, scanOffset)
-                            if (actorInfo.length == 2 && actorInfo.value in 100..99999) {
-                                if (dataStorage.getNickname()[actorInfo.value] == null) {
-                                    logger.info(
-                                        "Loot attribution actor name found {} -> {} (hex={})",
-                                        actorInfo.value,
-                                        sanitizedName,
-                                        toHex(nameBytes)
-                                    )
-                                    DebugLogWriter.info(
-                                        logger,
-                                        "Loot attribution actor name found {} -> {} (hex={})",
-                                        actorInfo.value,
-                                        sanitizedName,
-                                        toHex(nameBytes)
-                                    )
-                                    dataStorage.appendNickname(actorInfo.value, sanitizedName)
-                                    foundAny = true
-                                    matchedBefore = true
-                                    idx += 3 + nameLength
-                                    break
-                                }
-                            }
-                            scanOffset--
-                        }
-                        if (matchedBefore) {
-                            break
-                        }
-                    }
-                    if (matchedBefore) {
-                        continue
-                    }
+                val actorOffset = idx + 2
+                if (actorOffset >= packet.size || !canReadVarInt(packet, actorOffset)) {
+                    idx++
+                    continue
                 }
-                val actorOffset = idx - 2
-                if (actorOffset >= 0 && canReadVarInt(packet, actorOffset)) {
-                    val actorInfo = readVarInt(packet, actorOffset)
-                    if (actorInfo.length == 2 && actorInfo.value in 100..99999) {
-                        val lengthIdx = idx + 2
-                        if (lengthIdx < packet.size) {
-                            val nameLength = packet[lengthIdx].toInt() and 0xff
-                            if (nameLength in 3..16) {
-                                val nameStart = lengthIdx + 1
-                                val nameEnd = nameStart + nameLength
-                                if (nameEnd <= packet.size) {
-                                    val nameBytes = packet.copyOfRange(nameStart, nameEnd)
-                                    val possibleName = String(nameBytes, Charsets.UTF_8)
-                                    val sanitizedName = sanitizeNickname(possibleName)
-                                    if (sanitizedName != null &&
-                                        dataStorage.getNickname()[actorInfo.value] == null
-                                    ) {
-                                        logger.info(
-                                            "Loot attribution actor name found {} -> {} (hex={})",
-                                            actorInfo.value,
-                                            sanitizedName,
-                                            toHex(nameBytes)
-                                        )
-                                        DebugLogWriter.info(
-                                            logger,
-                                            "Loot attribution actor name found {} -> {} (hex={})",
-                                            actorInfo.value,
-                                            sanitizedName,
-                                            toHex(nameBytes)
-                                        )
-                                        dataStorage.appendNickname(actorInfo.value, sanitizedName)
-                                        foundAny = true
-                                        idx += 3 + nameLength
-                                        continue
-                                    }
-                                }
-                            }
-                        }
-                    }
+                val actorInfo = readVarInt(packet, actorOffset)
+                if (actorInfo.length != 2 || actorInfo.value !in 100..99999) {
+                    idx++
+                    continue
                 }
+                if (actorInfo.value == 0 || !actorAppearsInCombat(actorInfo.value)) {
+                    idx++
+                    continue
+                }
+                val lengthIdx = actorOffset + actorInfo.length
+                if (lengthIdx >= packet.size) {
+                    idx++
+                    continue
+                }
+                val nameLength = packet[lengthIdx].toInt() and 0xff
+                if (nameLength !in 3..16) {
+                    idx++
+                    continue
+                }
+                val nameStart = lengthIdx + 1
+                val nameEnd = nameStart + nameLength
+                if (nameEnd > packet.size) {
+                    idx++
+                    continue
+                }
+                val nameBytes = packet.copyOfRange(nameStart, nameEnd)
+                val possibleName = decodeUtf8Strict(nameBytes) ?: run {
+                    idx = nameEnd
+                    continue
+                }
+                val sanitizedName = sanitizeNickname(possibleName)
+                if (sanitizedName == null) {
+                    idx = nameEnd
+                    continue
+                }
+                if (dataStorage.getNickname()[actorInfo.value] == null) {
+                    logger.info(
+                        "Loot attribution actor name found {} -> {} (hex={})",
+                        actorInfo.value,
+                        sanitizedName,
+                        toHex(nameBytes)
+                    )
+                    DebugLogWriter.info(
+                        logger,
+                        "Loot attribution actor name found {} -> {} (hex={})",
+                        actorInfo.value,
+                        sanitizedName,
+                        toHex(nameBytes)
+                    )
+                    dataStorage.appendNickname(actorInfo.value, sanitizedName)
+                    foundAny = true
+                }
+                idx = nameEnd
+                continue
             }
             idx++
         }
@@ -399,7 +363,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             return null
         }
         val nameBytes = packet.copyOfRange(nameStart, nameEnd)
-        val possibleName = String(nameBytes, Charsets.UTF_8)
+        val possibleName = decodeUtf8Strict(nameBytes) ?: return null
         val sanitizedName = sanitizeNickname(possibleName) ?: return null
         val scanStart = maxOf(0, idx - 32)
         var scanOffset = idx - 1
@@ -409,7 +373,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 continue
             }
             val actorInfo = readVarInt(packet, scanOffset)
-            if (actorInfo.length == 2 && actorInfo.value in 100..99999) {
+            if (actorInfo.length == 2 &&
+                actorInfo.value in 100..99999 &&
+                actorInfo.value != 0 &&
+                actorAppearsInCombat(actorInfo.value)
+            ) {
                 if (dataStorage.getNickname()[actorInfo.value] == null) {
                     logger.info(
                         "Pattern C actor name found {} -> {} (hex={})",
@@ -438,6 +406,23 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             dataStorage.getActorData().containsKey(actorId) ||
             dataStorage.getBossModeData().containsKey(actorId) ||
             dataStorage.getSummonData().containsKey(actorId)
+    }
+
+    private fun actorAppearsInCombat(actorId: Int): Boolean {
+        return dataStorage.getActorData().containsKey(actorId) ||
+            dataStorage.getBossModeData().containsKey(actorId) ||
+            dataStorage.getSummonData().containsKey(actorId)
+    }
+
+    private fun decodeUtf8Strict(bytes: ByteArray): String? {
+        val decoder = Charsets.UTF_8.newDecoder()
+        decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+        decoder.onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+        return try {
+            decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+        } catch (ex: java.nio.charset.CharacterCodingException) {
+            null
+        }
     }
 
     private data class ActorAnchor(val actorId: Int, val startIndex: Int, val endIndex: Int)
