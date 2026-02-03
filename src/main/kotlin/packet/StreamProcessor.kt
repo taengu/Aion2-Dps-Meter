@@ -904,101 +904,36 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val specialFlags = parseSpecialDamageFlags(packet, flagsOffset, flagsLength)
             offset += flagsLength
 
-            val tailOffset = offset
-            val hitCandidate = readVarInt(packet, tailOffset)
-            val hitCountCandidate = if (hitCandidate.length > 0) hitCandidate.value else -1
-            var hitDamageSum: Int? = null
-            var hitMax: Int? = null
-            var hitEndOffset: Int? = null
-            var hitNumbersSum: Int? = null
-            var hitFinalDamage: Int? = null
-            if (hitCountCandidate in 1..32) {
-                var probeOffset = tailOffset + hitCandidate.length
-                var totalDamage = 0
-                var maxHit = 0
-                var numbersSum = hitCountCandidate
+            val unknownInfo = readVarIntAt() ?: return null
+            val damageInfo = readVarIntAt() ?: return null
+            val loopInfo = readVarIntAt() ?: return null
+            val hitCount = loopInfo.value
+            val hitDamages = mutableListOf<Int>()
+            var resolvedDamage = damageInfo.value
+            if (hitCount in 1..32) {
                 var hitsRead = 0
-                var ok = true
-                var lastHit = 0
-                while (hitsRead < hitCountCandidate && ok) {
-                    val hitInfo = readVarInt(packet, probeOffset)
-                    if (hitInfo.length < 0) {
-                        ok = false
-                    } else {
-                        probeOffset += hitInfo.length
-                        totalDamage += hitInfo.value
-                        numbersSum += hitInfo.value
-                        if (hitInfo.value > maxHit) maxHit = hitInfo.value
-                        lastHit = hitInfo.value
-                        if (switchValue >= 6 && probeOffset < packet.size && packet[probeOffset].toInt() and 0xff < 0x20) {
-                            val extraInfo = readVarInt(packet, probeOffset)
-                            if (extraInfo.length < 0) {
-                                ok = false
-                            } else {
-                                probeOffset += extraInfo.length
-                                numbersSum += extraInfo.value
-                            }
-                        }
-                    }
+                var totalDamage = 0
+                while (hitsRead < hitCount && hasRemaining()) {
+                    val hitInfo = readVarIntAt() ?: return null
+                    totalDamage += hitInfo.value
+                    hitDamages.add(hitInfo.value)
                     hitsRead++
                 }
-                if (ok) {
-                    hitDamageSum = totalDamage
-                    hitMax = maxHit
-                    hitEndOffset = probeOffset
-                    hitNumbersSum = numbersSum
-                    hitFinalDamage = lastHit
-                    if (probeOffset < packet.size) {
-                        val tailDamage = readVarInt(packet, probeOffset)
-                        if (tailDamage.length > 0 && tailDamage.value >= maxHit) {
-                            hitFinalDamage = tailDamage.value
-                            hitEndOffset = probeOffset + tailDamage.length
-                        }
-                    }
-                }
-            }
-
-            val tripleUnknown = readVarInt(packet, tailOffset)
-            val tripleDamage = if (tripleUnknown.length > 0) readVarInt(packet, tailOffset + tripleUnknown.length) else VarIntOutput(0, -1)
-            val tripleLoop = if (tripleDamage.length > 0) readVarInt(packet, tailOffset + tripleUnknown.length + tripleDamage.length) else VarIntOutput(0, -1)
-            val tripleEndOffset = if (tripleLoop.length > 0) tailOffset + tripleUnknown.length + tripleDamage.length + tripleLoop.length else null
-
-            val hitCandidateValid = hitDamageSum != null && hitMax != null && hitNumbersSum != null &&
-                hitFinalDamage != null && hitDamageSum!! >= hitMax!! && hitDamageSum!! <= hitNumbersSum!!
-            val tripleCandidateValid = tripleUnknown.length > 0 &&
-                tripleDamage.length > 0 &&
-                tripleLoop.length > 0 &&
-                tripleLoop.value in 0..32 &&
-                tripleDamage.value >= maxOf(tripleUnknown.value, tripleLoop.value)
-
-            val unknownInfo: VarIntOutput
-            val damageInfo: VarIntOutput
-            val loopInfo: VarIntOutput
-            if (hitCandidateValid) {
-                unknownInfo = VarIntOutput(hitCountCandidate, hitCandidate.length)
-                damageInfo = VarIntOutput(hitFinalDamage!!, 0)
-                loopInfo = VarIntOutput(hitCountCandidate, hitCandidate.length)
-                offset = hitEndOffset ?: tailOffset
-            } else if (tripleCandidateValid) {
-                unknownInfo = tripleUnknown
-                damageInfo = tripleDamage
-                loopInfo = tripleLoop
-                offset = tripleEndOffset ?: tailOffset
-            } else {
-                val fallbackDamage = readVarInt(packet, tailOffset)
-                if (fallbackDamage.length < 0) return null
-                unknownInfo = VarIntOutput(0, 0)
-                damageInfo = fallbackDamage
-                val loopCandidate = if (fallbackDamage.length > 0 && tailOffset + fallbackDamage.length < packet.size) {
-                    readVarInt(packet, tailOffset + fallbackDamage.length)
-                } else {
-                    VarIntOutput(0, -1)
-                }
-                loopInfo = if (loopCandidate.length > 0) loopCandidate else VarIntOutput(0, 0)
-                offset = tailOffset + fallbackDamage.length
+                resolvedDamage = totalDamage
             }
 
             val skillCode = rawSkillCode
+            logger.debug(
+                "Damage parse skillIndicator={} skillRaw={} unknown={} damage={} loop={} hitCount={} hits={} resolvedDamage={}",
+                skillIndicator,
+                rawSkillCode,
+                unknownInfo.value,
+                damageInfo.value,
+                loopInfo.value,
+                hitCount,
+                hitDamages,
+                resolvedDamage
+            )
 
             val pdp = ParsedDamagePacket()
             pdp.setTargetId(targetInfo)
@@ -1009,7 +944,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             pdp.setType(typeInfo)
             pdp.setSpecials(specialFlags)
             pdp.setUnknown(unknownInfo)
-            pdp.setDamage(damageInfo)
+            pdp.setDamage(VarIntOutput(resolvedDamage, damageInfo.length))
             pdp.setLoop(loopInfo)
             return DamagePacketParseResult(pdp, damageType, flagsOffset, flagsLength, effectMarker, effectInstanceId)
         }
