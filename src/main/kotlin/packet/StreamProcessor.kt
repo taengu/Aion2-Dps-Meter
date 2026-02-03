@@ -148,6 +148,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun parseNicknameFromBrokenLengthPacket(packet: ByteArray) {
         var originOffset = 0
         while (originOffset < packet.size) {
+            if (!canReadVarInt(packet, originOffset)) {
+                originOffset++
+                continue
+            }
             val info = readVarInt(packet, originOffset)
             if (info.length == -1) {
                 return
@@ -249,6 +253,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun parseRule36Nickname(packet: ByteArray): Boolean {
         var originOffset = 0
         while (originOffset < packet.size) {
+            if (!canReadVarInt(packet, originOffset)) {
+                originOffset++
+                continue
+            }
             val info = readVarInt(packet, originOffset)
             if (info.length == -1) return false
             val innerOffset = originOffset + info.length
@@ -266,6 +274,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (packet[rule36Offset] != 0x01.toByte() || packet[rule36Offset + 1] != 0x20.toByte()) {
             return false
         }
+        if (!canReadVarInt(packet, rule36Offset + 2)) return false
         val typeInfo = readVarInt(packet, rule36Offset + 2)
         if (typeInfo.length <= 0) return false
         val opcodeOffset = rule36Offset + 2 + typeInfo.length
@@ -469,6 +478,21 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 ((packet[offset + 1].toInt() and 0xFF) shl 8) or
                 ((packet[offset + 2].toInt() and 0xFF) shl 16) or
                 ((packet[offset + 3].toInt() and 0xFF) shl 24)
+    }
+
+    private fun canReadVarInt(bytes: ByteArray, offset: Int): Boolean {
+        if (offset < 0 || offset >= bytes.size) return false
+        var idx = offset
+        var count = 0
+        while (idx < bytes.size && count < 5) {
+            val byteVal = bytes[idx].toInt() and 0xff
+            if ((byteVal and 0x80) == 0) {
+                return true
+            }
+            idx++
+            count++
+        }
+        return false
     }
 
     private fun parsingNickname(packet: ByteArray): Boolean {
