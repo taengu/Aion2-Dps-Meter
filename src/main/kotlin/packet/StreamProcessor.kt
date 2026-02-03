@@ -251,77 +251,91 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun parseRule36Nickname(packet: ByteArray): Boolean {
-        var originOffset = 0
-        while (originOffset < packet.size) {
-            if (!canReadVarInt(packet, originOffset)) {
-                originOffset++
+        var i = 0
+        while (i < packet.size) {
+            if (packet[i] != 0x36.toByte()) {
+                i++
                 continue
             }
-            val info = readVarInt(packet, originOffset)
-            if (info.length == -1) return false
-            val innerOffset = originOffset + info.length
-            if (parseRule36Nickname(packet, innerOffset, info.value)) {
-                return true
+            val entityInfo = readVarInt(packet, i + 1)
+            if (entityInfo.length <= 0) {
+                i++
+                continue
             }
-            originOffset++
+            var pos = i + 1 + entityInfo.length
+            if (pos + 1 >= packet.size) {
+                i++
+                continue
+            }
+            if (packet[pos] != 0x01.toByte() || packet[pos + 1] != 0x20.toByte()) {
+                i++
+                continue
+            }
+            pos += 2
+            val typeInfo = readVarInt(packet, pos)
+            if (typeInfo.length <= 0) {
+                i++
+                continue
+            }
+            pos += typeInfo.length
+            if (pos >= packet.size || packet[pos] != 0x07.toByte()) {
+                i++
+                continue
+            }
+            pos += 1
+            val nameLengthInfo = readVarInt(packet, pos)
+            if (nameLengthInfo.length <= 0) {
+                i++
+                continue
+            }
+            pos += nameLengthInfo.length
+            if (!registerAsciiNickname(packet, entityInfo.value, pos, nameLengthInfo.value)) {
+                i++
+                continue
+            }
+            return true
         }
         return false
     }
 
-    private fun parseRule36Nickname(packet: ByteArray, innerOffset: Int, entityId: Int): Boolean {
-        val rule36Offset = innerOffset + 1
-        if (rule36Offset + 3 >= packet.size) return false
-        if (packet[rule36Offset] == 0x01.toByte() && packet[rule36Offset + 1] == 0x20.toByte()) {
-            if (!canReadVarInt(packet, rule36Offset + 2)) return false
-            val typeInfo = readVarInt(packet, rule36Offset + 2)
-            if (typeInfo.length <= 0) return false
-            val opcodeOffset = rule36Offset + 2 + typeInfo.length
-            val lengthOffset = opcodeOffset + 1
-            if (lengthOffset >= packet.size || packet[opcodeOffset] != 0x07.toByte()) return false
-            return registerNicknameFromOffsets(packet, entityId, lengthOffset + 1, "Rule 36")
-        }
-        if (packet[rule36Offset] == 0x01.toByte() && packet[rule36Offset + 1] == 0x07.toByte()) {
-            val lengthOffset = rule36Offset + 2
-            if (lengthOffset >= packet.size) return false
-            return registerNicknameFromOffsets(packet, entityId, lengthOffset + 1, "Rule 36 simple")
-        }
-        return false
-    }
-
-    private fun registerNicknameFromOffsets(
+    private fun registerAsciiNickname(
         packet: ByteArray,
         entityId: Int,
         nameStart: Int,
-        tag: String
+        nameLength: Int
     ): Boolean {
-        if (entityId <= 32) return false
-        if (nameStart >= packet.size) return false
-        val possibleNameLength = packet[nameStart - 1].toInt() and 0xff
-        if (possibleNameLength <= 0) return false
-        val nameEnd = nameStart + possibleNameLength
-        if (nameEnd > packet.size) return false
+        if (nameLength <= 0 || nameLength > 32) return false
+        val nameEnd = nameStart + nameLength
+        if (nameStart < 0 || nameEnd > packet.size) return false
         val possibleNameBytes = packet.copyOfRange(nameStart, nameEnd)
-        val possibleName = String(possibleNameBytes, Charsets.UTF_8)
-        val sanitizedName = sanitizeNickname(possibleName) ?: return false
+        if (!isPrintableAscii(possibleNameBytes)) return false
+        val possibleName = String(possibleNameBytes, Charsets.US_ASCII)
         val existingNickname = dataStorage.getNickname()[entityId]
-        if (existingNickname != sanitizedName) {
+        if (existingNickname != possibleName) {
             logger.info(
-                "{} nickname found {} -> {} (hex={})",
-                tag,
+                "Rule 36 nickname found {} -> {} (hex={})",
                 entityId,
-                sanitizedName,
+                possibleName,
                 toHex(possibleNameBytes)
             )
             DebugLogWriter.info(
                 logger,
-                "{} nickname found {} -> {} (hex={})",
-                tag,
+                "Rule 36 nickname found {} -> {} (hex={})",
                 entityId,
-                sanitizedName,
+                possibleName,
                 toHex(possibleNameBytes)
             )
         }
-        dataStorage.appendNickname(entityId, sanitizedName)
+        dataStorage.appendNickname(entityId, possibleName)
+        return true
+    }
+
+    private fun isPrintableAscii(bytes: ByteArray): Boolean {
+        if (bytes.isEmpty()) return false
+        for (b in bytes) {
+            val value = b.toInt() and 0xff
+            if (value < 0x20 || value > 0x7e) return false
+        }
         return true
     }
 
