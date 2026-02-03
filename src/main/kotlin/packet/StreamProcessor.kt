@@ -924,6 +924,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             if (!hasRemaining()) return null
             val damageType = packet[offset]
+            offset += 1
 
             val flagsOffset = offset
             val flagsLength = getSpecialBlockSize(switchValue)
