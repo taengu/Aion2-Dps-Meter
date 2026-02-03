@@ -931,13 +931,28 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val specialFlags = parseSpecialDamageFlags(packet, flagsOffset, flagsLength)
             offset += flagsLength
 
-            val hitSubtypeInfo = readVarIntAt() ?: return null
-            if (hasRemaining() && (packet[offset].toInt() and 0xff) < 0x20) {
-                readVarIntAt()
+            val hitCountInfo = readVarIntAt() ?: return null
+            var damageInfo: VarIntOutput
+            var loopInfo: VarIntOutput
+            val unknownInfo = hitCountInfo
+
+            if (hitCountInfo.value in 1..32) {
+                var totalDamage = 0
+                var hitsRead = 0
+                while (hitsRead < hitCountInfo.value && hasRemaining()) {
+                    val hitDamageInfo = readVarIntAt() ?: return null
+                    totalDamage += hitDamageInfo.value
+                    if (switchValue >= 6 && hasRemaining() && (packet[offset].toInt() and 0xff) < 0x20) {
+                        readVarIntAt()
+                    }
+                    hitsRead++
+                }
+                damageInfo = VarIntOutput(totalDamage, 0)
+                loopInfo = hitCountInfo
+            } else {
+                damageInfo = hitCountInfo
+                loopInfo = if (hasRemaining()) readVarIntAt() ?: VarIntOutput(0, 0) else VarIntOutput(0, 0)
             }
-            val damageInfo = readVarIntAt() ?: return null
-            val loopInfo = if (hasRemaining()) readVarIntAt() ?: VarIntOutput(0, 0) else VarIntOutput(0, 0)
-            val unknownInfo = hitSubtypeInfo
 
             val pdp = ParsedDamagePacket()
             pdp.setTargetId(targetInfo)
