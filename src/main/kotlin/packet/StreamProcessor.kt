@@ -297,7 +297,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
 
             if (packet[i] == 0x07.toByte()) {
-                val nameInfo = readAsciiName(packet, i) ?: run {
+                val nameInfo = readAsciiName(packet, i)
+                if (nameInfo == null) {
                     i++
                     continue
                 }
