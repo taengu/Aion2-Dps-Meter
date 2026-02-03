@@ -833,95 +833,48 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val skillIndicator = packet[offset].toInt() and 0xff
             var effectInstanceId: Int? = null
             var skillCode: Int
-            var extendedProbeOffset: Int? = null
-            val extendedCandidate = when (skillIndicator) {
-                0x00, 0x01 -> {
-                    var probeOffset = offset + 1
-                    val variantProbe = if (skillIndicator == 0x01) {
-                        val info = readVarInt(packet, probeOffset)
-                        if (info.length < 0 || info.value > 4096) {
-                            null
-                        } else {
-                            probeOffset += info.length
-                            info
-                        }
-                    } else {
-                        VarIntOutput(0, 0)
-                    }
-                    if (variantProbe == null) {
-                        false
-                    } else if (probeOffset + 4 > packet.size) {
-                        false
-                    } else {
-                        probeOffset += 4
-                        extendedProbeOffset = probeOffset
-                        true
-                    }
-                }
-                else -> false
-            }
-            val normalProbeOffset = offset + 4
-            val isSaneParseStart: (Int) -> Boolean = { probeOffset ->
-                var checkOffset = probeOffset
-                if (checkOffset + 1 < packet.size &&
-                    packet[checkOffset] == 0x01.toByte() &&
-                    (packet[checkOffset + 1] == 0x03.toByte() || packet[checkOffset + 1] == 0x10.toByte())
-                ) {
-                    checkOffset += 2
-                }
-                val typeProbe = readVarInt(packet, checkOffset)
-                if (typeProbe.length <= 0 || typeProbe.value !in 0..80) {
-                    false
-                } else {
-                    checkOffset += typeProbe.length
-                    checkOffset < packet.size
-                }
-            }
-            val normalSane = normalProbeOffset <= packet.size && isSaneParseStart(normalProbeOffset)
-            val extendedSane = extendedCandidate && extendedProbeOffset != null &&
-                extendedProbeOffset!! <= packet.size && isSaneParseStart(extendedProbeOffset!!)
-            val useExtended = extendedSane || (extendedCandidate && !normalSane)
-            if (useExtended) {
-                if (skillIndicator == 0x00) {
+            when (skillIndicator) {
+                0x00 -> {
                     offset += 1
                     if (!hasRemaining(4)) return null
                     val skillValue = parseUInt32le(packet, offset)
                     offset += 4
                     effectInstanceId = skillValue
                     skillCode = skillValue
-                } else {
+                }
+                0x01 -> {
                     offset += 1
                     val variantHeader = readVarIntAt() ?: return null
-                    if (variantHeader.value > 4096) return null
                     if (!hasRemaining(4)) return null
-                    val skillValue = parseUInt32le(packet, offset)
+                    val effectId = parseUInt32le(packet, offset)
                     offset += 4
                     logger.info(
-                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} skill {}",
+                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
                         targetInfo.value,
                         actorInfo.value,
                         skillIndicator,
                         variantHeader.value,
-                        skillValue
+                        effectId
                     )
                     DebugLogWriter.info(
                         logger,
-                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} skill {}",
+                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
                         targetInfo.value,
                         actorInfo.value,
                         skillIndicator,
                         variantHeader.value,
-                        skillValue
+                        effectId
                     )
+                    effectInstanceId = effectId
+                    skillCode = effectId
+                }
+                else -> {
+                    if (!hasRemaining(4)) return null
+                    val skillValue = parseUInt32le(packet, offset)
+                    offset += 4
                     effectInstanceId = skillValue
                     skillCode = skillValue
                 }
-            } else {
-                if (!hasRemaining(4)) return null
-                val skillValue = parseUInt32le(packet, offset)
-                offset += 4
-                effectInstanceId = skillValue
-                skillCode = skillValue
             }
             var effectMarker: ByteArray? = null
             if (hasRemaining(2) && packet[offset] == 0x01.toByte() &&
@@ -931,7 +884,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 offset += 2
             }
 
-            val typeInfo = readVarIntAt() ?: return null
+            val markerOffset = offset
+            var typeInfo = readVarIntAt()
+            if (typeInfo == null && effectMarker != null) {
+                offset = markerOffset
+                effectMarker = null
+                typeInfo = readVarIntAt()
+            }
+            if (typeInfo == null) return null
 
             if (effectMarker != null) {
                 skillCode = 0
@@ -946,34 +906,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val specialFlags = parseSpecialDamageFlags(packet, flagsOffset, flagsLength)
             offset += flagsLength
 
-            val hitCountInfo = readVarIntAt() ?: return null
-            val unknownInfo = hitCountInfo
-            var damageInfo: VarIntOutput? = null
-            var loopInfo: VarIntOutput? = null
-            if (hitCountInfo.value in 1..32) {
-                var totalDamage = 0
-                var hitsRead = 0
-                logger.debug("HitCount={} switch={}", hitCountInfo.value, switchValue)
-                while (hitsRead < hitCountInfo.value && hasRemaining()) {
-                    val hitDamageInfo = readVarIntAt() ?: return null
-                    totalDamage += hitDamageInfo.value
-                    logger.debug("Hit {} damage {}", hitsRead + 1, hitDamageInfo.value)
-                    if (switchValue >= 6 && hasRemaining()) {
-                        val peek = packet[offset].toInt() and 0xff
-                        if (peek < 0x20) {
-                            readVarIntAt() ?: return null
-                        }
-                    }
-                    hitsRead++
-                }
-                damageInfo = VarIntOutput(totalDamage, 0)
-                loopInfo = hitCountInfo
-            } else {
-                damageInfo = hitCountInfo
-                loopInfo = if (hasRemaining()) readVarIntAt() ?: VarIntOutput(0, 0) else VarIntOutput(0, 0)
-            }
-            val finalDamageInfo = damageInfo ?: return null
-            val finalLoopInfo = loopInfo ?: return null
+            val unknownInfo = readVarIntAt() ?: return null
+            val damageInfo = readVarIntAt() ?: return null
+            val loopInfo = readVarIntAt() ?: return null
 
             val pdp = ParsedDamagePacket()
             pdp.setTargetId(targetInfo)
@@ -984,8 +919,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             pdp.setType(typeInfo)
             pdp.setSpecials(specialFlags)
             pdp.setUnknown(unknownInfo)
-            pdp.setDamage(finalDamageInfo)
-            pdp.setLoop(finalLoopInfo)
+            pdp.setDamage(damageInfo)
+            pdp.setLoop(loopInfo)
             return DamagePacketParseResult(pdp, damageType, flagsOffset, flagsLength, effectMarker, effectInstanceId)
         }
 
