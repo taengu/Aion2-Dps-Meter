@@ -830,7 +830,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (actorInfo.value <= 0) return null
 
             if (!hasRemaining()) return null
-            val skillOffset = offset
             val skillIndicator = packet[offset].toInt() and 0xff
             var effectInstanceId: Int? = null
             var skillCode: Int
@@ -879,14 +878,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 }
             }
             skillCode = if (extendedSkill) 0 else parsedSkillCode
-            if (!extendedSkill && !isValidSkillId(skillCode)) {
-                offset = skillOffset
-                if (!hasRemaining(4)) return null
-                val skillValue = parseUInt32le(packet, offset)
-                offset += 4
-                effectInstanceId = skillValue
-                skillCode = if (isValidSkillId(skillValue)) skillValue else 0
-            }
             var effectMarker: ByteArray? = null
             if (hasRemaining(2) && packet[offset] == 0x01.toByte() &&
                 (packet[offset + 1] == 0x03.toByte() || packet[offset + 1] == 0x10.toByte())
@@ -977,10 +968,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         private fun hasRemaining(count: Int = 1): Boolean {
             return offset + count <= packet.size
-        }
-
-        private fun isValidSkillId(skillId: Int): Boolean {
-            return skillId in 1_000..300_000_000
         }
 
         private fun getSpecialBlockSize(switchValue: Int): Int {
