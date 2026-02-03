@@ -122,6 +122,11 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
             if (message.isNullOrBlank()) return
             DebugLogWriter.debug(logger, "UI {}", message.trim())
         }
+
+        fun isRunningAsRoot(): Boolean {
+            return System.getProperty("user.name") == "root"
+        }
+
         fun exitApp() {
           Platform.exit()     
           exitProcess(0)       

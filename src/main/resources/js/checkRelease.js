@@ -44,6 +44,9 @@
       if (!(window.dpsData?.getVersion && window.javaBridge?.openBrowser)) {
         return;
       }
+      if (window.javaBridge?.isRunningAsRoot?.()) {
+        return;
+      }
 
       const current = String(window.dpsData.getVersion() || "").trim();
       const res = await fetch(API, {
