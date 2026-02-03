@@ -289,7 +289,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 continue
             }
             val entityInfo = readVarInt(packet, i + 1)
-            if (entityInfo.length <= 0) {
+            if (entityInfo.length <= 0 || entityInfo.value < 1000) {
                 i++
                 continue
             }
@@ -299,7 +299,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 continue
             }
             val scanEnd = minOf(packet.size, scanStart + 128)
+            val guardIdx = findGuardSequence(packet, scanStart, scanEnd)
+            if (guardIdx == -1) {
+                i++
+                continue
+            }
             var pos = scanStart
+            if (guardIdx + 2 < scanEnd) {
+                pos = guardIdx + 2
+            }
             while (pos < scanEnd) {
                 if (packet[pos] != 0x07.toByte()) {
                     pos++
@@ -323,6 +331,21 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             i++
         }
         return false
+    }
+
+    private fun findGuardSequence(packet: ByteArray, start: Int, end: Int): Int {
+        var idx = start
+        val limit = end - 1
+        while (idx < limit) {
+            val first = packet[idx]
+            if ((first == 0x01.toByte() || first == 0x03.toByte()) &&
+                packet[idx + 1] == 0x20.toByte()
+            ) {
+                return idx
+            }
+            idx++
+        }
+        return -1
     }
 
     private fun registerAsciiNickname(
