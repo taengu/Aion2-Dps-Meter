@@ -111,9 +111,20 @@ class ParsedDamagePacket {
                 this.payload = payload.copyOf()
         }
 
-        fun getHexPayload(): String {
+        fun getHexPayload(maxBytes: Int = Int.MAX_VALUE): String {
                 val bytes = payload ?: return ""
-                return bytes.joinToString(" ") { "%02X".format(it) }
+                if (maxBytes <= 0) return ""
+                val limitedBytes = if (bytes.size > maxBytes) {
+                        bytes.copyOfRange(0, maxBytes)
+                } else {
+                        bytes
+                }
+                val hex = limitedBytes.joinToString(" ") { "%02X".format(it) }
+                return if (bytes.size > maxBytes) {
+                        "$hex …(+${bytes.size - maxBytes} bytes)"
+                } else {
+                        hex
+                }
         }
 
 

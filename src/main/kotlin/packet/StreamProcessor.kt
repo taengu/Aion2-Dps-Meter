@@ -334,13 +334,13 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 continue
             }
             if (dataStorage.getNickname()[candidate.actorId] != null) continue
-            logger.info(
+            logger.debug(
                 "Loot attribution actor name found {} -> {} (hex={})",
                 candidate.actorId,
                 candidate.name,
                 toHex(candidate.nameBytes)
             )
-            DebugLogWriter.info(
+            DebugLogWriter.debug(
                 logger,
                 "Loot attribution actor name found {} -> {} (hex={})",
                 candidate.actorId,
@@ -427,13 +427,13 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         }
         val existingNickname = dataStorage.getNickname()[actorId]
         if (existingNickname != sanitizedName) {
-            logger.info(
+            logger.debug(
                 "Actor name binding found {} -> {} (hex={})",
                 actorId,
                 sanitizedName,
                 toHex(possibleNameBytes)
             )
-            DebugLogWriter.info(
+            DebugLogWriter.debug(
                 logger,
                 "Actor name binding found {} -> {} (hex={})",
                 actorId,
@@ -824,9 +824,41 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val actorInfo = readVarIntAt() ?: return null
             if (actorInfo.value <= 0) return null
 
-            if (!hasRemaining(5)) return null
-            val skillCode = parseUInt32le(packet, offset)
-            offset += 5
+            if (!hasRemaining()) return null
+            val skillEncoding = packet[offset].toInt() and 0xff
+            offset += 1
+            val skillCode = when (skillEncoding) {
+                0x00 -> {
+                    if (!hasRemaining(4)) return null
+                    val skillValue = parseUInt32le(packet, offset)
+                    offset += 4
+                    skillValue
+                }
+                else -> {
+                    val variantHeader = readVarIntAt() ?: return null
+                    if (!hasRemaining(4)) return null
+                    val effectId = parseUInt32le(packet, offset)
+                    offset += 4
+                    logger.info(
+                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
+                        targetInfo.value,
+                        actorInfo.value,
+                        skillEncoding,
+                        variantHeader.value,
+                        effectId
+                    )
+                    DebugLogWriter.info(
+                        logger,
+                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
+                        targetInfo.value,
+                        actorInfo.value,
+                        skillEncoding,
+                        variantHeader.value,
+                        effectId
+                    )
+                    effectId
+                }
+            }
 
             val typeInfo = readVarIntAt() ?: return null
             if (!hasRemaining()) return null
