@@ -250,11 +250,12 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun parsePerfectPacket(packet: ByteArray) {
         if (packet.size < 3) return
-        val damageParsed = parsingDamage(packet)
-        val nicknameParsed = parsingNickname(packet)
-        if (damageParsed || nicknameParsed) return
-        val summonParsed = parseSummonPacket(packet)
-        if (summonParsed) return
+        var flag = parsingDamage(packet)
+        if (flag) return
+        flag = parsingNickname(packet)
+        if (flag) return
+        flag = parseSummonPacket(packet)
+        if (flag) return
         parseDoTPacket(packet)
 
     }
@@ -481,6 +482,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val parsed = reader.parse() ?: return false
         val pdp = parsed.pdp
         val damageType = parsed.damageType
+        pdp.setPayload(packet)
 
 //        if (loopInfo.value != 0 && offset >= packet.size) return false
 //

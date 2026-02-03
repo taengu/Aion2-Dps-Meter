@@ -940,7 +940,8 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                     pdp.getSkillCode1(),
                     pdp.getTargetId(),
                     pdp.getActorId(),
-                    pdp.getDamage()
+                    pdp.getDamage(),
+                    pdp.getHexPayload()
                 ) ?: pdp.getSkillCode1()
             )
             dpsData.map[uid]!!.processPdp(pdp)
@@ -949,7 +950,8 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                     pdp.getSkillCode1(),
                     pdp.getTargetId(),
                     pdp.getActorId(),
-                    pdp.getDamage()
+                    pdp.getDamage(),
+                    pdp.getHexPayload()
                 ) ?: -1
                 val job = JobClass.convertFromSkill(origSkillCode)
                 if (job != null) {
@@ -1125,7 +1127,8 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         skillCode: Int,
         targetId: Int,
         actorId: Int,
-        damage: Int
+        damage: Int,
+        payloadHex: String
     ): Int? {
         for (offset in POSSIBLE_OFFSETS) {
             val possibleOrigin = skillCode - offset
@@ -1140,6 +1143,19 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             targetId,
             actorId,
             damage
+        )
+        logger.debug(
+            "Failed to infer skill code payload={}",
+            payloadHex
+        )
+        DebugLogWriter.debug(
+            logger,
+            "Failed to infer skill code: {} (target {}, actor {}, damage {}) payload={}",
+            skillCode,
+            targetId,
+            actorId,
+            damage,
+            payloadHex
         )
         return null
     }
