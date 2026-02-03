@@ -142,7 +142,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             if (flag && !processed) {
                 logger.debug("Remaining packet {}", toHex(packet))
-                parseNicknameFromBrokenLengthPacket(packet)
             }
             return
         }
@@ -170,61 +169,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             parseBrokenLengthPacket(remainingPacket, false)
         }
         return handled
-    }
-
-    private fun parseNicknameFromBrokenLengthPacket(packet: ByteArray) {
-        var originOffset = 0
-        while (originOffset < packet.size) {
-            if (!canReadVarInt(packet, originOffset)) {
-                originOffset++
-                continue
-            }
-            val info = readVarInt(packet, originOffset)
-            if (info.length == -1) {
-                return
-            }
-            val innerOffset = originOffset + info.length
-
-            if (innerOffset + 6 >= packet.size) {
-                originOffset++
-                continue
-            }
-
-            val candidateOffsets = listOf(
-                innerOffset + 3 to 0x07,
-                innerOffset + 2 to 0x07
-            )
-            for ((flagOffset, opcode) in candidateOffsets) {
-                val opcodeOffset = flagOffset + 1
-                val lengthOffset = flagOffset + 2
-                if (opcodeOffset >= packet.size || lengthOffset >= packet.size) continue
-                if (packet[flagOffset + 1] != opcode.toByte()) continue
-                val possibleNameLength = packet[lengthOffset].toInt() and 0xff
-                val nameStart = lengthOffset + 1
-                val nameEnd = nameStart + possibleNameLength
-                if (nameEnd > packet.size || possibleNameLength <= 0) continue
-                val possibleNameBytes = packet.copyOfRange(nameStart, nameEnd)
-                val possibleName = String(possibleNameBytes, Charsets.UTF_8)
-                val sanitizedName = sanitizeNickname(possibleName)
-                if (sanitizedName != null) {
-                    logger.info(
-                        "Potential nickname found in broken packet: {} (hex={})",
-                        sanitizedName,
-                        toHex(possibleNameBytes)
-                    )
-                    DebugLogWriter.info(
-                        logger,
-                        "Potential nickname found in broken packet: {} (hex={})",
-                        sanitizedName,
-                        toHex(possibleNameBytes)
-                    )
-                    dataStorage.appendNickname(info.value, sanitizedName)
-                }
-            }
-            parseEntityNameBindingRules(packet)
-            parseLootAttributionEntityName(packet)
-            originOffset++
-        }
     }
 
     private fun sanitizeNickname(nickname: String): String? {
