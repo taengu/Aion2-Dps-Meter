@@ -272,6 +272,12 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         var foundAny = false
         var idx = 0
         while (idx + 2 < packet.size) {
+            val patternCFound = parsePatternCName(packet, idx)
+            if (patternCFound != null) {
+                foundAny = true
+                idx = patternCFound
+                continue
+            }
             if (packet[idx] == 0xF8.toByte() && packet[idx + 1] == 0x03.toByte()) {
                 val nameBeforeStart = idx - 1
                 if (nameBeforeStart >= 0) {
@@ -373,6 +379,55 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             idx++
         }
         return foundAny
+    }
+
+    private fun parsePatternCName(packet: ByteArray, idx: Int): Int? {
+        val nameLength = packet[idx].toInt() and 0xff
+        if (nameLength !in 3..16) return null
+        val nameStart = idx + 1
+        val nameEnd = nameStart + nameLength
+        if (nameEnd > packet.size) return null
+        val u32Start = nameEnd
+        if (u32Start + 4 > packet.size) return null
+        if (packet[u32Start + 1] != 0x00.toByte() ||
+            packet[u32Start + 2] != 0x00.toByte() ||
+            packet[u32Start + 3] != 0x00.toByte()
+        ) {
+            return null
+        }
+        val nameBytes = packet.copyOfRange(nameStart, nameEnd)
+        val possibleName = String(nameBytes, Charsets.UTF_8)
+        val sanitizedName = sanitizeNickname(possibleName) ?: return null
+        val scanStart = maxOf(0, idx - 32)
+        var scanOffset = idx - 1
+        while (scanOffset >= scanStart) {
+            if (!canReadVarInt(packet, scanOffset)) {
+                scanOffset--
+                continue
+            }
+            val entityInfo = readVarInt(packet, scanOffset)
+            if (entityInfo.length in 1..2 && entityInfo.value in 1..99999) {
+                if (dataStorage.getNickname()[entityInfo.value] == null) {
+                    logger.info(
+                        "Pattern C entity name found {} -> {} (hex={})",
+                        entityInfo.value,
+                        sanitizedName,
+                        toHex(nameBytes)
+                    )
+                    DebugLogWriter.info(
+                        logger,
+                        "Pattern C entity name found {} -> {} (hex={})",
+                        entityInfo.value,
+                        sanitizedName,
+                        toHex(nameBytes)
+                    )
+                    dataStorage.appendNickname(entityInfo.value, sanitizedName)
+                    return idx + 1 + nameLength + 4
+                }
+            }
+            scanOffset--
+        }
+        return null
     }
 
     private fun entityExists(entityId: Int): Boolean {
