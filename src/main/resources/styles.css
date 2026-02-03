@@ -338,6 +338,10 @@
     }
   }
 }
+.meter .item.isIdentifying .content .name {
+  font-size: 14px;
+  font-weight: 500;
+}
 .battleTime {
   display: none;
   align-items: center;

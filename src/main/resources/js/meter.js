@@ -150,6 +150,7 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow, getM
 
       view.rowEl.style.display = "";
       view.rowEl.classList.toggle("isUser", !!row.isUser);
+      view.rowEl.classList.toggle("isIdentifying", !!row.isIdentifying);
 
       view.nameEl.textContent = row.name ?? "";
       if (row.job && !!row.job) {

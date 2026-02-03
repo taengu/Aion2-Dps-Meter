@@ -405,7 +405,8 @@ class DpsApp {
 
       const job = isObj ? (value.job ?? "") : "";
       const nickname = isObj ? (value.nickname ?? "") : "";
-      const name = nickname || String(id);
+      const isIdentifying = !nickname;
+      const name = isIdentifying ? `Identifying player (${id})...` : nickname;
 
       const dpsRaw = isObj ? value.dps : value;
       const dps = Math.trunc(Number(dpsRaw));
@@ -429,6 +430,7 @@ class DpsApp {
         totalDamage,
         damageContribution,
         isUser: name === this.USER_NAME,
+        isIdentifying,
       });
     }
 
