@@ -262,38 +262,30 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 i++
                 continue
             }
-            var pos = i + 1 + entityInfo.length
-            if (pos + 1 >= packet.size) {
+            val scanStart = i + 1 + entityInfo.length
+            if (scanStart >= packet.size) {
                 i++
                 continue
             }
-            if (packet[pos] != 0x01.toByte() || packet[pos + 1] != 0x20.toByte()) {
-                i++
-                continue
+            val scanEnd = minOf(packet.size, scanStart + 128)
+            var pos = scanStart
+            while (pos < scanEnd) {
+                if (packet[pos] != 0x07.toByte()) {
+                    pos++
+                    continue
+                }
+                val nameLengthInfo = readVarInt(packet, pos + 1)
+                if (nameLengthInfo.length <= 0) {
+                    pos++
+                    continue
+                }
+                val nameStart = pos + 1 + nameLengthInfo.length
+                if (registerAsciiNickname(packet, entityInfo.value, nameStart, nameLengthInfo.value)) {
+                    return true
+                }
+                pos++
             }
-            pos += 2
-            val typeInfo = readVarInt(packet, pos)
-            if (typeInfo.length <= 0) {
-                i++
-                continue
-            }
-            pos += typeInfo.length
-            if (pos >= packet.size || packet[pos] != 0x07.toByte()) {
-                i++
-                continue
-            }
-            pos += 1
-            val nameLengthInfo = readVarInt(packet, pos)
-            if (nameLengthInfo.length <= 0) {
-                i++
-                continue
-            }
-            pos += nameLengthInfo.length
-            if (!registerAsciiNickname(packet, entityInfo.value, pos, nameLengthInfo.value)) {
-                i++
-                continue
-            }
-            return true
+            i++
         }
         return false
     }
