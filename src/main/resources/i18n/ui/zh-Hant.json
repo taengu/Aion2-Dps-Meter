@@ -61,7 +61,11 @@
     }
   },
   "battleTime": {
-    "analysing": "分析資料中..."
+    "analysing": "準備就緒 -監控戰鬥中...",
+    "idle": "閒置"
+  },
+  "meter": {
+    "identifyingPlayer": "玩家 #{id}"
   },
   "skills": {
     "fallback": "技能 {code}",

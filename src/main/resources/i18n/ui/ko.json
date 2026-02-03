@@ -61,7 +61,11 @@
     }
   },
   "battleTime": {
-    "analysing": "데이터 분석 중..."
+    "analysing": "준비됨 -전투 모니터링 중...",
+    "idle": "대기 중"
+  },
+  "meter": {
+    "identifyingPlayer": "플레이어 #{id}"
   },
   "skills": {
     "fallback": "스킬 {code}",

@@ -116,14 +116,23 @@ class DpsApp {
       onClickUserRow: (row) => this.detailsUI.open(row),
     });
 
+    const getBattleTimeStatusText = () => {
+      if (this.battleTime?.getState?.() === "state-idle") {
+        return this.i18n?.t("battleTime.idle", "Idle") ?? "Idle";
+      }
+      return this.i18n?.t("battleTime.analysing", "Ready -monitoring combat...") ??
+        "Ready -monitoring combat...";
+    };
+
     this.battleTime = createBattleTimeUI({
       rootEl: document.querySelector(".battleTime"),
       tickSelector: ".tick",
       statusSelector: ".status",
       analysisSelector: ".analysisStatus",
-      getAnalysisText: () => this.i18n?.t("battleTime.analysing", "Analysing data..."),
+      getAnalysisText: getBattleTimeStatusText,
       graceMs: this.GRACE_MS,
       graceArmMs: this.GRACE_ARM_MS,
+      idleMs: 60000,
       visibleClass: "isVisible",
     });
     this.battleTime.setVisible(false);
@@ -154,9 +163,7 @@ class DpsApp {
       this.detailsUI?.refresh?.();
       this.updateDisplayToggleLabel();
       if (this.battleTime?.setAnalysisTextProvider) {
-        this.battleTime.setAnalysisTextProvider(() =>
-          this.i18n?.t("battleTime.analysing", "Analysing data...")
-        );
+        this.battleTime.setAnalysisTextProvider(getBattleTimeStatusText);
       }
       this.refreshConnectionInfo();
       this.refreshBossLabel();

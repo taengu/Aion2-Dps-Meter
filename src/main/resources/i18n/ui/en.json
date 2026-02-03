@@ -61,7 +61,11 @@
     }
   },
   "battleTime": {
-    "analysing": "Analysing data..."
+    "analysing": "Ready -monitoring combat...",
+    "idle": "Idle"
+  },
+  "meter": {
+    "identifyingPlayer": "Player #{id}"
   },
   "skills": {
     "fallback": "Skill {code}",

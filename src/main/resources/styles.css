@@ -321,6 +321,8 @@
       flex: 1;
       color: var(--text-color);
       font-size: 18px;
+      line-height: 1.2;
+      padding-bottom: 1px;
       text-shadow: var(--text-shadow);
       font-weight: bold;
       overflow: hidden;
@@ -382,6 +384,9 @@
     background: var(--warning-fill);
   }
   &.state-ended .status {
+    background: rgba(255, 255, 255, 0.28);
+  }
+  &.state-idle .status {
     background: rgba(255, 255, 255, 0.28);
   }
 }

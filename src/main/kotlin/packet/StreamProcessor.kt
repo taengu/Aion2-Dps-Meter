@@ -254,7 +254,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         }
         val trimmedNickname = nicknameBuilder.toString()
         if (trimmedNickname.isEmpty()) return null
-        if (trimmedNickname.length < 3 && !hasHan) return null
+        if (trimmedNickname.length < 3 && !hasHan) {
+            val hasLetter = trimmedNickname.any { it.isLetter() }
+            val hasDigit = trimmedNickname.any { it.isDigit() }
+            if (!(trimmedNickname.length == 2 && hasLetter && hasDigit)) return null
+        }
         if (onlyNumbers) return null
         if (trimmedNickname.length == 1 &&
             (trimmedNickname[0] in 'A'..'Z' || trimmedNickname[0] in 'a'..'z')
