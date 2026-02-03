@@ -902,7 +902,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     skillValue
                 }
             }
-            val markerOffset = offset
             var effectMarker: ByteArray? = null
             if (hasRemaining(2) && packet[offset] == 0x01.toByte() &&
                 (packet[offset + 1] == 0x03.toByte() || packet[offset + 1] == 0x10.toByte())
@@ -911,13 +910,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 offset += 2
             }
 
-            var typeInfo = readVarIntAt()
-            if (typeInfo == null && effectMarker != null) {
-                offset = markerOffset
-                effectMarker = null
-                typeInfo = readVarIntAt()
-            }
-            if (typeInfo == null) return null
+            val typeInfo = readVarIntAt() ?: return null
 
             if (effectMarker != null) {
                 skillCode = 0
@@ -932,15 +925,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val specialFlags = parseSpecialDamageFlags(packet, flagsOffset, flagsLength)
             offset += flagsLength
 
-            val hitCountInfo = readVarIntAt() ?: return null
+            val modeInfo = readVarIntAt() ?: return null
             var damageInfo: VarIntOutput
             var loopInfo: VarIntOutput
-            val unknownInfo = hitCountInfo
+            val unknownInfo = modeInfo
 
-            if (hitCountInfo.value in 1..32) {
+            if (modeInfo.value in 1..32) {
                 var totalDamage = 0
                 var hitsRead = 0
-                while (hitsRead < hitCountInfo.value && hasRemaining()) {
+                while (hitsRead < modeInfo.value && hasRemaining()) {
                     val hitDamageInfo = readVarIntAt() ?: return null
                     totalDamage += hitDamageInfo.value
                     if (switchValue >= 6 && hasRemaining() && (packet[offset].toInt() and 0xff) < 0x20) {
@@ -949,9 +942,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     hitsRead++
                 }
                 damageInfo = VarIntOutput(totalDamage, 0)
-                loopInfo = hitCountInfo
+                loopInfo = modeInfo
             } else {
-                damageInfo = hitCountInfo
+                damageInfo = readVarIntAt() ?: return null
                 loopInfo = if (hasRemaining()) readVarIntAt() ?: VarIntOutput(0, 0) else VarIntOutput(0, 0)
             }
 
