@@ -13,6 +13,7 @@ class ParsedDamagePacket {
         private var unknown = 0
         private var switchVariable = 0
         private var loop = 0
+        private var attackUid = 0
         private var skipValues = mutableListOf<Int>()
         private val timestamp = System.currentTimeMillis()
         private val id = UUID.randomUUID()
@@ -46,6 +47,9 @@ class ParsedDamagePacket {
         }
         fun setLoop(loopInfo: StreamProcessor.VarIntOutput){
                 this.loop = loopInfo.value
+        }
+        fun setAttackUid(attackUid: Int) {
+                this.attackUid = attackUid
         }
         fun addSkipData(skipValueInfo: StreamProcessor.VarIntOutput){
                 this.skipValues.add(skipValueInfo.value)
@@ -83,6 +87,9 @@ class ParsedDamagePacket {
         }
         fun getLoop():Int{
                 return this.loop
+        }
+        fun getAttackUid(): Int {
+                return this.attackUid
         }
         fun getType():Int{
                 return this.type

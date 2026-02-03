@@ -840,6 +840,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private inner class DamagePacketReader(private val packet: ByteArray) {
         private var offset = 0
+        private val attackUidMin = 2_500_000
+        private val attackUidMax = 4_000_000
 
         fun parse(): DamagePacketParseResult? {
             if (!readAndValidateHeader()) return null
@@ -856,51 +858,68 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val actorInfo = readVarIntAt() ?: return null
             if (actorInfo.value <= 0) return null
 
+            if (!hasRemaining(4)) return null
+            val attackUid = parseUInt32le(packet, offset)
+            offset += 4
+
             if (!hasRemaining()) return null
-            val skillIndicator = packet[offset].toInt() and 0xff
             var effectInstanceId: Int? = null
-            var skillCode = when (skillIndicator) {
-                0x00 -> {
-                    offset += 1
-                    if (!hasRemaining(4)) return null
-                    val skillValue = parseUInt32le(packet, offset)
-                    offset += 4
-                    effectInstanceId = skillValue
-                    skillValue
+            val indicatorOffset = offset
+            val skillIndicator = packet[offset].toInt() and 0xff
+            var skillCode: Int? = null
+
+            if (skillIndicator == 0x00 || skillIndicator == 0x01) {
+                val tempOffset = offset
+                if (skillIndicator == 0x00) {
+                    if (hasRemaining(1 + 4)) {
+                        offset += 1
+                        val skillValue = parseUInt32le(packet, offset)
+                        offset += 4
+                        effectInstanceId = skillValue
+                        skillCode = skillValue
+                    }
+                } else {
+                    if (hasRemaining(2)) {
+                        val variantInfo = readVarInt(packet, offset + 1)
+                        val afterVariant = offset + 1 + variantInfo.length
+                        if (variantInfo.length > 0 && afterVariant + 4 <= packet.size) {
+                            offset = afterVariant
+                            val effectId = parseUInt32le(packet, offset)
+                            offset += 4
+                            logger.info(
+                                "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
+                                targetInfo.value,
+                                actorInfo.value,
+                                skillIndicator,
+                                variantInfo.value,
+                                effectId
+                            )
+                            DebugLogWriter.info(
+                                logger,
+                                "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
+                                targetInfo.value,
+                                actorInfo.value,
+                                skillIndicator,
+                                variantInfo.value,
+                                effectId
+                            )
+                            effectInstanceId = effectId
+                            skillCode = effectId
+                        }
+                    }
                 }
-                0x01 -> {
-                    offset += 1
-                    val variantHeader = readVarIntAt() ?: return null
-                    if (!hasRemaining(4)) return null
-                    val effectId = parseUInt32le(packet, offset)
-                    offset += 4
-                    logger.info(
-                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
-                        targetInfo.value,
-                        actorInfo.value,
-                        skillIndicator,
-                        variantHeader.value,
-                        effectId
-                    )
-                    DebugLogWriter.info(
-                        logger,
-                        "Extended skill encoding parsed target {} actor {} discriminator {} variant {} effectId {}",
-                        targetInfo.value,
-                        actorInfo.value,
-                        skillIndicator,
-                        variantHeader.value,
-                        effectId
-                    )
-                    effectInstanceId = effectId
-                    effectId
+                if (skillCode == null) {
+                    offset = tempOffset
                 }
-                else -> {
-                    if (!hasRemaining(4)) return null
-                    val skillValue = parseUInt32le(packet, offset)
-                    offset += 4
-                    effectInstanceId = skillValue
-                    skillValue
-                }
+            }
+
+            if (skillCode == null) {
+                offset = indicatorOffset
+                if (!hasRemaining(4)) return null
+                val skillValue = parseUInt32le(packet, offset)
+                offset += 4
+                effectInstanceId = skillValue
+                skillCode = skillValue
             }
             val markerOffset = offset
             var effectMarker: ByteArray? = null
@@ -959,7 +978,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             pdp.setSwitchVariable(switchInfo)
             pdp.setFlag(flagInfo)
             pdp.setActorId(actorInfo)
-            pdp.setSkillCode(skillCode)
+            pdp.setAttackUid(if (attackUid in attackUidMin..attackUidMax) attackUid else 0)
+            pdp.setSkillCode(skillCode ?: 0)
             pdp.setType(typeInfo)
             pdp.setSpecials(specialFlags)
             pdp.setUnknown(unknownInfo)
