@@ -35,13 +35,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 "Current byte length matches expected length: {}",
                 toHex(packet.copyOfRange(0, packetSize))
             )
-            if (isUnknownFFPacket(packet)) {
-                logger.debug(
-                    "Skipping unknown packet with trailing FF FF until structure is known: {}",
-                    toHex(packet)
-                )
-                return
-            }
             parsePerfectPacket(packet.copyOfRange(0, packetSize))
             //더이상 자를필요가 없는 최종 패킷뭉치
             return
@@ -54,13 +47,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (resyncIdx > 0) {
                 onPacketReceived(packet.copyOfRange(resyncIdx, packet.size))
             } else {
-                if (isUnknownFFPacket(packet)) {
-                    logger.debug(
-                        "Skipping unknown broken packet with trailing FF FF until structure is known: {}",
-                        toHex(packet)
-                    )
-                    return
-                }
                 parseBrokenLengthPacket(packet)
             }
             //길이헤더가 실제패킷보다 김 보통 여기 닉네임이 몰려있는듯?
@@ -74,13 +60,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         "Packet split succeeded: {}",
                         toHex(packet.copyOfRange(0, packetSize))
                     )
-                    if (isUnknownFFPacket(packet.copyOfRange(0, packetSize))) {
-                        logger.debug(
-                            "Skipping unknown packet with trailing FF FF until structure is known: {}",
-                            toHex(packet.copyOfRange(0, packetSize))
-                        )
-                        return
-                    }
                     parsePerfectPacket(packet.copyOfRange(0, packetSize))
                     //매직패킷이 빠져있는 패킷뭉치
                 }
@@ -93,12 +72,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             return
         }
 
-    }
-
-    private fun isUnknownFFPacket(packet: ByteArray): Boolean {
-        if (packet.size < 2) return false
-        return packet[packet.size - 2] == 0xff.toByte() &&
-            packet[packet.size - 1] == 0xff.toByte()
     }
 
     private fun parseBrokenLengthPacket(packet: ByteArray, flag: Boolean = true) {
@@ -859,7 +832,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (!hasRemaining()) return null
             val skillIndicator = packet[offset].toInt() and 0xff
             var effectInstanceId: Int? = null
-            var skillCode = when (skillIndicator) {
+            val extendedSkill = skillIndicator == 0x01
+            val rawSkillValue = when (skillIndicator) {
                 0x00 -> {
                     offset += 1
                     if (!hasRemaining(4)) return null
@@ -902,7 +876,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     skillValue
                 }
             }
-            val markerOffset = offset
+            val rawSkillCode = if (extendedSkill) 0 else rawSkillValue
             var effectMarker: ByteArray? = null
             if (hasRemaining(2) && packet[offset] == 0x01.toByte() &&
                 (packet[offset + 1] == 0x03.toByte() || packet[offset + 1] == 0x10.toByte())
@@ -911,6 +885,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 offset += 2
             }
 
+            val markerOffset = offset
             var typeInfo = readVarIntAt()
             if (typeInfo == null && effectMarker != null) {
                 offset = markerOffset
@@ -919,11 +894,9 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             if (typeInfo == null) return null
 
-            if (effectMarker != null) {
-                skillCode = 0
-            }
             if (!hasRemaining()) return null
             val damageType = packet[offset]
+            offset += 1
 
             val flagsOffset = offset
             val flagsLength = getSpecialBlockSize(switchValue)
@@ -931,28 +904,91 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val specialFlags = parseSpecialDamageFlags(packet, flagsOffset, flagsLength)
             offset += flagsLength
 
-            val hitCountInfo = readVarIntAt() ?: return null
-            var damageInfo: VarIntOutput
-            var loopInfo: VarIntOutput
-            val unknownInfo = hitCountInfo
-
-            if (hitCountInfo.value in 1..32) {
+            val tailOffset = offset
+            val hitCandidate = readVarInt(packet, tailOffset)
+            val hitCountCandidate = if (hitCandidate.length > 0) hitCandidate.value else -1
+            var hitDamageSum: Int? = null
+            var hitMax: Int? = null
+            var hitEndOffset: Int? = null
+            var hitNumbersSum: Int? = null
+            if (hitCountCandidate in 1..32) {
+                var probeOffset = tailOffset + hitCandidate.length
                 var totalDamage = 0
+                var maxHit = 0
+                var numbersSum = hitCountCandidate
                 var hitsRead = 0
-                while (hitsRead < hitCountInfo.value && hasRemaining()) {
-                    val hitDamageInfo = readVarIntAt() ?: return null
-                    totalDamage += hitDamageInfo.value
-                    if (switchValue >= 6 && hasRemaining() && (packet[offset].toInt() and 0xff) < 0x20) {
-                        readVarIntAt()
+                var ok = true
+                while (hitsRead < hitCountCandidate && ok) {
+                    val hitInfo = readVarInt(packet, probeOffset)
+                    if (hitInfo.length < 0) {
+                        ok = false
+                    } else {
+                        probeOffset += hitInfo.length
+                        totalDamage += hitInfo.value
+                        numbersSum += hitInfo.value
+                        if (hitInfo.value > maxHit) maxHit = hitInfo.value
+                        if (switchValue >= 6 && probeOffset < packet.size && packet[probeOffset].toInt() and 0xff < 0x20) {
+                            val extraInfo = readVarInt(packet, probeOffset)
+                            if (extraInfo.length < 0) {
+                                ok = false
+                            } else {
+                                probeOffset += extraInfo.length
+                                numbersSum += extraInfo.value
+                            }
+                        }
                     }
                     hitsRead++
                 }
-                damageInfo = VarIntOutput(totalDamage, 0)
-                loopInfo = hitCountInfo
-            } else {
-                damageInfo = hitCountInfo
-                loopInfo = if (hasRemaining()) readVarIntAt() ?: VarIntOutput(0, 0) else VarIntOutput(0, 0)
+                if (ok) {
+                    hitDamageSum = totalDamage
+                    hitMax = maxHit
+                    hitEndOffset = probeOffset
+                    hitNumbersSum = numbersSum
+                }
             }
+
+            val tripleUnknown = readVarInt(packet, tailOffset)
+            val tripleDamage = if (tripleUnknown.length > 0) readVarInt(packet, tailOffset + tripleUnknown.length) else VarIntOutput(0, -1)
+            val tripleLoop = if (tripleDamage.length > 0) readVarInt(packet, tailOffset + tripleUnknown.length + tripleDamage.length) else VarIntOutput(0, -1)
+            val tripleEndOffset = if (tripleLoop.length > 0) tailOffset + tripleUnknown.length + tripleDamage.length + tripleLoop.length else null
+
+            val hitCandidateValid = hitDamageSum != null && hitMax != null && hitNumbersSum != null &&
+                hitDamageSum!! >= hitMax!! && hitDamageSum!! <= hitNumbersSum!!
+            val tripleCandidateValid = tripleUnknown.length > 0 &&
+                tripleDamage.length > 0 &&
+                tripleLoop.length > 0 &&
+                tripleLoop.value in 0..32 &&
+                tripleDamage.value >= maxOf(tripleUnknown.value, tripleLoop.value)
+
+            val unknownInfo: VarIntOutput
+            val damageInfo: VarIntOutput
+            val loopInfo: VarIntOutput
+            if (hitCandidateValid) {
+                unknownInfo = VarIntOutput(hitCountCandidate, hitCandidate.length)
+                damageInfo = VarIntOutput(hitDamageSum!!, 0)
+                loopInfo = VarIntOutput(hitCountCandidate, hitCandidate.length)
+                offset = hitEndOffset ?: tailOffset
+            } else if (tripleCandidateValid) {
+                unknownInfo = tripleUnknown
+                damageInfo = tripleDamage
+                loopInfo = tripleLoop
+                offset = tripleEndOffset ?: tailOffset
+            } else {
+                val fallbackDamage = readVarInt(packet, tailOffset)
+                if (fallbackDamage.length < 0) return null
+                unknownInfo = VarIntOutput(0, 0)
+                damageInfo = fallbackDamage
+                val loopCandidate = if (fallbackDamage.length > 0 && tailOffset + fallbackDamage.length < packet.size) {
+                    readVarInt(packet, tailOffset + fallbackDamage.length)
+                } else {
+                    VarIntOutput(0, -1)
+                }
+                loopInfo = if (loopCandidate.length > 0) loopCandidate else VarIntOutput(0, 0)
+                offset = tailOffset + fallbackDamage.length
+            }
+
+            val normalizedSkillCode = if (rawSkillCode >= 10_000_000) rawSkillCode / 100 else rawSkillCode
+            val skillCode = if (effectMarker != null || extendedSkill) 0 else normalizedSkillCode
 
             val pdp = ParsedDamagePacket()
             pdp.setTargetId(targetInfo)
