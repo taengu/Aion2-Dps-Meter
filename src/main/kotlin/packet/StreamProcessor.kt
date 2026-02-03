@@ -35,13 +35,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 "Current byte length matches expected length: {}",
                 toHex(packet.copyOfRange(0, packetSize))
             )
-            if (isUnknownFFPacket(packet)) {
-                logger.debug(
-                    "Skipping unknown packet with trailing FF FF until structure is known: {}",
-                    toHex(packet)
-                )
-                return
-            }
             parsePerfectPacket(packet.copyOfRange(0, packetSize))
             //더이상 자를필요가 없는 최종 패킷뭉치
             return
@@ -54,13 +47,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (resyncIdx > 0) {
                 onPacketReceived(packet.copyOfRange(resyncIdx, packet.size))
             } else {
-                if (isUnknownFFPacket(packet)) {
-                    logger.debug(
-                        "Skipping unknown broken packet with trailing FF FF until structure is known: {}",
-                        toHex(packet)
-                    )
-                    return
-                }
                 parseBrokenLengthPacket(packet)
             }
             //길이헤더가 실제패킷보다 김 보통 여기 닉네임이 몰려있는듯?
@@ -74,13 +60,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         "Packet split succeeded: {}",
                         toHex(packet.copyOfRange(0, packetSize))
                     )
-                    if (isUnknownFFPacket(packet.copyOfRange(0, packetSize))) {
-                        logger.debug(
-                            "Skipping unknown packet with trailing FF FF until structure is known: {}",
-                            toHex(packet.copyOfRange(0, packetSize))
-                        )
-                        return
-                    }
                     parsePerfectPacket(packet.copyOfRange(0, packetSize))
                     //매직패킷이 빠져있는 패킷뭉치
                 }
@@ -93,12 +72,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             return
         }
 
-    }
-
-    private fun isUnknownFFPacket(packet: ByteArray): Boolean {
-        if (packet.size < 2) return false
-        return packet[packet.size - 2] == 0xff.toByte() &&
-            packet[packet.size - 1] == 0xff.toByte()
     }
 
     private fun parseBrokenLengthPacket(packet: ByteArray, flag: Boolean = true) {
@@ -933,11 +906,16 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (modeInfo.value in 1..32) {
                 var totalDamage = 0
                 var hitsRead = 0
+                logger.debug("HitCount={} switch={}", modeInfo.value, switchValue)
                 while (hitsRead < modeInfo.value && hasRemaining()) {
                     val hitDamageInfo = readVarIntAt() ?: return null
                     totalDamage += hitDamageInfo.value
-                    if (switchValue >= 6 && hasRemaining() && (packet[offset].toInt() and 0xff) < 0x20) {
-                        readVarIntAt()
+                    logger.debug("Hit {} damage {}", hitsRead + 1, hitDamageInfo.value)
+                    if (switchValue >= 6 && hasRemaining()) {
+                        val peek = packet[offset].toInt() and 0xff
+                        if (peek <= 0x1f) {
+                            readVarIntAt()
+                        }
                     }
                     hitsRead++
                 }
