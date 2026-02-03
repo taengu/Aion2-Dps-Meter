@@ -521,12 +521,13 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             pdp.getSpecials()
         )
 
-        if (pdp.getActorId() != pdp.getTargetId()) {
+        val isAccepted = pdp.getActorId() != pdp.getTargetId()
+        if (isAccepted) {
             //추후 hps 를 넣는다면 수정하기
             //혹시 나중에 자기자신에게 데미지주는 보스 기믹이 나오면..
             dataStorage.appendDamage(pdp)
         }
-        return true
+        return isAccepted
 
     }
 
