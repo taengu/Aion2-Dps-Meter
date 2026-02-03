@@ -405,8 +405,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val nameStart = lengthIndex + 1
         val nameEnd = nameStart + nameLength
         if (nameEnd > packet.size) return null
-        val nameBytes = packet.copyOfRange(nameStart, nameEnd)
-        if (!isPrintableAscii(nameBytes)) return null
         return nameStart to nameLength
     }
 
@@ -421,38 +419,29 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val nameEnd = nameStart + nameLength
         if (nameStart < 0 || nameEnd > packet.size) return false
         val possibleNameBytes = packet.copyOfRange(nameStart, nameEnd)
-        if (!isPrintableAscii(possibleNameBytes)) return false
-        val possibleName = String(possibleNameBytes, Charsets.US_ASCII)
+        val possibleName = decodeUtf8Strict(possibleNameBytes) ?: return false
+        val sanitizedName = sanitizeNickname(possibleName) ?: return false
         if (!actorExists(actorId)) {
-            dataStorage.cachePendingNickname(actorId, possibleName)
+            dataStorage.cachePendingNickname(actorId, sanitizedName)
             return true
         }
         val existingNickname = dataStorage.getNickname()[actorId]
-        if (existingNickname != possibleName) {
+        if (existingNickname != sanitizedName) {
             logger.info(
                 "Actor name binding found {} -> {} (hex={})",
                 actorId,
-                possibleName,
+                sanitizedName,
                 toHex(possibleNameBytes)
             )
             DebugLogWriter.info(
                 logger,
                 "Actor name binding found {} -> {} (hex={})",
                 actorId,
-                possibleName,
+                sanitizedName,
                 toHex(possibleNameBytes)
             )
         }
-        dataStorage.appendNickname(actorId, possibleName)
-        return true
-    }
-
-    private fun isPrintableAscii(bytes: ByteArray): Boolean {
-        if (bytes.isEmpty()) return false
-        for (b in bytes) {
-            val value = b.toInt() and 0xff
-            if (value < 0x20 || value > 0x7e) return false
-        }
+        dataStorage.appendNickname(actorId, sanitizedName)
         return true
     }
 
