@@ -832,18 +832,51 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (!hasRemaining()) return null
             val skillIndicator = packet[offset].toInt() and 0xff
             var effectInstanceId: Int? = null
-            var skillCode = when (skillIndicator) {
-                0x00 -> {
+            var skillCode: Int
+            val extendedAccepted = when (skillIndicator) {
+                0x00, 0x01 -> {
+                    var probeOffset = offset + 1
+                    val variantProbe = if (skillIndicator == 0x01) {
+                        val info = readVarInt(packet, probeOffset)
+                        if (info.length < 0 || info.value > 4096) {
+                            null
+                        } else {
+                            probeOffset += info.length
+                            info
+                        }
+                    } else {
+                        VarIntOutput(0, 0)
+                    }
+                    if (variantProbe == null) {
+                        false
+                    } else if (probeOffset + 4 > packet.size) {
+                        false
+                    } else {
+                        probeOffset += 4
+                        if (probeOffset + 1 < packet.size &&
+                            packet[probeOffset] == 0x01.toByte() &&
+                            (packet[probeOffset + 1] == 0x03.toByte() || packet[probeOffset + 1] == 0x10.toByte())
+                        ) {
+                            probeOffset += 2
+                        }
+                        val typeProbe = readVarInt(packet, probeOffset)
+                        typeProbe.length > 0 && typeProbe.value in 0..80
+                    }
+                }
+                else -> false
+            }
+            if (extendedAccepted) {
+                if (skillIndicator == 0x00) {
                     offset += 1
                     if (!hasRemaining(4)) return null
                     val skillValue = parseUInt32le(packet, offset)
                     offset += 4
                     effectInstanceId = skillValue
-                    skillValue
-                }
-                0x01 -> {
+                    skillCode = skillValue
+                } else {
                     offset += 1
                     val variantHeader = readVarIntAt() ?: return null
+                    if (variantHeader.value > 4096) return null
                     if (!hasRemaining(4)) return null
                     val effectId = parseUInt32le(packet, offset)
                     offset += 4
@@ -865,15 +898,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                         effectId
                     )
                     effectInstanceId = effectId
-                    effectId
+                    skillCode = effectId
                 }
-                else -> {
-                    if (!hasRemaining(4)) return null
-                    val skillValue = parseUInt32le(packet, offset)
-                    offset += 4
-                    effectInstanceId = skillValue
-                    skillValue
-                }
+            } else {
+                if (!hasRemaining(4)) return null
+                val skillValue = parseUInt32le(packet, offset)
+                offset += 4
+                effectInstanceId = skillValue
+                skillCode = skillValue
             }
             var effectMarker: ByteArray? = null
             if (hasRemaining(2) && packet[offset] == 0x01.toByte() &&
@@ -898,16 +930,46 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             val specialFlags = parseSpecialDamageFlags(packet, flagsOffset, flagsLength)
             offset += flagsLength
 
-            val modeInfo = readVarIntAt() ?: return null
+            val firstInfo = readVarIntAt() ?: return null
+            val secondInfo = if (hasRemaining()) readVarIntAt() ?: return null else null
             var damageInfo: VarIntOutput
             var loopInfo: VarIntOutput
-            val unknownInfo = modeInfo
+            val unknownInfo = firstInfo
+            val hitCount = secondInfo?.value ?: 0
+            val canParseHitLoop = if (hitCount in 1..32) {
+                var probeOffset = offset
+                var hitsChecked = 0
+                var ok = true
+                while (hitsChecked < hitCount && ok) {
+                    val dmgProbe = readVarInt(packet, probeOffset)
+                    if (dmgProbe.length < 0) {
+                        ok = false
+                    } else {
+                        probeOffset += dmgProbe.length
+                        if (switchValue >= 6 && probeOffset < packet.size) {
+                            val peek = packet[probeOffset].toInt() and 0xff
+                            if (peek <= 0x1f) {
+                                val ctrlProbe = readVarInt(packet, probeOffset)
+                                if (ctrlProbe.length < 0) {
+                                    ok = false
+                                } else {
+                                    probeOffset += ctrlProbe.length
+                                }
+                            }
+                        }
+                    }
+                    hitsChecked++
+                }
+                ok
+            } else {
+                false
+            }
 
-            if (modeInfo.value in 1..32) {
+            if (canParseHitLoop) {
                 var totalDamage = 0
                 var hitsRead = 0
-                logger.debug("HitCount={} switch={}", modeInfo.value, switchValue)
-                while (hitsRead < modeInfo.value && hasRemaining()) {
+                logger.debug("HitCount={} switch={}", hitCount, switchValue)
+                while (hitsRead < hitCount && hasRemaining()) {
                     val hitDamageInfo = readVarIntAt() ?: return null
                     totalDamage += hitDamageInfo.value
                     logger.debug("Hit {} damage {}", hitsRead + 1, hitDamageInfo.value)
@@ -920,10 +982,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     hitsRead++
                 }
                 damageInfo = VarIntOutput(totalDamage, 0)
-                loopInfo = modeInfo
+                loopInfo = secondInfo ?: VarIntOutput(0, 0)
             } else {
-                damageInfo = readVarIntAt() ?: return null
-                loopInfo = if (hasRemaining()) readVarIntAt() ?: VarIntOutput(0, 0) else VarIntOutput(0, 0)
+                damageInfo = firstInfo
+                loopInfo = secondInfo ?: VarIntOutput(0, 0)
             }
 
             val pdp = ParsedDamagePacket()
