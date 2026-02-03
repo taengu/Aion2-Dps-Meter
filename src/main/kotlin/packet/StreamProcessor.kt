@@ -416,13 +416,17 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         nameStart: Int,
         nameLength: Int
     ): Boolean {
-        if (!actorExists(actorId) || dataStorage.getNickname()[actorId] != null) return false
+        if (dataStorage.getNickname()[actorId] != null) return false
         if (nameLength <= 0 || nameLength > 16) return false
         val nameEnd = nameStart + nameLength
         if (nameStart < 0 || nameEnd > packet.size) return false
         val possibleNameBytes = packet.copyOfRange(nameStart, nameEnd)
         if (!isPrintableAscii(possibleNameBytes)) return false
         val possibleName = String(possibleNameBytes, Charsets.US_ASCII)
+        if (!actorExists(actorId)) {
+            dataStorage.cachePendingNickname(actorId, possibleName)
+            return true
+        }
         val existingNickname = dataStorage.getNickname()[actorId]
         if (existingNickname != possibleName) {
             logger.info(
