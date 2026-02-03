@@ -935,10 +935,24 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             if (!dpsData.map.containsKey(uid)) {
                 dpsData.map[uid] = PersonalData(nickname = nickname)
             }
-            pdp.setSkillCode(inferOriginalSkillCode(pdp.getSkillCode1()) ?: pdp.getSkillCode1())
+            pdp.setSkillCode(
+                inferOriginalSkillCode(
+                    pdp.getSkillCode1(),
+                    pdp.getTargetId(),
+                    pdp.getActorId(),
+                    pdp.getDamage(),
+                    pdp.getHexPayload()
+                ) ?: pdp.getSkillCode1()
+            )
             dpsData.map[uid]!!.processPdp(pdp)
             if (dpsData.map[uid]!!.job == "") {
-                val origSkillCode = inferOriginalSkillCode(pdp.getSkillCode1()) ?: -1
+                val origSkillCode = inferOriginalSkillCode(
+                    pdp.getSkillCode1(),
+                    pdp.getTargetId(),
+                    pdp.getActorId(),
+                    pdp.getDamage(),
+                    pdp.getHexPayload()
+                ) ?: -1
                 val job = JobClass.convertFromSkill(origSkillCode)
                 if (job != null) {
                     dpsData.map[uid]!!.job = job.className
@@ -1109,7 +1123,13 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         return combined
     }
 
-    private fun inferOriginalSkillCode(skillCode: Int): Int? {
+    private fun inferOriginalSkillCode(
+        skillCode: Int,
+        targetId: Int,
+        actorId: Int,
+        damage: Int,
+        payloadHex: String
+    ): Int? {
         for (offset in POSSIBLE_OFFSETS) {
             val possibleOrigin = skillCode - offset
             if (SKILL_CODES.binarySearch(possibleOrigin) >= 0) {
@@ -1117,7 +1137,26 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 return possibleOrigin
             }
         }
-        logger.debug("Failed to infer skill code")
+        logger.debug(
+            "Failed to infer skill code: {} (target {}, actor {}, damage {})",
+            skillCode,
+            targetId,
+            actorId,
+            damage
+        )
+        logger.debug(
+            "Failed to infer skill code payload={}",
+            payloadHex
+        )
+        DebugLogWriter.debug(
+            logger,
+            "Failed to infer skill code: {} (target {}, actor {}, damage {}) payload={}",
+            skillCode,
+            targetId,
+            actorId,
+            damage,
+            payloadHex
+        )
         return null
     }
 

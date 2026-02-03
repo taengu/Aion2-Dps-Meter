@@ -18,6 +18,7 @@ class ParsedDamagePacket {
         private val id = UUID.randomUUID()
         private var specials:List<SpecialDamage> = arrayListOf()
         private var dot = false
+        private var payload: ByteArray? = null
 
         fun setSpecials(specials: List<SpecialDamage>) {
                 this.specials = specials
@@ -104,6 +105,15 @@ class ParsedDamagePacket {
         }
         fun setDot(dot: Boolean) {
                 this.dot = dot
+        }
+
+        fun setPayload(payload: ByteArray) {
+                this.payload = payload.copyOf()
+        }
+
+        fun getHexPayload(): String {
+                val bytes = payload ?: return ""
+                return bytes.joinToString(" ") { "%02X".format(it) }
         }
 
 

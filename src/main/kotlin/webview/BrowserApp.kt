@@ -122,6 +122,13 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
             if (message.isNullOrBlank()) return
             DebugLogWriter.debug(logger, "UI {}", message.trim())
         }
+
+        fun isRunningViaGradle(): Boolean {
+            val gradleAppName = System.getProperty("org.gradle.appname")
+            val javaCommand = System.getProperty("sun.java.command").orEmpty()
+            return gradleAppName != null || javaCommand.contains("org.gradle", ignoreCase = true)
+        }
+
         fun exitApp() {
           Platform.exit()     
           exitProcess(0)       
