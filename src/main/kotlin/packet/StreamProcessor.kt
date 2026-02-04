@@ -147,6 +147,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             if (flag && !processed) {
                 logger.debug("Remaining packet {}", toHex(packet))
+                castNicknameNet(packet)
             }
             return
         }
@@ -291,8 +292,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             idx++
         }
 
-        candidates.addAll(findLootAttributionNamesBeforeMarker(packet))
-
         if (candidates.isEmpty()) return false
         val allowPrepopulate = candidates.size > 1
         var foundAny = false
@@ -321,91 +320,44 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return foundAny
     }
 
-    private fun findLootAttributionNamesBeforeMarker(packet: ByteArray): List<ActorNameCandidate> {
-        val candidates = mutableListOf<ActorNameCandidate>()
-        var idx = 0
-        while (idx + 3 < packet.size) {
-            if (packet[idx] != 0x07.toByte()) {
-                idx++
-                continue
+    private fun castNicknameNet(packet: ByteArray): Boolean {
+        var originOffset = 0
+        while (originOffset < packet.size) {
+            val info = readVarInt(packet, originOffset)
+            if (info.length == -1) {
+                return false
             }
-            val nameLength = packet[idx + 1].toInt() and 0xff
-            if (nameLength !in 3..16) {
-                idx++
-                continue
-            }
-            val nameStart = idx + 2
-            val nameEnd = nameStart + nameLength
-            if (nameEnd >= packet.size) {
-                idx++
-                continue
-            }
-            if (!hasLootMarkerAhead(packet, nameEnd)) {
-                idx++
-                continue
-            }
-            val nameBytes = packet.copyOfRange(nameStart, nameEnd)
-            val possibleName = decodeUtf8Strict(nameBytes)
-            if (possibleName == null) {
-                idx = nameEnd
-                continue
-            }
-            val sanitizedName = sanitizeNickname(possibleName)
-            if (sanitizedName == null) {
-                idx = nameEnd
-                continue
-            }
-            val actorInfo = findVarIntBeforeNameHeader(packet, idx)
-            if (actorInfo == null) {
-                idx = nameEnd
-                continue
-            }
-            if (actorInfo.value !in 100..99999 || actorInfo.value == 0) {
-                idx = nameEnd
-                continue
-            }
-            candidates.add(ActorNameCandidate(actorInfo.value, sanitizedName, nameBytes))
-            idx = skipGuildName(packet, nameEnd + 2)
-        }
-        return candidates
-    }
+            val innerOffset = originOffset + info.length
 
-    private fun findVarIntBeforeNameHeader(packet: ByteArray, nameHeaderIndex: Int): VarIntOutput? {
-        if (nameHeaderIndex < 2) return null
-        val markerStart = when {
-            packet[nameHeaderIndex - 2] == 0xA0.toByte() && packet[nameHeaderIndex - 1] == 0x01.toByte() ->
-                nameHeaderIndex - 2
-            nameHeaderIndex >= 4 &&
-                packet[nameHeaderIndex - 4] == 0x5F.toByte() &&
-                packet[nameHeaderIndex - 3] == 0x81.toByte() &&
-                packet[nameHeaderIndex - 2] == 0x6B.toByte() &&
-                packet[nameHeaderIndex - 1] == 0x01.toByte() ->
-                nameHeaderIndex - 4
-            else -> return null
-        }
-        val minEnd = (markerStart - 4).coerceAtLeast(0)
-        for (endIndexExclusive in markerStart downTo minEnd) {
-            val searchStart = (endIndexExclusive - 5).coerceAtLeast(0)
-            for (start in searchStart until endIndexExclusive) {
-                if (!canReadVarInt(packet, start)) continue
-                val info = readVarInt(packet, start)
-                if (info.length <= 0) continue
-                if (start + info.length == endIndexExclusive) {
-                    return info
+            if (innerOffset + 6 >= packet.size) {
+                originOffset++
+                continue
+            }
+
+            if (packet[innerOffset + 3] == 0x01.toByte() && packet[innerOffset + 4] == 0x07.toByte()) {
+                val possibleNameLength = packet[innerOffset + 5].toInt() and 0xff
+                if (innerOffset + 6 + possibleNameLength <= packet.size) {
+                    val possibleNameBytes = packet.copyOfRange(innerOffset + 6, innerOffset + 6 + possibleNameLength)
+                    val possibleName = String(possibleNameBytes, Charsets.UTF_8)
+                    val sanitizedName = sanitizeNickname(possibleName)
+                    if (sanitizedName != null) {
+                        logger.info(
+                            "Potential nickname found in cast net: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        DebugLogWriter.info(
+                            logger,
+                            "Potential nickname found in cast net: {} (hex={})",
+                            sanitizedName,
+                            toHex(possibleNameBytes)
+                        )
+                        dataStorage.appendNickname(info.value, sanitizedName)
+                        return true
+                    }
                 }
             }
-        }
-        return null
-    }
-
-    private fun hasLootMarkerAhead(packet: ByteArray, startIndex: Int): Boolean {
-        val endIndex = (startIndex + 128).coerceAtMost(packet.size - 1)
-        var idx = startIndex
-        while (idx < endIndex) {
-            if (packet[idx] == 0xF8.toByte() && packet[idx + 1] == 0x03.toByte()) {
-                return true
-            }
-            idx++
+            originOffset++
         }
         return false
     }
@@ -515,11 +467,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun parsePerfectPacket(packet: ByteArray) {
         if (packet.size < 3) return
-        var flag = parseLootAttributionActorName(packet)
-        if (flag) return
-        flag = parsingDamage(packet)
+        var flag = parsingDamage(packet)
         if (flag) return
         flag = parseActorNameBindingRules(packet)
+        if (flag) return
+        flag = parseLootAttributionActorName(packet)
         if (flag) return
         flag = parsingNickname(packet)
         if (flag) return
