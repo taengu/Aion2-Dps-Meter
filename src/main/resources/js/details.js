@@ -31,6 +31,8 @@ const createDetailsUI = ({
   const STATUS = [
     { key: "details.stats.totalDamage", fallback: "Total Damage", getValue: (d) => formatNum(d?.totalDmg) },
     { key: "details.stats.contribution", fallback: "Contribution", getValue: (d) => pctText(d?.contributionPct) },
+    { key: "details.stats.multiHitDamage", fallback: "Multi-hit Damage", getValue: (d) => formatNum(d?.multiHitDamage) },
+    { key: "details.stats.multiHitHits", fallback: "Multi-hit Hits", getValue: (d) => formatNum(d?.multiHitCount) },
     // { label: "보스 막기비율", getValue: (d) => d?.parry ?? "-" },
     // { label: "보스 회피비율", getValue: (d) => d?.eva ?? "-" },
     { key: "details.stats.critRate", fallback: "Crit Rate", getValue: (d) => pctText(d?.totalCritPct) },
@@ -104,6 +106,9 @@ const createDetailsUI = ({
     const doubleEl = document.createElement("div");
     doubleEl.className = "cell center double";
 
+    const healEl = document.createElement("div");
+    healEl.className = "cell center heal";
+
     const dmgEl = document.createElement("div");
     dmgEl.className = "cell dmg right";
 
@@ -123,6 +128,7 @@ const createDetailsUI = ({
     rowEl.appendChild(perfectEl);
     rowEl.appendChild(doubleEl);
     rowEl.appendChild(backEl);
+    rowEl.appendChild(healEl);
 
     rowEl.appendChild(dmgEl);
 
@@ -135,6 +141,7 @@ const createDetailsUI = ({
       backEl,
       perfectEl,
       doubleEl,
+      healEl,
       dmgFillEl,
       dmgTextEl,
     };
@@ -183,6 +190,7 @@ const createDetailsUI = ({
       const perfect = skill.perfect || 0;
       const double = skill.double || 0;
       const back = skill.back || 0;
+      const heal = skill.heal || 0;
 
       const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : 0);
 
@@ -202,6 +210,7 @@ const createDetailsUI = ({
       view.backEl.textContent = `${backRate}%`;
       view.perfectEl.textContent = `${perfectRate}%`;
       view.doubleEl.textContent = `${doubleRate}%`;
+      view.healEl.textContent = `${formatNum(heal)}`;
 
       view.dmgTextEl.textContent = `${formatNum(damage)} (${damageRate.toFixed(1)}%)`;
       view.dmgFillEl.style.transform = `scaleX(${barFillRatio})`;

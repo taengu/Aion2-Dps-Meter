@@ -24,6 +24,9 @@ data class PersonalData(
             analyzedData[pdp.getSkillCode1()] = analyzedSkill
         }
         val analyzedSkill = analyzedData[pdp.getSkillCode1()]!!
+        if (pdp.getHealAmount() > 0) {
+            analyzedSkill.healAmount += pdp.getHealAmount()
+        }
         if (pdp.isDoT()) {
             analyzedSkill.dotTimes ++
             analyzedSkill.dotDamageAmount += pdp.getDamage()

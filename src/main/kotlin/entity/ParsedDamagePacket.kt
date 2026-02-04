@@ -18,7 +18,9 @@ class ParsedDamagePacket {
         private val id = UUID.randomUUID()
         private var specials:List<SpecialDamage> = arrayListOf()
         private var dot = false
-        private var payload: ByteArray? = null
+        private var multiHitCount = 0
+        private var multiHitDamage = 0
+        private var healAmount = 0
 
         fun setSpecials(specials: List<SpecialDamage>) {
                 this.specials = specials
@@ -52,6 +54,15 @@ class ParsedDamagePacket {
         }
         fun setType(typeInfo: StreamProcessor.VarIntOutput){
                 this.type = typeInfo.value
+        }
+        fun setMultiHitCount(count: Int) {
+                this.multiHitCount = count
+        }
+        fun setMultiHitDamage(damage: Int) {
+                this.multiHitDamage = damage
+        }
+        fun setHealAmount(healAmount: Int) {
+                this.healAmount = healAmount
         }
 
         fun getActorId(): Int {
@@ -87,6 +98,15 @@ class ParsedDamagePacket {
         fun getType():Int{
                 return this.type
         }
+        fun getMultiHitCount(): Int {
+                return this.multiHitCount
+        }
+        fun getMultiHitDamage(): Int {
+                return this.multiHitDamage
+        }
+        fun getHealAmount(): Int {
+                return this.healAmount
+        }
         fun getTimeStamp(): Long {
                 return this.timestamp
         }
@@ -97,23 +117,14 @@ class ParsedDamagePacket {
                 return this.specials
         }
 
-        fun isCrit():Boolean{
-                return this.type == 3
+        fun isCrit(): Boolean {
+                return this.specials.contains(SpecialDamage.CRITICAL)
         }
         fun isDoT():Boolean{
                 return dot
         }
         fun setDot(dot: Boolean) {
                 this.dot = dot
-        }
-
-        fun setPayload(payload: ByteArray) {
-                this.payload = payload.copyOf()
-        }
-
-        fun getHexPayload(): String {
-                val bytes = payload ?: return ""
-                return bytes.joinToString(" ") { "%02X".format(it) }
         }
 
 
