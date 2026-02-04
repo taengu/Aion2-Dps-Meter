@@ -41,44 +41,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         fun readSkillCode(): Int {
             val start = offset
-            if (start + 3 < data.size) {
-                val direct = normalizeSkillId(readIntLE(start))
-                if (direct in 11_000_000..19_999_999) {
-                    offset = start + 4
-                    return direct
-                }
-            }
-
             if (start + 13 < data.size) {
-                val first = normalizeSkillId(readIntLE(start + 10))
-                if (first in 11_000_000..19_999_999) {
-                    offset = start + 14
-                    return first
-                }
-            }
-
-            if (start + 19 < data.size) {
-                val second = normalizeSkillId(readIntLE(start + 16))
-                if (second in 11_000_000..19_999_999) {
-                    offset = start + 20
-                    return second
-                }
-            }
-
-            val scanLimit = minOf(40, data.size - start - 4)
-            if (scanLimit < 0) {
-                throw IllegalStateException("Skill not found")
-            }
-
-            for (i in 0..scanLimit) {
-                val normalized = normalizeSkillId(readIntLE(start + i))
+                val normalized = normalizeSkillId(readIntLE(start + 10))
                 if (normalized in 11_000_000..19_999_999) {
-                    offset = start + i + 4
+                    offset = start + 14
                     return normalized
                 }
             }
 
-            throw IllegalStateException("Skill not found")
+            throw IllegalStateException("skill not found at offset+10")
         }
 
         private fun readIntLE(pos: Int): Int {
