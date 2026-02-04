@@ -372,10 +372,17 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun findVarIntBeforeNameHeader(packet: ByteArray, nameHeaderIndex: Int): VarIntOutput? {
         if (nameHeaderIndex < 2) return null
-        if (packet[nameHeaderIndex - 2] != 0xA0.toByte() || packet[nameHeaderIndex - 1] != 0x01.toByte()) {
-            return null
+        val markerStart = when {
+            packet[nameHeaderIndex - 2] == 0xA0.toByte() && packet[nameHeaderIndex - 1] == 0x01.toByte() ->
+                nameHeaderIndex - 2
+            nameHeaderIndex >= 4 &&
+                packet[nameHeaderIndex - 4] == 0x5F.toByte() &&
+                packet[nameHeaderIndex - 3] == 0x81.toByte() &&
+                packet[nameHeaderIndex - 2] == 0x6B.toByte() &&
+                packet[nameHeaderIndex - 1] == 0x01.toByte() ->
+                nameHeaderIndex - 4
+            else -> return null
         }
-        val markerStart = nameHeaderIndex - 2
         val minEnd = (markerStart - 4).coerceAtLeast(0)
         for (endIndexExclusive in markerStart downTo minEnd) {
             val searchStart = (endIndexExclusive - 5).coerceAtLeast(0)
