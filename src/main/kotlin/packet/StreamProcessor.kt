@@ -736,7 +736,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if ((specialFlagByte and 0x40) != 0 && (flagValue and 0x40) != 0) {
             flags.add(SpecialDamage.UNKNOWN4)
         }
-        if ((specialFlagByte and 0x80) != 0 && (flagValue and 0x80) != 0) {
+        if ((specialFlagByte and 0x80) != 0) {
             flags.add(SpecialDamage.POWER_SHARD)
         }
 
