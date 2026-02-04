@@ -709,7 +709,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (packet.isEmpty()) return flags
         val specialFlagByte = packet[0].toInt() and 0xFF
         val unknownSkillByte = if (packet.size > 2) packet[2].toInt() and 0xFF else 0
-        val isCritical = (flagValue and 0x04) != 0 || (unknownSkillByte and 0x04) != 0
+        val isCritical = if (damageType.toInt() == 2) {
+            (unknownSkillByte and 0x04) != 0
+        } else {
+            (flagValue and 0x04) != 0 || (unknownSkillByte and 0x04) != 0
+        }
 
         if ((specialFlagByte and 0x01) != 0) {
             flags.add(SpecialDamage.BACK)
