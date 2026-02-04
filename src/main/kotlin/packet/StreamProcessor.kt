@@ -562,6 +562,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         var adjustedDamage = finalDamage
         var multiHitCount = 0
         var multiHitDamage = 0
+        var healAmount = 0
         val hitCount = if (
             reader.remainingBytes() >= 2 &&
             packet[reader.offset] == 0x03.toByte() &&
@@ -585,6 +586,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 adjustedDamage = (finalDamage - hitSum).coerceAtLeast(0)
             }
         }
+        if (
+            reader.remainingBytes() >= 2 &&
+            packet[reader.offset] == 0x03.toByte() &&
+            packet[reader.offset + 1] == 0x00.toByte()
+        ) {
+            reader.offset += 2
+            healAmount = reader.tryReadVarInt() ?: 0
+        }
 
 //        if (loopInfo.value != 0 && offset >= packet.size) return false
 //
@@ -607,6 +616,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         pdp.setSpecials(specials)
         pdp.setMultiHitCount(multiHitCount)
         pdp.setMultiHitDamage(multiHitDamage)
+        pdp.setHealAmount(healAmount)
         unknownInfo?.let { pdp.setUnknown(it) }
         pdp.setDamage(VarIntOutput(adjustedDamage, 1))
 

@@ -997,6 +997,9 @@
   justify-content: center;
   flex: 0 0 56px;
 }
+.detailsPanel .detailsSkills .cell.heal {
+  flex: 0 0 72px;
+}
 .detailsPanel .detailsSkills .cell.dmg {
   flex: 0 0 220px;
   justify-content: center;

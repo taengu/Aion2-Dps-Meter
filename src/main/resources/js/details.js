@@ -106,6 +106,9 @@ const createDetailsUI = ({
     const doubleEl = document.createElement("div");
     doubleEl.className = "cell center double";
 
+    const healEl = document.createElement("div");
+    healEl.className = "cell center heal";
+
     const dmgEl = document.createElement("div");
     dmgEl.className = "cell dmg right";
 
@@ -125,6 +128,7 @@ const createDetailsUI = ({
     rowEl.appendChild(perfectEl);
     rowEl.appendChild(doubleEl);
     rowEl.appendChild(backEl);
+    rowEl.appendChild(healEl);
 
     rowEl.appendChild(dmgEl);
 
@@ -137,6 +141,7 @@ const createDetailsUI = ({
       backEl,
       perfectEl,
       doubleEl,
+      healEl,
       dmgFillEl,
       dmgTextEl,
     };
@@ -185,6 +190,7 @@ const createDetailsUI = ({
       const perfect = skill.perfect || 0;
       const double = skill.double || 0;
       const back = skill.back || 0;
+      const heal = skill.heal || 0;
 
       const pct = (num, den) => (den > 0 ? Math.round((num / den) * 100) : 0);
 
@@ -204,6 +210,7 @@ const createDetailsUI = ({
       view.backEl.textContent = `${backRate}%`;
       view.perfectEl.textContent = `${perfectRate}%`;
       view.doubleEl.textContent = `${doubleRate}%`;
+      view.healEl.textContent = `${formatNum(heal)}`;
 
       view.dmgTextEl.textContent = `${formatNum(damage)} (${damageRate.toFixed(1)}%)`;
       view.dmgFillEl.style.transform = `scaleX(${barFillRatio})`;
