@@ -568,6 +568,18 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 //            }
 //        }
 
+        val hitSummary = if (hits.size > 1) {
+            val hitValues = hits.distinct()
+            val hitValueText = if (hitValues.size == 1) {
+                hitValues.first().toString()
+            } else {
+                hitValues.joinToString(",")
+            }
+            " hits: ${hits.size} hit value: $hitValueText"
+        } else {
+            ""
+        }
+
         for (hit in hits) {
             val pdp = ParsedDamagePacket()
             pdp.setTargetId(targetInfo)
@@ -599,13 +611,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             )
             DebugLogWriter.debug(
                 logger,
-                "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag: {}, hex={}",
+                "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}{}, hex={}",
                 pdp.getTargetId(),
                 pdp.getActorId(),
                 pdp.getSkillCode1(),
                 pdp.getType(),
                 pdp.getDamage(),
                 pdp.getSpecials(),
+                hitSummary,
                 toHex(packet)
             )
 
