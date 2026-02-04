@@ -515,11 +515,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun parsePerfectPacket(packet: ByteArray) {
         if (packet.size < 3) return
-        var flag = parsingDamage(packet)
+        var flag = parseLootAttributionActorName(packet)
+        if (flag) return
+        flag = parsingDamage(packet)
         if (flag) return
         flag = parseActorNameBindingRules(packet)
-        if (flag) return
-        flag = parseLootAttributionActorName(packet)
         if (flag) return
         flag = parsingNickname(packet)
         if (flag) return
