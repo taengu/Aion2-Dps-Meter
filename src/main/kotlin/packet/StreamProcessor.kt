@@ -41,34 +41,43 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         fun readSkillCode(): Int {
             val start = offset
+            if (start + 13 < data.size) {
+                val first = normalizeSkillId(readIntLE(start + 10))
+                if (first in 11_000_000..19_999_999) {
+                    offset = start + 14
+                    return first
+                }
+            }
+
+            if (start + 19 < data.size) {
+                val second = normalizeSkillId(readIntLE(start + 16))
+                if (second in 11_000_000..19_999_999) {
+                    offset = start + 20
+                    return second
+                }
+            }
+
             val scanLimit = minOf(40, data.size - start - 4)
             if (scanLimit < 0) {
                 throw IllegalStateException("Skill not found")
             }
 
-            data class Candidate(val index: Int, val normalized: Int)
-            val candidates = mutableListOf<Candidate>()
-
             for (i in 0..scanLimit) {
-                val raw = (data[start + i].toInt() and 0xFF) or
-                    ((data[start + i + 1].toInt() and 0xFF) shl 8) or
-                    ((data[start + i + 2].toInt() and 0xFF) shl 16) or
-                    ((data[start + i + 3].toInt() and 0xFF) shl 24)
-                val normalized = normalizeSkillId(raw)
-                if (isValidSkillId(normalized)) {
-                    candidates.add(Candidate(i, normalized))
+                val normalized = normalizeSkillId(readIntLE(start + i))
+                if (normalized in 11_000_000..19_999_999) {
+                    offset = start + i + 4
+                    return normalized
                 }
             }
-            if (candidates.isEmpty()) {
-                throw IllegalStateException("Skill not found")
-            }
 
-            val best = candidates.firstOrNull { it.normalized in 11_000_000..19_999_999 }
-                ?: candidates.firstOrNull { it.normalized in 100_000..199_999 }
-                ?: candidates.first()
+            throw IllegalStateException("Skill not found")
+        }
 
-            offset = start + best.index + 4
-            return best.normalized
+        private fun readIntLE(pos: Int): Int {
+            return (data[pos].toInt() and 0xFF) or
+                ((data[pos + 1].toInt() and 0xFF) shl 8) or
+                ((data[pos + 2].toInt() and 0xFF) shl 16) or
+                ((data[pos + 3].toInt() and 0xFF) shl 24)
         }
 
     }
@@ -912,11 +921,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return raw - (raw % 10000)
     }
 
-    private fun isValidSkillId(normalized: Int): Boolean {
-        return normalized in 11_000_000..19_999_999 ||
-            normalized in 3_000_000..3_999_999 ||
-            normalized in 100_000..199_999
-    }
 
     private fun readVarInt(bytes: ByteArray, offset: Int = 0): VarIntOutput {
         //구글 Protocol Buffers 라이브러리에 이미 있나? 코드 효율성에 차이있어보이면 나중에 바꾸는게 나을듯?
