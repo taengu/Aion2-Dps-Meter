@@ -553,7 +553,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             specialByte = packet[reader.offset].toInt() and 0xFF
             reader.offset += 2
         }
-        val specials = parseSpecialDamageFlags(byteArrayOf(specialByte)).toMutableList()
+        val specials = parseSpecialDamageFlags(byteArrayOf(specialByte.toByte())).toMutableList()
         if (damageType.toInt() == 3) {
             specials.add(SpecialDamage.CRITICAL)
         }
