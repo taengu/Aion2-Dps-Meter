@@ -552,27 +552,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         if (reader.offset >= packet.size) return logUnparsedDamage()
 
-        val hits: List<Long>
         val unknownInfo: VarIntOutput?
         val unknownValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
         unknownInfo = VarIntOutput(unknownValue, 1)
         val finalDamage = reader.tryReadVarInt() ?: return logUnparsedDamage()
-        val hitCount = reader.tryReadVarInt() ?: 1
-        hits = if (hitCount > 1 && reader.remainingBytes() >= hitCount) {
-            val hitValues = mutableListOf<Long>()
-            repeat(hitCount) {
-                val hv = reader.tryReadVarInt() ?: return logUnparsedDamage()
-                hitValues.add(hv.toLong())
-            }
-            hitValues
-        } else {
-            emptyList()
-        }
-
-        // Optional trailer / delimiter - ignore safely
-        if (reader.offset < packet.size) {
-            reader.tryReadVarInt()
-        }
+        reader.tryReadVarInt()
 
 //        if (loopInfo.value != 0 && offset >= packet.size) return false
 //
