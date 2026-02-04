@@ -561,7 +561,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val unknownValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
         unknownInfo = VarIntOutput(unknownValue, 1)
         val finalDamage = reader.tryReadVarInt() ?: return logUnparsedDamage()
-        val adjustedDamage = finalDamage
+        var adjustedDamage = finalDamage
         var multiHitCount = 0
         var multiHitDamage = 0
         val hitCount = reader.tryReadVarInt()
@@ -576,6 +576,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (hitsRead == hitCount) {
                 multiHitCount = hitsRead
                 multiHitDamage = hitSum
+                adjustedDamage = (finalDamage - hitSum).coerceAtLeast(0)
             }
         }
 
@@ -705,7 +706,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val flags = mutableListOf<SpecialDamage>()
         if (packet.isEmpty()) return flags
         val b0 = packet[0].toInt() and 0xFF
-        val b1 = if (packet.size > 1) packet[1].toInt() and 0xFF else 0
+        val b1 = when {
+            packet.size > 2 && packet[1] == 0.toByte() -> packet[2].toInt() and 0xFF
+            packet.size > 1 -> packet[1].toInt() and 0xFF
+            else -> 0
+        }
 
         if ((b0 and 0x01) != 0) flags.add(SpecialDamage.BACK)
         if ((b0 and 0x04) != 0) flags.add(SpecialDamage.PARRY)
