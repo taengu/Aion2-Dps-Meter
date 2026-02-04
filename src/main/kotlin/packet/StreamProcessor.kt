@@ -544,7 +544,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             else -> return logUnparsedDamage()
         }
         if (start + tempV > packet.size) return logUnparsedDamage()
-        val specials = parseSpecialDamageFlags(packet.copyOfRange(start, start + tempV), flagInfo.value)
+        val specials = parseSpecialDamageFlags(packet.copyOfRange(start, start + tempV), flagInfo.value, damageType)
         reader.offset += tempV
 
         if (reader.offset >= packet.size) return logUnparsedDamage()
@@ -700,7 +700,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return bytes.toByteArray()
     }
 
-    private fun parseSpecialDamageFlags(packet: ByteArray, flagValue: Int): List<SpecialDamage> {
+    private fun parseSpecialDamageFlags(
+        packet: ByteArray,
+        flagValue: Int,
+        damageType: Byte
+    ): List<SpecialDamage> {
         val flags = mutableListOf<SpecialDamage>()
         if (packet.isEmpty()) return flags
         val specialFlagByte = packet[0].toInt() and 0xFF
@@ -713,23 +717,25 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (isCritical) {
             flags.add(SpecialDamage.CRITICAL)
         }
-        if ((specialFlagByte and 0x04) != 0) {
-            flags.add(SpecialDamage.PARRY)
-        }
         if ((specialFlagByte and 0x08) != 0) {
             flags.add(SpecialDamage.PERFECT)
         }
-        if ((specialFlagByte and 0x10) != 0) {
-            flags.add(SpecialDamage.DOUBLE)
-        }
-        if ((specialFlagByte and 0x20) != 0) {
-            flags.add(SpecialDamage.ENDURE)
-        }
-        if ((specialFlagByte and 0x40) != 0) {
-            flags.add(SpecialDamage.UNKNOWN4)
-        }
-        if ((specialFlagByte and 0x80) != 0) {
-            flags.add(SpecialDamage.POWER_SHARD)
+        if (damageType.toInt() != 2) {
+            if ((specialFlagByte and 0x04) != 0) {
+                flags.add(SpecialDamage.PARRY)
+            }
+            if ((specialFlagByte and 0x10) != 0) {
+                flags.add(SpecialDamage.DOUBLE)
+            }
+            if ((specialFlagByte and 0x20) != 0) {
+                flags.add(SpecialDamage.ENDURE)
+            }
+            if ((specialFlagByte and 0x40) != 0) {
+                flags.add(SpecialDamage.UNKNOWN4)
+            }
+            if ((specialFlagByte and 0x80) != 0) {
+                flags.add(SpecialDamage.POWER_SHARD)
+            }
         }
 
         return flags
