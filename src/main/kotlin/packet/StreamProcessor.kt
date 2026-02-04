@@ -43,16 +43,12 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             return hits
         }
 
-        fun tryReadStackedHits(): List<Long>? {
+        fun tryReadStackedHits(count: Int): List<Long>? {
             if (offset >= data.size) return null
+            if (count !in 1..10) return null
             val startOffset = offset
-            val countInfo = readVarIntOutput()
-            if (countInfo.length < 0 || countInfo.value !in 1..10) {
-                offset = startOffset
-                return null
-            }
             val hits = mutableListOf<Long>()
-            repeat(countInfo.value) {
+            repeat(count) {
                 val hitInfo = readVarIntOutput()
                 if (hitInfo.length < 0) {
                     offset = startOffset
@@ -543,13 +539,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             else -> return logUnparsedDamage()
         }
         if (start + tempV > packet.size) return logUnparsedDamage()
-        val specials = parseSpecialDamageFlags(packet.copyOfRange(start, start + tempV))
+        val specials = parseSpecialDamageFlags(packet.copyOfRange(start, start + tempV), flagInfo.value)
         reader.offset += tempV
 
         if (reader.offset >= packet.size) return logUnparsedDamage()
 
         val hits: List<Long>?
         val unknownInfo: VarIntOutput?
+        var stackedHits: List<Long>? = null
+        var loopInfo: VarIntOutput? = null
         if (isMultiHitDamageType(typeInfo.value)) {
             unknownInfo = null
             val finalDamage = reader.readVarInt()
@@ -570,14 +568,13 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             hits = listOf(damageInfo.value.toLong())
             val trailerInfo = reader.readVarIntOutput()
             if (trailerInfo.length < 0) return logUnparsedDamage()
+            stackedHits = reader.tryReadStackedHits(trailerInfo.value)
         }
 
-        if (reader.offset >= packet.size) return logUnparsedDamage()
-
-        val loopInfo = reader.readVarIntOutput()
-        if (loopInfo.length < 0) return logUnparsedDamage()
-
-        val stackedHits = reader.tryReadStackedHits()
+        if (reader.offset < packet.size) {
+            loopInfo = reader.readVarIntOutput()
+            if (loopInfo.length < 0) return logUnparsedDamage()
+        }
 
 //        if (loopInfo.value != 0 && offset >= packet.size) return false
 //
@@ -614,7 +611,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             pdp.setSpecials(specials)
             unknownInfo?.let { pdp.setUnknown(it) }
             pdp.setDamage(VarIntOutput(hit.toInt(), 1))
-            pdp.setLoop(loopInfo)
+            loopInfo?.let { pdp.setLoop(it) }
 
             logger.trace("{}", toHex(packet))
             logger.trace("Type packet {}", toHex(byteArrayOf(damageType)))
@@ -712,12 +709,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return bytes.toByteArray()
     }
 
-    private fun parseSpecialDamageFlags(packet: ByteArray): List<SpecialDamage> {
+    private fun parseSpecialDamageFlags(packet: ByteArray, flagInfo: Int): List<SpecialDamage> {
         val flags = mutableListOf<SpecialDamage>()
+        val flagByte = when {
+            flagInfo != 0 -> flagInfo and 0xFF
+            packet.size >= 2 && packet[1] == 0x00.toByte() -> packet[0].toInt() and 0xFF
+            else -> null
+        }
 
-        if (packet.size >= 8) {
-            val flagByte = packet[0].toInt() and 0xFF
-
+        if (flagByte != null) {
             if ((flagByte and 0x01) != 0) {
                 flags.add(SpecialDamage.BACK)
             }
@@ -748,6 +748,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if ((flagByte and 0x80) != 0) {
                 flags.add(SpecialDamage.POWER_SHARD)
             }
+        }
+
+        if (flags.none { it == SpecialDamage.CRITICAL } &&
+            packet.size >= 3 &&
+            packet[1] == 0x00.toByte() &&
+            (packet[2].toInt() and 0x02) != 0
+        ) {
+            flags.add(SpecialDamage.CRITICAL)
         }
 
         return flags
