@@ -699,6 +699,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     ): List<SpecialDamage> {
         val flags = mutableListOf<SpecialDamage>()
         if (packet.isEmpty()) return flags
+        if (switchType == 4) {
+            if (packet.size <= 3) return flags
+            val critByte = packet[3].toInt() and 0xFF
+            if ((critByte and 0x02) != 0) flags.add(SpecialDamage.CRITICAL)
+            if ((critByte and 0x10) != 0) flags.add(SpecialDamage.SMITE)
+            return flags
+        }
+
         val flagOffset = when (switchType) {
             5, 6 -> 0
             7 -> 2
