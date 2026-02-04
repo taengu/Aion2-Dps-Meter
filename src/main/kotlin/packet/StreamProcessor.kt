@@ -727,7 +727,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if ((specialFlagByte and 0x08) != 0 && (damageType.toInt() != 2 || flagValue == 0)) {
             flags.add(SpecialDamage.PERFECT)
         }
-        if ((specialFlagByte and 0x10) != 0 && (flagValue and 0x10) != 0) {
+        if ((specialFlagByte and 0x10) != 0) {
             flags.add(SpecialDamage.DOUBLE)
         }
         if ((specialFlagByte and 0x20) != 0 && (flagValue and 0x20) != 0) {
