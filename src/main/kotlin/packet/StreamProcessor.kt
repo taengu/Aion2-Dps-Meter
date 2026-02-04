@@ -18,27 +18,39 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private inner class DamagePacketReader(private val data: ByteArray, var offset: Int = 0) {
         fun readVarIntOutput(): VarIntOutput {
-            val result = readVarInt(data, offset)
-            if (result.length > 0) {
-                offset += result.length
+            if (offset >= data.size) {
+                return VarIntOutput(-1, -1)
             }
+            val result = readVarInt(data, offset)
+            if (result.length <= 0 || offset + result.length > data.size) {
+                return VarIntOutput(-1, -1)
+            }
+            offset += result.length
             return result
         }
 
         fun readVarInt(): Int {
-            val (value, bytes) = readVarInt(data, offset)
-            if (bytes > 0) {
-                offset += bytes
+            if (offset >= data.size) return -1
+            val result = readVarInt(data, offset)
+            if (result.length <= 0 || offset + result.length > data.size) {
+                return -1
             }
-            return value
+            offset += result.length
+            return result.value
         }
 
-        fun readHitLoop(): List<Long> {
+        fun tryReadVarInt(): Int? {
+            val value = readVarInt()
+            return if (value < 0) null else value
+        }
+
+        fun tryReadHitLoop(): List<Long>? {
             val hits = mutableListOf<Long>()
-            val hitCount = readVarInt()
-            require(hitCount in 1..10) { "Invalid hit count: $hitCount" }
+            val hitCount = tryReadVarInt() ?: return null
+            if (hitCount !in 1..10) return null
             repeat(hitCount) {
-                hits += readVarInt().toLong()
+                val hitValue = tryReadVarInt() ?: return null
+                hits += hitValue.toLong()
             }
             return hits
         }
@@ -98,8 +110,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
             onPacketReceived(packet.copyOfRange(packetLengthInfo.value - 3, packet.size))
             //남은패킷 재처리
-        } catch (e: Exception) {
-            logger.error("Exception while consuming packet {}", toHex(packet), e)
+        } catch (e: IndexOutOfBoundsException) {
+            logger.debug("Truncated tail packet skipped: {}", toHex(packet))
             return
         }
 
@@ -550,25 +562,17 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         var loopInfo: VarIntOutput? = null
         if (isMultiHitDamageType(typeInfo.value)) {
             unknownInfo = null
-            val finalDamage = reader.readVarInt()
-            if (finalDamage < 0) return logUnparsedDamage()
-            hits = try {
-                reader.readHitLoop()
-            } catch (e: IllegalArgumentException) {
-                return logUnparsedDamage()
-            }
+            val finalDamage = reader.tryReadVarInt() ?: return logUnparsedDamage()
+            hits = reader.tryReadHitLoop() ?: return logUnparsedDamage()
             if (hits.isEmpty()) return logUnparsedDamage()
         } else {
-            val unknownData = reader.readVarIntOutput()
-            if (unknownData.length < 0) return logUnparsedDamage()
-            unknownInfo = unknownData
+            val unknownValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
+            unknownInfo = VarIntOutput(unknownValue, 1)
             if (reader.offset >= packet.size) return logUnparsedDamage()
-            val damageInfo = reader.readVarIntOutput()
-            if (damageInfo.length < 0) return logUnparsedDamage()
-            hits = listOf(damageInfo.value.toLong())
-            val trailerInfo = reader.readVarIntOutput()
-            if (trailerInfo.length < 0) return logUnparsedDamage()
-            stackedHits = reader.tryReadStackedHits(trailerInfo.value)
+            val damageValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
+            hits = listOf(damageValue.toLong())
+            val trailerValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
+            stackedHits = reader.tryReadStackedHits(trailerValue)
         }
 
         if (reader.offset < packet.size) {
@@ -670,7 +674,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         while (true) {
             if (offset + count >= bytes.size) {
-                logger.error("Array out of bounds, packet {} offset {} count {}", toHex(bytes), offset, count)
+                logger.debug("Truncated packet skipped: {} offset {} count {}", toHex(bytes), offset, count)
                 return VarIntOutput(-1, -1)
             }
 
