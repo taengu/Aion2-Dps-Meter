@@ -547,10 +547,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             else -> return logUnparsedDamage()
         }
         if (start + tempV > packet.size) return logUnparsedDamage()
-        val specials = parseSpecialDamageFlags(
-            packet.copyOfRange(start, start + tempV),
-            andResult
-        )
+        val specials = parseSpecialDamageFlags(packet.copyOfRange(start, start + tempV))
         reader.offset += tempV
 
         if (reader.offset >= packet.size) return logUnparsedDamage()
@@ -713,42 +710,19 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return bytes.toByteArray()
     }
 
-    private fun parseSpecialDamageFlags(
-        packet: ByteArray,
-        switchType: Int
-    ): List<SpecialDamage> {
+    private fun parseSpecialDamageFlags(packet: ByteArray): List<SpecialDamage> {
         val flags = mutableListOf<SpecialDamage>()
         if (packet.isEmpty()) return flags
-        if (switchType == 4) {
-            if (packet.size <= 3) return flags
-            val critByte = packet[3].toInt() and 0xFF
-            if ((critByte and 0x02) != 0) flags.add(SpecialDamage.CRITICAL)
-            return flags
-        }
+        val b = packet[0].toInt() and 0xFF
 
-        val flagOffset = when (switchType) {
-            5, 6 -> 0
-            7 -> 2
-            else -> return flags
-        }
-        if (packet.size <= flagOffset) return flags
-        val b0 = packet[flagOffset].toInt() and 0xFF
-        val b1 = if (packet.size > flagOffset + 1) {
-            packet[flagOffset + 1].toInt() and 0xFF
-        } else {
-            0
-        }
-
-        if ((b0 and 0x01) != 0) flags.add(SpecialDamage.BACK)
-        if ((b0 and 0x04) != 0) flags.add(SpecialDamage.PARRY)
-        if ((b0 and 0x08) != 0) flags.add(SpecialDamage.PERFECT)
-        if ((b0 and 0x10) != 0) flags.add(SpecialDamage.DOUBLE)
-        if ((b0 and 0x20) != 0) flags.add(SpecialDamage.ENDURE)
-        if ((b0 and 0x40) != 0) flags.add(SpecialDamage.UNKNOWN4)
-        if ((b0 and 0x80) != 0) flags.add(SpecialDamage.POWER_SHARD)
-
-        if ((b1 and 0x02) != 0) flags.add(SpecialDamage.CRITICAL)
-        if ((b1 and 0x10) != 0) flags.add(SpecialDamage.SMITE)
+        if ((b and 0x01) != 0) flags.add(SpecialDamage.BACK)
+        if ((b and 0x02) != 0) flags.add(SpecialDamage.CRITICAL)
+        if ((b and 0x04) != 0) flags.add(SpecialDamage.PARRY)
+        if ((b and 0x08) != 0) flags.add(SpecialDamage.PERFECT)
+        if ((b and 0x10) != 0) flags.add(SpecialDamage.DOUBLE)
+        if ((b and 0x20) != 0) flags.add(SpecialDamage.ENDURE)
+        if ((b and 0x40) != 0) flags.add(SpecialDamage.SMITE)
+        if ((b and 0x80) != 0) flags.add(SpecialDamage.POWER_SHARD)
 
         return flags
     }
