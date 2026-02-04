@@ -42,6 +42,26 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             return hits
         }
+
+        fun tryReadStackedHits(): List<Long>? {
+            if (offset >= data.size) return null
+            val startOffset = offset
+            val countInfo = readVarIntOutput()
+            if (countInfo.length < 0 || countInfo.value !in 1..10) {
+                offset = startOffset
+                return null
+            }
+            val hits = mutableListOf<Long>()
+            repeat(countInfo.value) {
+                val hitInfo = readVarIntOutput()
+                if (hitInfo.length < 0) {
+                    offset = startOffset
+                    return null
+                }
+                hits += hitInfo.value.toLong()
+            }
+            return hits
+        }
     }
 
     fun onPacketReceived(packet: ByteArray) {
@@ -557,6 +577,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val loopInfo = reader.readVarIntOutput()
         if (loopInfo.length < 0) return logUnparsedDamage()
 
+        val stackedHits = reader.tryReadStackedHits()
+
 //        if (loopInfo.value != 0 && offset >= packet.size) return false
 //
 //        if (loopInfo.value != 0) {
@@ -568,14 +590,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 //            }
 //        }
 
-        val hitSummary = if (hits.size > 1) {
-            val hitValues = hits.distinct()
+        val logHits = stackedHits ?: hits
+        val hitSummary = if (stackedHits != null || logHits.size > 1) {
+            val hitValues = logHits.distinct()
             val hitValueText = if (hitValues.size == 1) {
                 hitValues.first().toString()
             } else {
                 hitValues.joinToString(",")
             }
-            " hits: ${hits.size} hit value: $hitValueText"
+            " hits: ${logHits.size} hit value: $hitValueText"
         } else {
             ""
         }
