@@ -42,17 +42,23 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         fun readSkillCode(): Int {
             val start = offset
             for (i in 0..5) {
+                if (start + i >= data.size) break
+                val varint = readVarInt(data, start + i)
+                if (varint.length > 0) {
+                    val normalized = normalizeSkillId(varint.value)
+                    if (isValidSkillId(normalized)) {
+                        offset = start + i + varint.length
+                        return normalized
+                    }
+                }
                 if (start + i + 4 > data.size) break
                 val raw = (data[start + i].toInt() and 0xFF) or
                     ((data[start + i + 1].toInt() and 0xFF) shl 8) or
                     ((data[start + i + 2].toInt() and 0xFF) shl 16) or
                     ((data[start + i + 3].toInt() and 0xFF) shl 24)
                 val normalized = normalizeSkillId(raw)
-                if (normalized in 11_000_000..19_999_999 ||
-                    normalized in 3_000_000..3_999_999 ||
-                    normalized in 100_000..199_999
-                ) {
-                    offset = start + i + 5
+                if (isValidSkillId(normalized)) {
+                    offset = start + i + 4
                     return normalized
                 }
             }
@@ -515,8 +521,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (unknownInfo.length <0) return
         offset += unknownInfo.length
 
-        val rawSkill = parseUInt32le(packet, offset)
-        val skillCode = normalizeSkillId(rawSkill)
+        val skillCode = try {
+            val skillReader = DamagePacketReader(packet, offset)
+            val value = skillReader.readSkillCode()
+            offset = skillReader.offset
+            value
+        } catch (e: IllegalStateException) {
+            return
+        }
         offset += 4
         if (packet.size <= offset) return
         pdp.setSkillCode(skillCode)
@@ -875,6 +887,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             logger,
             "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}, hex={}",
             pdp.getTargetId(),
+    private fun isValidSkillId(normalized: Int): Boolean {
+        return normalized in 11_000_000..19_999_999 ||
+            normalized in 1_000_000..1_999_999
+    }
+
             pdp.getActorId(),
             pdp.getSkillCode1(),
             pdp.getType(),
