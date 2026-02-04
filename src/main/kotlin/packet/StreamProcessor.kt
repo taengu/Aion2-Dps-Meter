@@ -688,7 +688,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 flags.add(SpecialDamage.BACK)
             }
             if ((flagByte and 0x02) != 0) {
-                flags.add(SpecialDamage.UNKNOWN)
+                flags.add(SpecialDamage.CRITICAL)
             }
 
             if ((flagByte and 0x04) != 0) {
