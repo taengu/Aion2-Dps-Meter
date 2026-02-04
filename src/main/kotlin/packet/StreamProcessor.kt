@@ -582,18 +582,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 //            }
 //        }
 
-        val hitSummary = if (hits.size > 1) {
-            val hitValues = hits.distinct()
-            val hitValueText = if (hitValues.size == 1) {
-                hitValues.first().toString()
-            } else {
-                hitValues.joinToString(",")
-            }
-            " hits: ${hits.size} hit value: $hitValueText"
-        } else {
-            ""
-        }
-
         val pdp = ParsedDamagePacket()
         pdp.setTargetId(targetInfo)
         pdp.setSwitchVariable(switchInfo)
@@ -613,25 +601,23 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         )
         logger.trace("Varint packet: {}", toHex(packet.copyOfRange(start, start + tempV)))
         logger.debug(
-            "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}{}",
+            "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}",
             pdp.getTargetId(),
             pdp.getActorId(),
             pdp.getSkillCode1(),
             pdp.getType(),
             pdp.getDamage(),
-            pdp.getSpecials(),
-            hitSummary
+            pdp.getSpecials()
         )
         DebugLogWriter.debug(
             logger,
-            "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}{}, hex={}",
+            "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}, hex={}",
             pdp.getTargetId(),
             pdp.getActorId(),
             pdp.getSkillCode1(),
             pdp.getType(),
             pdp.getDamage(),
             pdp.getSpecials(),
-            hitSummary,
             toHex(packet)
         )
 
