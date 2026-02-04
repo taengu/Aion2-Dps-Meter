@@ -432,6 +432,7 @@ class DpsApp {
         back = 0,
         perfect = 0,
         double = 0,
+        heal = 0,
         countForTotals = true,
       }) => {
         const dmgInt = Math.trunc(Number(String(dmg ?? "").replace(/,/g, ""))) || 0;
@@ -459,6 +460,7 @@ class DpsApp {
           back: Number(back) || 0,
           perfect: Number(perfect) || 0,
           double: Number(double) || 0,
+          heal: Number(heal) || 0,
           dmg: dmgInt,
         });
       };
@@ -474,6 +476,7 @@ class DpsApp {
         back: value.backTimes,
         perfect: value.perfectTimes,
         double: value.doubleTimes,
+        heal: value.healAmount,
       });
 
       // 도트피해

@@ -547,13 +547,17 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             else -> return logUnparsedDamage()
         }
         if (start + tempV > packet.size) return logUnparsedDamage()
-        val specials = parseSpecialDamageFlags(
-            packet.copyOfRange(start, start + tempV),
-            flagInfo.value,
-            damageType,
-            andResult
-        )
-        reader.offset += tempV
+        var specialByte = 0
+        val hasSpecialByte = reader.offset + 1 < packet.size && packet[reader.offset + 1] == 0x00.toByte()
+        if (hasSpecialByte) {
+            specialByte = packet[reader.offset].toInt() and 0xFF
+            reader.offset += 2
+        }
+        val specials = parseSpecialDamageFlags(byteArrayOf(specialByte.toByte())).toMutableList()
+        if (damageType.toInt() == 3) {
+            specials.add(SpecialDamage.CRITICAL)
+        }
+        reader.offset += (tempV - (if (hasSpecialByte) 2 else 0))
 
         if (reader.offset >= packet.size) return logUnparsedDamage()
 
@@ -561,10 +565,19 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val unknownValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
         unknownInfo = VarIntOutput(unknownValue, 1)
         val finalDamage = reader.tryReadVarInt() ?: return logUnparsedDamage()
-        val adjustedDamage = finalDamage
+        var adjustedDamage = finalDamage
         var multiHitCount = 0
         var multiHitDamage = 0
-        val hitCount = reader.tryReadVarInt()
+        var healAmount = 0
+        val hitCount = if (
+            reader.remainingBytes() >= 2 &&
+            packet[reader.offset] == 0x03.toByte() &&
+            packet[reader.offset + 1] == 0x00.toByte()
+        ) {
+            null
+        } else {
+            reader.tryReadVarInt()
+        }
         if (hitCount != null && hitCount > 0 && reader.remainingBytes() > 0) {
             var hitSum = 0
             var hitsRead = 0
@@ -576,7 +589,16 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             if (hitsRead == hitCount) {
                 multiHitCount = hitsRead
                 multiHitDamage = hitSum
+                adjustedDamage = (finalDamage - hitSum).coerceAtLeast(0)
             }
+        }
+        if (
+            reader.remainingBytes() >= 2 &&
+            packet[reader.offset] == 0x03.toByte() &&
+            packet[reader.offset + 1] == 0x00.toByte()
+        ) {
+            reader.offset += 2
+            healAmount = reader.tryReadVarInt() ?: 0
         }
 
 //        if (loopInfo.value != 0 && offset >= packet.size) return false
@@ -600,6 +622,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         pdp.setSpecials(specials)
         pdp.setMultiHitCount(multiHitCount)
         pdp.setMultiHitDamage(multiHitDamage)
+        pdp.setHealAmount(healAmount)
         unknownInfo?.let { pdp.setUnknown(it) }
         pdp.setDamage(VarIntOutput(adjustedDamage, 1))
 
@@ -696,23 +719,18 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return bytes.toByteArray()
     }
 
-    private fun parseSpecialDamageFlags(
-        packet: ByteArray,
-        flagValue: Int,
-        damageType: Byte,
-        switchResult: Int
-    ): List<SpecialDamage> {
+    private fun parseSpecialDamageFlags(packet: ByteArray): List<SpecialDamage> {
         val flags = mutableListOf<SpecialDamage>()
         if (packet.isEmpty()) return flags
         val b = packet[0].toInt() and 0xFF
+        val flagMask = 0x01 or 0x04 or 0x08 or 0x10 or 0x40 or 0x80
+        if ((b and flagMask) == 0) return flags
 
         if ((b and 0x01) != 0) flags.add(SpecialDamage.BACK)
-        if ((b and 0x02) != 0) flags.add(SpecialDamage.CRITICAL)
         if ((b and 0x04) != 0) flags.add(SpecialDamage.PARRY)
         if ((b and 0x08) != 0) flags.add(SpecialDamage.PERFECT)
         if ((b and 0x10) != 0) flags.add(SpecialDamage.DOUBLE)
-        if ((b and 0x20) != 0) flags.add(SpecialDamage.ENDURE)
-        if ((b and 0x40) != 0) flags.add(SpecialDamage.UNKNOWN4)
+        if ((b and 0x40) != 0) flags.add(SpecialDamage.SMITE)
         if ((b and 0x80) != 0) flags.add(SpecialDamage.POWER_SHARD)
 
         return flags
