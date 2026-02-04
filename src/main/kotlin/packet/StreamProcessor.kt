@@ -601,13 +601,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             )
             logger.trace("Varint packet: {}", toHex(packet.copyOfRange(start, start + tempV)))
             logger.debug(
-                "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag: {}",
+                "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}{}",
                 pdp.getTargetId(),
                 pdp.getActorId(),
                 pdp.getSkillCode1(),
                 pdp.getType(),
                 pdp.getDamage(),
-                pdp.getSpecials()
+                pdp.getSpecials(),
+                hitSummary
             )
             DebugLogWriter.debug(
                 logger,
@@ -691,10 +692,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     private fun parseSpecialDamageFlags(packet: ByteArray): List<SpecialDamage> {
         val flags = mutableListOf<SpecialDamage>()
 
-        if (packet.size == 8) {
-            return emptyList()
-        }
-        if (packet.size >= 10) {
+        if (packet.size >= 8) {
             val flagByte = packet[0].toInt() and 0xFF
 
             if ((flagByte and 0x01) != 0) {
