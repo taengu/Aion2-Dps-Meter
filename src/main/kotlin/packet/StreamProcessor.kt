@@ -291,6 +291,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             idx++
         }
 
+        candidates.addAll(findLootAttributionNamesBeforeMarker(packet))
+
         if (candidates.isEmpty()) return false
         val allowPrepopulate = candidates.size > 1
         var foundAny = false
@@ -317,6 +319,65 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             foundAny = true
         }
         return foundAny
+    }
+
+    private fun findLootAttributionNamesBeforeMarker(packet: ByteArray): List<ActorNameCandidate> {
+        val candidates = mutableListOf<ActorNameCandidate>()
+        var idx = 0
+        while (idx + 3 < packet.size) {
+            if (packet[idx] != 0x07.toByte()) {
+                idx++
+                continue
+            }
+            val nameLength = packet[idx + 1].toInt() and 0xff
+            if (nameLength !in 3..16) {
+                idx++
+                continue
+            }
+            val nameStart = idx + 2
+            val nameEnd = nameStart + nameLength
+            if (nameEnd + 2 > packet.size) {
+                idx++
+                continue
+            }
+            if (packet[nameEnd] != 0xF8.toByte() || packet[nameEnd + 1] != 0x03.toByte()) {
+                idx++
+                continue
+            }
+            val nameBytes = packet.copyOfRange(nameStart, nameEnd)
+            val possibleName = decodeUtf8Strict(nameBytes) ?: run {
+                idx = nameEnd
+                continue
+            }
+            val sanitizedName = sanitizeNickname(possibleName) ?: run {
+                idx = nameEnd
+                continue
+            }
+            val actorInfo = findVarIntEndingAt(packet, idx) ?: run {
+                idx = nameEnd
+                continue
+            }
+            if (actorInfo.value !in 100..99999 || actorInfo.value == 0) {
+                idx = nameEnd
+                continue
+            }
+            candidates.add(ActorNameCandidate(actorInfo.value, sanitizedName, nameBytes))
+            idx = skipGuildName(packet, nameEnd + 2)
+        }
+        return candidates
+    }
+
+    private fun findVarIntEndingAt(packet: ByteArray, endIndexExclusive: Int): VarIntOutput? {
+        val searchStart = (endIndexExclusive - 5).coerceAtLeast(0)
+        for (start in searchStart until endIndexExclusive) {
+            if (!canReadVarInt(packet, start)) continue
+            val info = readVarInt(packet, start)
+            if (info.length <= 0) continue
+            if (start + info.length == endIndexExclusive) {
+                return info
+            }
+        }
+        return null
     }
 
     private fun actorExists(actorId: Int): Boolean {
