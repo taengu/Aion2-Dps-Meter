@@ -717,12 +717,13 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val flags = mutableListOf<SpecialDamage>()
         if (packet.isEmpty()) return flags
         val b = packet[0].toInt() and 0xFF
+        val flagMask = 0x01 or 0x04 or 0x08 or 0x10 or 0x40 or 0x80
+        if ((b and flagMask) == 0) return flags
 
         if ((b and 0x01) != 0) flags.add(SpecialDamage.BACK)
         if ((b and 0x04) != 0) flags.add(SpecialDamage.PARRY)
         if ((b and 0x08) != 0) flags.add(SpecialDamage.PERFECT)
         if ((b and 0x10) != 0) flags.add(SpecialDamage.DOUBLE)
-        if ((b and 0x20) != 0) flags.add(SpecialDamage.ENDURE)
         if ((b and 0x40) != 0) flags.add(SpecialDamage.SMITE)
         if ((b and 0x80) != 0) flags.add(SpecialDamage.POWER_SHARD)
 
