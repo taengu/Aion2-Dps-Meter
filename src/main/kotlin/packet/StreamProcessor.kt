@@ -503,6 +503,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val switchValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
         val switchInfo = VarIntOutput(switchValue, 1)
         if (reader.offset >= packet.size) return logUnparsedDamage()
+        val andResult = switchInfo.value and mask
+        if (andResult !in 4..7) {
+            return true
+        }
 
         val flagValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
         val flagInfo = VarIntOutput(flagValue, 1)
@@ -511,6 +515,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val actorValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
         val actorInfo = VarIntOutput(actorValue, 1)
         if (reader.offset >= packet.size) return logUnparsedDamage()
+        if (actorInfo.value == targetInfo.value) return true
         if (!isActorAllowed(actorInfo.value)) return true
 
         if (reader.offset + 5 >= packet.size) return logUnparsedDamage()
@@ -527,7 +532,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         val damageType = typeInfo.value.toByte()
 
-        val andResult = switchInfo.value and mask
         val start = reader.offset
         var tempV = 0
         tempV += when (andResult) {
