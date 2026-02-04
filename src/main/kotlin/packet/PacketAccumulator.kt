@@ -1,6 +1,5 @@
 package com.tbread.packet
 
-import com.tbread.logging.DebugLogWriter
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.util.Arrays
@@ -19,8 +18,7 @@ class PacketAccumulator {
         val size = buffer.size()
 
         if (size in (WARN_BUFFER_SIZE + 1)..<MAX_BUFFER_SIZE) {
-            logger.debug("{} : buffer nearing limit", logger.name)
-            DebugLogWriter.debug(logger, "{} : buffer nearing limit", logger.name)
+            logger.warn("{} : buffer nearing limit", logger.name)
         }
 
         if (size > MAX_BUFFER_SIZE) {
