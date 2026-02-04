@@ -21,38 +21,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         return actorId == filterValue
     }
 
-    private fun normalizeSkillId(raw: Int): Int {
-        return raw - (raw % 10000)
-    }
-
-    private fun isValidSkillId(id: Int): Boolean {
-        return (id in 100_000..199_999) ||
-            (id in 10_000_000..19_999_999)
-    }
-
-    private fun logDamagePacket(pdp: ParsedDamagePacket, packet: ByteArray) {
-        logger.debug(
-            "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}",
-            pdp.getTargetId(),
-            pdp.getActorId(),
-            pdp.getSkillCode1(),
-            pdp.getType(),
-            pdp.getDamage(),
-            pdp.getSpecials()
-        )
-        DebugLogWriter.debug(
-            logger,
-            "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}, hex={}",
-            pdp.getTargetId(),
-            pdp.getActorId(),
-            pdp.getSkillCode1(),
-            pdp.getType(),
-            pdp.getDamage(),
-            pdp.getSpecials(),
-            toHex(packet)
-        )
-    }
-
     private inner class DamagePacketReader(private val data: ByteArray, var offset: Int = 0) {
         fun readVarInt(): Int {
             if (offset >= data.size) return -1
@@ -74,23 +42,17 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         fun readSkillCode(): Int {
             val start = offset
             for (i in 0..5) {
-                if (start + i >= data.size) break
-                val varint = readVarInt(data, start + i)
-                if (varint.length > 0) {
-                    val normalized = normalizeSkillId(varint.value)
-                    if (isValidSkillId(normalized)) {
-                        offset = start + i + varint.length
-                        return normalized
-                    }
-                }
                 if (start + i + 4 > data.size) break
                 val raw = (data[start + i].toInt() and 0xFF) or
                     ((data[start + i + 1].toInt() and 0xFF) shl 8) or
                     ((data[start + i + 2].toInt() and 0xFF) shl 16) or
                     ((data[start + i + 3].toInt() and 0xFF) shl 24)
                 val normalized = normalizeSkillId(raw)
-                if (isValidSkillId(normalized)) {
-                    offset = start + i + 4
+                if (normalized in 11_000_000..19_999_999 ||
+                    normalized in 3_000_000..3_999_999 ||
+                    normalized in 100_000..199_999
+                ) {
+                    offset = start + i + 5
                     return normalized
                 }
             }
@@ -553,14 +515,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (unknownInfo.length <0) return
         offset += unknownInfo.length
 
-        val skillCode = try {
-            val skillReader = DamagePacketReader(packet, offset)
-            val value = skillReader.readSkillCode()
-            offset = skillReader.offset
-            value
-        } catch (e: IllegalStateException) {
-            return
-        }
+        val skillCode:Int = parseUInt32le(packet,offset) / 100
         offset += 4
         if (packet.size <= offset) return
         pdp.setSkillCode(skillCode)
@@ -568,8 +523,6 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         val damageInfo = readVarInt(packet,offset)
         if (damageInfo.length < 0) return
         pdp.setDamage(damageInfo)
-        pdp.setHexPayload(toHex(packet))
-
         logger.debug("{}", toHex(packet))
         DebugLogWriter.debug(logger, "{}", toHex(packet))
         logger.debug(
@@ -880,7 +833,25 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 //                var skipValueInfo = readVarInt(packet, offset)
 //                if (skipValueInfo.length < 0) return false
 //                pdp.addSkipData(skipValueInfo)
-        logDamagePacket(pdp, packet)
+//                offset += skipValueInfo.length
+//            }
+//        }
+
+        val pdp = ParsedDamagePacket()
+        pdp.setTargetId(targetInfo)
+        pdp.setSwitchVariable(switchInfo)
+        pdp.setFlag(flagInfo)
+        pdp.setActorId(actorInfo)
+        pdp.setSkillCode(skillCode)
+        pdp.setType(typeInfo)
+        pdp.setSpecials(specials)
+        pdp.setMultiHitCount(multiHitCount)
+        pdp.setMultiHitDamage(multiHitDamage)
+        pdp.setHealAmount(healAmount)
+        unknownInfo?.let { pdp.setUnknown(it) }
+        pdp.setDamage(VarIntOutput(adjustedDamage, 1))
+
+        logger.trace("{}", toHex(packet))
         logger.trace("Type packet {}", toHex(byteArrayOf(damageType)))
         logger.trace(
             "Type packet bits {}",
@@ -896,6 +867,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             pdp.getDamage(),
             pdp.getSpecials()
         )
+        DebugLogWriter.debug(
+            logger,
+            "Target: {}, attacker: {}, skill: {}, type: {}, damage: {}, damage flag:{}, hex={}",
+            pdp.getTargetId(),
             pdp.getActorId(),
             pdp.getSkillCode1(),
             pdp.getType(),
@@ -919,7 +894,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun normalizeSkillId(raw: Int): Int {
-        return raw - (raw % 1000)
+        return raw - (raw % 10000)
     }
 
     private fun readVarInt(bytes: ByteArray, offset: Int = 0): VarIntOutput {
