@@ -515,7 +515,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (unknownInfo.length <0) return
         offset += unknownInfo.length
 
-        val skillCode:Int = parseUInt32le(packet,offset) / 100
+        val rawSkill = parseUInt32le(packet, offset)
+        val skillCode = normalizeSkillId(rawSkill)
         offset += 4
         if (packet.size <= offset) return
         pdp.setSkillCode(skillCode)
@@ -897,7 +898,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
     }
 
     private fun normalizeSkillId(raw: Int): Int {
-        return raw - (raw % 10000)
+        return raw - (raw % 1000)
     }
 
     private fun readVarInt(bytes: ByteArray, offset: Int = 0): VarIntOutput {
