@@ -41,6 +41,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         fun readSkillCode(): Int {
             val start = offset
+            val varInt = tryReadVarInt()
+            if (varInt != null) {
+                val normalized = normalizeSkillId(varInt)
+                if (isValidSkillId(normalized)) {
+                    return normalized
+                }
+                offset = start
+            }
             for (i in 0..5) {
                 if (start + i + 4 > data.size) break
                 val raw = (data[start + i].toInt() and 0xFF) or
@@ -48,11 +56,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     ((data[start + i + 2].toInt() and 0xFF) shl 16) or
                     ((data[start + i + 3].toInt() and 0xFF) shl 24)
                 val normalized = normalizeSkillId(raw)
-                if (normalized in 11_000_000..19_999_999 ||
-                    normalized in 3_000_000..3_999_999 ||
-                    normalized in 100_000..199_999
-                ) {
-                    offset = start + i + 5
+                if (isValidSkillId(normalized)) {
+                    offset = start + i + 4
                     return normalized
                 }
             }
@@ -898,6 +903,12 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun normalizeSkillId(raw: Int): Int {
         return raw - (raw % 10000)
+    }
+
+    private fun isValidSkillId(normalized: Int): Boolean {
+        return normalized in 11_000_000..19_999_999 ||
+            normalized in 3_000_000..3_999_999 ||
+            normalized in 100_000..199_999
     }
 
     private fun readVarInt(bytes: ByteArray, offset: Int = 0): VarIntOutput {
