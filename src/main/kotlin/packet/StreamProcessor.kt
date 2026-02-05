@@ -50,22 +50,16 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     ((data[start + i + 2].toInt() and 0xFF) shl 16) or
                     ((data[start + i + 3].toInt() and 0xFF) shl 24)
                 val normalized = normalizeSkillId(raw)
-                val typeInfo = readVarInt(data, start + i + 4)
-                val isValidType = typeInfo.length > 0 && typeInfo.value in 1..9
                 if (normalized in 3_000_000..3_999_999) {
-                    if (isValidType) {
-                        offset = start + i + 4
-                        return AUTO_ATTACK_CODE
-                    }
+                    offset = start + i + 4
+                    return AUTO_ATTACK_CODE
                 }
                 if (
                     normalized in 11_000_000..19_999_999 ||
                     normalized in 100_000..199_999
                 ) {
-                    if (isValidType) {
-                        offset = start + i + 4
-                        return normalized
-                    }
+                    offset = start + i + 4
+                    return normalized
                 }
             }
 
