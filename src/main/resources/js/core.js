@@ -856,6 +856,7 @@ class DpsApp {
     if (!this.isCollapse) {
       this.fetchDps();
     }
+    this.refreshSettingsPanelIfOpen();
   }
 
   setOnlyShowUser(enabled, { persist = false } = {}) {
@@ -998,7 +999,7 @@ class DpsApp {
     this.meterUI?.updateFromRows?.(rowsToRender);
   }
 
-  refreshConnectionInfo() {
+  refreshConnectionInfo({ skipSettingsRefresh = false } = {}) {
     if (!this.lockedIp || !this.lockedPort) return;
     const raw = window.javaBridge?.getConnectionInfo?.();
     if (typeof raw !== "string") {
@@ -1006,6 +1007,9 @@ class DpsApp {
       this.lockedPort.textContent = "-";
       this.isDetectingPort = this.aionRunning;
       this.updateConnectionStatusUi();
+      if (!skipSettingsRefresh) {
+        this.refreshSettingsPanelIfOpen();
+      }
       return;
     }
     const info = this.safeParseJSON(raw, {});
@@ -1026,6 +1030,14 @@ class DpsApp {
     this.lockedIp.textContent = ip;
     this.lockedPort.textContent = port;
     this.updateConnectionStatusUi();
+    if (!skipSettingsRefresh) {
+      this.refreshSettingsPanelIfOpen();
+    }
+  }
+
+  refreshSettingsPanelIfOpen() {
+    if (!this.settingsPanel?.classList.contains("isOpen")) return;
+    this.refreshConnectionInfo({ skipSettingsRefresh: true });
   }
 
   updateConnectionStatusUi() {
