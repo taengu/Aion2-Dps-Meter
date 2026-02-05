@@ -58,7 +58,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 }
             }
 
-            throw IllegalStateException("skill not found")
+            throw IllegalStateException("Skill not found")
         }
 
     }
@@ -735,12 +735,12 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         if (reader.offset >= packet.size) return logUnparsedDamage()
 
         val switchValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
-        val switchInfo = VarIntOutput(switchValue, 1)
-        if (reader.offset >= packet.size) return logUnparsedDamage()
-        val andResult = switchInfo.value and mask
+        val andResult = switchValue and mask
         if (andResult !in 4..7) {
             return true
         }
+        val switchInfo = VarIntOutput(switchValue, 1)
+        if (reader.offset >= packet.size) return logUnparsedDamage()
 
         val flagValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
         val flagInfo = VarIntOutput(flagValue, 1)
