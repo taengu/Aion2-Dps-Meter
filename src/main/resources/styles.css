@@ -32,7 +32,7 @@
 
 :root[data-theme="aion2"] {
   /* Bars */
-  --row-fill: #8b3fbf;
+  --row-fill: #5a47b0;
   --isUser-fill: #4fb6ff;
 
   /* Status */
@@ -771,6 +771,7 @@
             position: absolute;
             inset: 0;
             background: var(--isUser-fill);
+            opacity: 0.8;
             border-radius: var(--rounded-xs);
             transform-origin: left center;
           }
@@ -1262,6 +1263,7 @@
   position: absolute;
   inset: 0;
   background: var(--isUser-fill);
+  opacity: 0.8;
   border-radius: var(--rounded-xs);
   transform-origin: left center;
 }
