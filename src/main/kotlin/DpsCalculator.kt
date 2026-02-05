@@ -1130,6 +1130,9 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         damage: Int,
         payloadHex: String
     ): Int? {
+        if (SKILL_CODES.binarySearch(skillCode) >= 0) {
+            return skillCode
+        }
         for (offset in POSSIBLE_OFFSETS) {
             val possibleOrigin = skillCode - offset
             if (SKILL_CODES.binarySearch(possibleOrigin) >= 0) {
