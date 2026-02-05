@@ -49,7 +49,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 }
             }
 
-            throw IllegalStateException("skill not found at offset+10")
+            if (start + 11 < data.size) {
+                val rawShort = readShortLE(start + 10)
+                if (rawShort in 1..2_000_000) {
+                    offset = start + 12
+                    return rawShort
+                }
+            }
+
+            throw IllegalStateException("skill not found")
         }
 
         private fun readIntLE(pos: Int): Int {
@@ -57,6 +65,11 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 ((data[pos + 1].toInt() and 0xFF) shl 8) or
                 ((data[pos + 2].toInt() and 0xFF) shl 16) or
                 ((data[pos + 3].toInt() and 0xFF) shl 24)
+        }
+
+        private fun readShortLE(pos: Int): Int {
+            return (data[pos].toInt() and 0xFF) or
+                ((data[pos + 1].toInt() and 0xFF) shl 8)
         }
 
     }
