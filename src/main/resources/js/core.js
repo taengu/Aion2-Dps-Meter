@@ -1169,7 +1169,7 @@ class DpsApp {
     let startWidth = 0;
     let startHeight = 0;
     const minWidth = 300;
-    const minHeight = 120;
+    const minHeight = 30;
 
     const onMouseMove = (event) => {
       if (!isResizing) return;
