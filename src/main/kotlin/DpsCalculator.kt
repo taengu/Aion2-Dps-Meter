@@ -39,6 +39,8 @@ class DpsCalculator(private val dataStorage: DataStorage) {
     )
 
     companion object {
+        private const val AUTO_ATTACK_CODE = 1
+
         val POSSIBLE_OFFSETS: IntArray =
             intArrayOf(
                 0, 10, 20, 30, 40, 50,
@@ -55,6 +57,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             )
 
         val SKILL_MAP = mapOf(
+            AUTO_ATTACK_CODE to "Auto Attack",
             /*
         Cleric
          */
@@ -1130,6 +1133,9 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         damage: Int,
         payloadHex: String
     ): Int? {
+        if (skillCode == AUTO_ATTACK_CODE) {
+            return AUTO_ATTACK_CODE
+        }
         if (SKILL_CODES.binarySearch(skillCode) >= 0) {
             return skillCode
         }
