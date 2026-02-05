@@ -24,6 +24,8 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import netscape.javascript.JSObject
 import org.slf4j.LoggerFactory
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
 class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
@@ -43,6 +45,7 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
         private val stage: Stage,
         private val dpsCalculator: DpsCalculator,
         private val hostServices: HostServices,
+        private val windowTitleProvider: () -> String?
     ) {
         private val logger = LoggerFactory.getLogger(JSBridge::class.java)
 
@@ -83,7 +86,7 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
         }
 
         fun getAion2WindowTitle(): String? {
-            return WindowTitleDetector.findAion2WindowTitle()
+            return windowTitleProvider()
         }
 
         fun openBrowser(url: String) {
@@ -140,9 +143,24 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
 
     private val version = "0.1.5"
 
+    @Volatile
+    private var cachedWindowTitle: String? = null
+    private val windowTitlePollerStarted = AtomicBoolean(false)
+
+    private fun startWindowTitlePolling() {
+        if (!windowTitlePollerStarted.compareAndSet(false, true)) return
+        thread(name = "window-title-poller", isDaemon = true) {
+            while (true) {
+                cachedWindowTitle = WindowTitleDetector.findAion2WindowTitle()
+                Thread.sleep(1000)
+            }
+        }
+    }
+
 
     override fun start(stage: Stage) {
         DebugLogWriter.loadFromSettings()
+        startWindowTitlePolling()
         stage.setOnCloseRequest {
             exitProcess(0)
         }
@@ -150,7 +168,7 @@ class BrowserApp(private val dpsCalculator: DpsCalculator) : Application() {
         val engine = webView.engine
         engine.load(javaClass.getResource("/index.html")?.toExternalForm())
 
-        val bridge = JSBridge(stage, dpsCalculator, hostServices)
+        val bridge = JSBridge(stage, dpsCalculator, hostServices) { cachedWindowTitle }
         engine.loadWorker.stateProperty().addListener { _, _, newState ->
             if (newState == Worker.State.SUCCEEDED) {
                 val window = engine.executeScript("window") as JSObject
