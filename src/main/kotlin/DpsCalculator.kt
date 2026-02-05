@@ -1141,6 +1141,10 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 return possibleOrigin
             }
         }
+        if (skillCode in 100_000..199_999 || skillCode in 3_000_000..3_999_999 || skillCode in 11_000_000..19_999_999) {
+            logger.debug("Using normalized skill code without offset: {}", skillCode)
+            return skillCode
+        }
         logger.debug(
             "Failed to infer skill code: {} (target {}, actor {}, damage {})",
             skillCode,
