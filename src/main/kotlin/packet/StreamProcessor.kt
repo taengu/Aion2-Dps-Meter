@@ -250,19 +250,19 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         while (idx + 2 < packet.size) {
             val marker = packet[idx].toInt() and 0xff
             val markerNext = packet[idx + 1].toInt() and 0xff
-            val isMarker = marker == 0xF8 && (markerNext == 0x03 || markerNext == 0xA3)
+            val isMarker = marker in listOf(0xF5, 0xF8) && (markerNext == 0x03 || markerNext == 0xA3)
             if (isMarker) {
-                val actorOffset = idx - 2
-                if (actorOffset < 0 || !canReadVarInt(packet, actorOffset)) {
-                    idx++
-                    continue
+                var actorInfo: VarIntOutput? = null
+                val minOffset = maxOf(0, idx - 4)
+                for (actorOffset in idx - 1 downTo minOffset) {
+                    if (!canReadVarInt(packet, actorOffset)) continue
+                    val candidateInfo = readVarInt(packet, actorOffset)
+                    if (candidateInfo.length <= 0 || actorOffset + candidateInfo.length != idx) continue
+                    if (candidateInfo.value !in 100..99999 || candidateInfo.value == 0) continue
+                    actorInfo = candidateInfo
+                    break
                 }
-                val actorInfo = readVarInt(packet, actorOffset)
-                if (actorInfo.length != 2 || actorOffset + actorInfo.length != idx) {
-                    idx++
-                    continue
-                }
-                if (actorInfo.value !in 100..99999 || actorInfo.value == 0) {
+                if (actorInfo == null) {
                     idx++
                     continue
                 }
