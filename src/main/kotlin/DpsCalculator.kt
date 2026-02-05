@@ -1134,15 +1134,17 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         damage: Int,
         payloadHex: String
     ): Int? {
-        if (SKILL_CODES.binarySearch(skillCode) >= 0) {
-            return skillCode
-        }
         for (offset in POSSIBLE_OFFSETS) {
             val possibleOrigin = skillCode - offset
             if (SKILL_CODES.binarySearch(possibleOrigin) >= 0) {
                 logger.debug("Inferred original skill code: {}", possibleOrigin)
                 return possibleOrigin
             }
+        }
+        val payloadSkill = parseSkillCodeFromPayload(payloadHex)
+        if (payloadSkill != null && SKILL_CODES.binarySearch(payloadSkill) >= 0) {
+            logger.debug("Recovered skill code from payload: {}", payloadSkill)
+            return payloadSkill
         }
         logger.debug(
             "Failed to infer skill code: {} (target {}, actor {}, damage {})",
@@ -1165,6 +1167,67 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             payloadHex
         )
         return null
+    }
+
+    private fun parseSkillCodeFromPayload(payloadHex: String): Int? {
+        if (payloadHex.isBlank()) return null
+        val bytes = payloadHex.trim().split(Regex("\\s+")).mapNotNull { hex ->
+            hex.toIntOrNull(16)?.toByte()
+        }.toByteArray()
+        if (bytes.isEmpty()) return null
+        var offset = 0
+        val lengthInfo = readVarInt(bytes, offset) ?: return null
+        offset += lengthInfo.second
+        if (offset + 1 >= bytes.size) return null
+        if (bytes[offset] != 0x04.toByte()) return null
+        if (bytes[offset + 1] != 0x38.toByte()) return null
+        offset += 2
+        offset += (readVarInt(bytes, offset) ?: return null).second
+        val switchInfo = readVarInt(bytes, offset) ?: return null
+        offset += switchInfo.second
+        val andResult = switchInfo.first and 0x0f
+        if (andResult !in 4..7) return null
+        offset += (readVarInt(bytes, offset) ?: return null).second
+        offset += (readVarInt(bytes, offset) ?: return null).second
+        val skillParse = parseSkillCode(bytes, offset) ?: return null
+        offset = skillParse.second
+        return skillParse.first
+    }
+
+    private fun parseSkillCode(bytes: ByteArray, start: Int): Pair<Int, Int>? {
+        for (i in 0..5) {
+            if (start + i + 4 > bytes.size) break
+            val rawSkillId = (bytes[start + i].toInt() and 0xFF) or
+                ((bytes[start + i + 1].toInt() and 0xFF) shl 8) or
+                ((bytes[start + i + 2].toInt() and 0xFF) shl 16) or
+                ((bytes[start + i + 3].toInt() and 0xFF) shl 24)
+            val normalized = rawSkillId - (rawSkillId % 10000)
+            if (
+                normalized in 11_000_000..19_999_999 ||
+                normalized in 3_000_000..3_999_999 ||
+                normalized in 100_000..199_999
+            ) {
+                return normalized to (start + i + 5)
+            }
+        }
+        return null
+    }
+
+    private fun readVarInt(bytes: ByteArray, start: Int): Pair<Int, Int>? {
+        var value = 0
+        var shift = 0
+        var count = 0
+        while (true) {
+            if (start + count >= bytes.size) return null
+            val byteVal = bytes[start + count].toInt() and 0xFF
+            count++
+            value = value or ((byteVal and 0x7F) shl shift)
+            if ((byteVal and 0x80) == 0) {
+                return value to count
+            }
+            shift += 7
+            if (shift >= 32) return null
+        }
     }
 
     fun resetDataStorage() {
