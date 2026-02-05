@@ -22,8 +22,18 @@ class DpsApp {
     this.lastJson = null;
     this.isCollapse = false;
     this.displayMode = "dps";
-    this.theme = "classic";
-    this.availableThemes = ["classic", "aion2", "ember"];
+    this.theme = "aion2";
+    this.availableThemes = [
+      "classic",
+      "aion2",
+      "ember",
+      "frost",
+      "natura",
+      "storm",
+      "void",
+      "obsidian",
+      "cyber",
+    ];
 
     // 빈데이터 덮어쓰기 방지 스냅샷
     this.lastSnapshot = null;
@@ -760,6 +770,9 @@ class DpsApp {
 
     if (this.detailsOpacityInput) {
       this.detailsOpacityInput.value = String(Math.round(initialOpacity * 100));
+      const stopDrag = (event) => event.stopPropagation();
+      this.detailsOpacityInput.addEventListener("mousedown", stopDrag);
+      this.detailsOpacityInput.addEventListener("touchstart", stopDrag, { passive: true });
       this.detailsOpacityInput.addEventListener("input", (event) => {
         const nextValue = Number(event.target?.value);
         const nextOpacity = Number.isFinite(nextValue) ? nextValue / 100 : 1;
@@ -797,11 +810,11 @@ class DpsApp {
 
   parseDetailsOpacity(value) {
     if (value === null || value === undefined || value === "") {
-      return 0.5;
+      return 0.65;
     }
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
-      return 0.5;
+      return 0.65;
     }
     return Math.min(1, Math.max(0, parsed));
   }

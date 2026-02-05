@@ -51,8 +51,14 @@
       "label": "Theme",
       "options": {
         "classic": "Classic",
-        "aion2": "Aion2",
-        "ember": "Ember"
+        "aion2": "AION2",
+        "ember": "Ember",
+        "frost": "Frost",
+        "natura": "Natura",
+        "storm": "Storm",
+        "void": "Void",
+        "obsidian": "Obsidian",
+        "cyber": "Cyber"
       }
     },
     "language": {
