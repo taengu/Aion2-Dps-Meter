@@ -55,12 +55,18 @@
               <span class="detailsTitleLabel" data-i18n="details.header">Details</span>
               <span class="detailsTitleSeparator">for</span>
               <div class="detailsDropdownWrapper detailsNicknameWrapper">
-                <button class="detailsDropdownBtn detailsNicknameBtn" type="button">-</button>
+                <button class="detailsDropdownBtn detailsNicknameBtn" type="button">
+                  <span class="detailsDropdownText">-</span>
+                  <span class="detailsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
                 <div class="detailsDropdownMenu detailsNicknameMenu" role="menu"></div>
               </div>
               <span class="detailsTitleVs">vs</span>
               <div class="detailsDropdownWrapper detailsTargetWrapper">
-                <button class="detailsDropdownBtn detailsTargetBtn" type="button">-</button>
+                <button class="detailsDropdownBtn detailsTargetBtn" type="button">
+                  <span class="detailsDropdownText">-</span>
+                  <span class="detailsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
                 <div class="detailsDropdownMenu detailsTargetMenu" role="menu"></div>
               </div>
               <span class="detailsTargetSuffix"></span>
@@ -70,11 +76,14 @@
                 <button class="detailsSortBtn" data-sort="damage" type="button">Damage</button>
               </div>
             </div>
-            <div class="tooltip" data-i18n="details.tooltip">
-              Damage over time hits are not included in total crit, double, perfect, back attack, or
-              parry ratios.
-            </div>
             <div class="detailsHeaderControls">
+              <button
+                class="detailsRefreshBtn"
+                type="button"
+                aria-label="Refresh details"
+                data-i18n-aria-label="details.refresh.ariaLabel">
+                <i data-lucide="rotate-ccw"></i>
+              </button>
               <div class="detailsSettingsMenuWrapper">
                 <button
                   class="detailsSettingsBtn"
@@ -122,6 +131,10 @@
               </div>
 
               <div class="skills"></div>
+              <div class="detailsFootnote" data-i18n="details.tooltip">
+                Damage over time hits are not included in total crit, double, perfect, back attack,
+                or parry ratios.
+              </div>
             </div>
           </div>
         </div>
@@ -215,6 +228,14 @@
                 </option>
               </select>
               </div>
+            <div class="settingsRow settingsRowInput">
+              <div class="settingsInfo">
+                <div class="settingsLabel" data-i18n="settings.refreshKeybind.label">
+                  Refresh keybind
+                </div>
+              </div>
+              <button class="settingsKeybindInput" type="button">Ctrl+R</button>
+            </div>
             <div>
               <label class="settingsCheckbox">
                 <input

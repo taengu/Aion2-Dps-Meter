@@ -943,11 +943,15 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         dpsData.targetId = currentTarget
         dataStorage.setCurrentTarget(currentTarget)
 
+        val localActorsForBattleTime =
+            if (targetDecision.mode == TargetSelectionMode.LAST_HIT_BY_ME) resolveConfirmedLocalActorIds() else null
         val isRecentCombined = targetDecision.mode == TargetSelectionMode.LAST_HIT_BY_ME &&
             targetDecision.trackingTargetId == 0 &&
             targetDecision.targetIds.isNotEmpty()
         val battleTime = when {
             isRecentCombined -> parseRecentBattleTime(targetDecision.targetIds, 30_000L)
+            localActorsForBattleTime != null && targetDecision.mode == TargetSelectionMode.LAST_HIT_BY_ME ->
+                parseActorBattleTimeForTarget(localActorsForBattleTime, currentTarget)
             targetDecision.mode == TargetSelectionMode.ALL_TARGETS -> parseAllBattleTime(targetDecision.targetIds)
             else -> targetInfoMap[currentTarget]?.parseBattleTime() ?: 0
         }
@@ -1101,6 +1105,8 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         val actorJobs = mutableMapOf<Int, String>()
         val skillMap = mutableMapOf<String, DetailSkillEntry>()
         var totalTargetDamage = 0
+        var startTime: Long? = null
+        var endTime: Long? = null
 
         pdps.forEach { pdp ->
             val uid = summonData[pdp.getActorId()] ?: pdp.getActorId()
@@ -1108,6 +1114,13 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             totalTargetDamage += damage
             if (actorIds != null && !actorIds.contains(uid)) {
                 return@forEach
+            }
+            val timestamp = pdp.getTimeStamp()
+            if (startTime == null || timestamp < startTime!!) {
+                startTime = timestamp
+            }
+            if (endTime == null || timestamp > endTime!!) {
+                endTime = timestamp
             }
 
             val inferredCode = inferOriginalSkillCode(
@@ -1170,7 +1183,11 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             skillMap[key] = updated
         }
 
-        val battleTime = targetInfoMap[targetId]?.parseBattleTime() ?: 0L
+        val battleTime = if (startTime != null && endTime != null) {
+            endTime!! - startTime!!
+        } else {
+            targetInfoMap[targetId]?.parseBattleTime() ?: 0L
+        }
         return TargetDetailsResponse(
             targetId = targetId,
             totalTargetDamage = totalTargetDamage,
@@ -1225,14 +1242,25 @@ class DpsCalculator(private val dataStorage: DataStorage) {
 
     private fun resolveConfirmedLocalActorIds(): Set<Int>? {
         val localName = LocalPlayer.characterName?.trim().orEmpty()
-        val localPlayerId = LocalPlayer.playerId?.toInt()
-        if (localName.isBlank() || localPlayerId == null) return null
+        if (localName.isBlank()) return null
 
         val nicknameData = dataStorage.getNickname()
-        val recordedName = nicknameData[localPlayerId]
-        if (recordedName == null || recordedName != localName) return null
-
-        val localActorIds = mutableSetOf(localPlayerId)
+        val localActorIds = mutableSetOf<Int>()
+        val localPlayerId = LocalPlayer.playerId?.toInt()
+        if (localPlayerId != null) {
+            val recordedName = nicknameData[localPlayerId]
+            if (recordedName != null && recordedName == localName) {
+                localActorIds.add(localPlayerId)
+            }
+        }
+        if (localActorIds.isEmpty()) {
+            localActorIds.addAll(
+                nicknameData
+                    .filterValues { it == localName }
+                    .keys
+            )
+        }
+        if (localActorIds.isEmpty()) return null
         val summonData = dataStorage.getSummonData()
         if (summonData.isNotEmpty()) {
             summonData.forEach { (summonId, summonerId) ->
@@ -1245,6 +1273,28 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             }
         }
         return localActorIds
+    }
+
+    private fun parseActorBattleTimeForTarget(localActorIds: Set<Int>, targetId: Int): Long {
+        if (targetId == 0 || localActorIds.isEmpty()) return 0
+        val actorData = dataStorage.getActorData()
+        var startTime: Long? = null
+        var endTime: Long? = null
+        localActorIds.forEach { actorId ->
+            val pdps = actorData[actorId] ?: return@forEach
+            pdps.forEach { pdp ->
+                if (pdp.getTargetId() != targetId) return@forEach
+                val timestamp = pdp.getTimeStamp()
+                if (startTime == null || timestamp < startTime!!) {
+                    startTime = timestamp
+                }
+                if (endTime == null || timestamp > endTime!!) {
+                    endTime = timestamp
+                }
+            }
+        }
+        if (startTime == null || endTime == null) return 0
+        return endTime!! - startTime!!
     }
 
     private fun selectTargetLastHitByMe(localActorIds: Set<Int>, fallbackTarget: Int): Int {
@@ -1406,6 +1456,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
     fun resetDataStorage() {
         dataStorage.flushDamageStorage()
         targetInfoMap.clear()
+        lastLocalHitTime = -1L
         logger.info("Target damage accumulation reset")
     }
 

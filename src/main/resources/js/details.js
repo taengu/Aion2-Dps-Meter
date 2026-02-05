@@ -129,7 +129,7 @@ const createDetailsUI = ({
   const formatTargetSuffix = (target) => {
     if (!target) return "";
     if (sortMode === "recent") {
-      return formatMinutesSince(target.lastDamageTime);
+      return "";
     }
     if (sortMode === "time") {
       return formatBattleTime(target.battleTime);
@@ -151,6 +151,8 @@ const createDetailsUI = ({
   const getJobColor = (job) => jobColorMap[job] || "";
 
   const updateHeaderText = () => {
+    const nicknameTextEl = detailsNicknameBtn?.querySelector?.(".detailsDropdownText");
+    const targetTextEl = detailsTargetBtn?.querySelector?.(".detailsDropdownText");
     if (detailsTitleLabel) {
       detailsTitleLabel.textContent = labelText("details.header", "Details");
     }
@@ -161,7 +163,11 @@ const createDetailsUI = ({
       detailsTitleVs.textContent = "vs";
     }
     if (detailsNicknameBtn) {
-      detailsNicknameBtn.textContent = selectedAttackerLabel || "-";
+      if (nicknameTextEl) {
+        nicknameTextEl.textContent = selectedAttackerLabel || "-";
+      } else {
+        detailsNicknameBtn.textContent = selectedAttackerLabel || "-";
+      }
       const actorId = Array.isArray(selectedAttackerIds) && selectedAttackerIds.length === 1
         ? selectedAttackerIds[0]
         : null;
@@ -171,7 +177,11 @@ const createDetailsUI = ({
     }
     if (detailsTargetBtn) {
       const targetLabel = selectedTargetId ? `Mob #${selectedTargetId}` : "-";
-      detailsTargetBtn.textContent = targetLabel;
+      if (targetTextEl) {
+        targetTextEl.textContent = targetLabel;
+      } else {
+        detailsTargetBtn.textContent = targetLabel;
+      }
     }
     if (detailsTargetSuffix) {
       const target = getTargetById(selectedTargetId);
@@ -434,7 +444,7 @@ const createDetailsUI = ({
 
   const resolveActorLabel = (actorId) => {
     const actor = detailsActors.get(Number(actorId));
-    if (actor?.nickname) return actor.nickname;
+    if (actor?.nickname && actor.nickname !== String(actorId)) return actor.nickname;
     return `Player #${actorId}`;
   };
 

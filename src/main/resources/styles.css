@@ -381,6 +381,23 @@
     cursor: pointer;
   }
 
+  .settingsKeybindInput {
+    min-width: 120px;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--rounded-xs);
+    padding: 6px 10px;
+    background: var(--panel-field-bg);
+    color: var(--text-color);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .settingsKeybindInput.isCapturing {
+    outline: 1px solid var(--isUser-fill);
+    outline-offset: 2px;
+  }
+
   .settingsSelect {
     min-width: 180px;
     border: 1px solid var(--panel-border);
@@ -629,8 +646,7 @@
     align-items: center;
     color: var(--title);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 0 12px;
-    padding-bottom: 6px;
+    padding: 8px 12px;
     gap: 12px;
 
     .detailsTitle {
@@ -661,6 +677,11 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+    }
+
+    .detailsDropdownCaret {
+      opacity: 0.6;
+      font-size: 0.8em;
     }
 
     .detailsNicknameBtn {
@@ -729,12 +750,23 @@
       background: rgba(255, 255, 255, 0.2);
     }
 
-    .tooltip {
-      opacity: 0.6;
-      margin-left: 12px;
-
-      font-size: 12px;
+    .detailsRefreshBtn {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 6px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: inherit;
+      transition: 0.2s;
     }
+
+    .detailsRefreshBtn:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
     .detailsHeaderControls {
       margin-left: auto;
       display: flex;
@@ -936,6 +968,12 @@
         }
       }
     }
+
+    .detailsFootnote {
+      font-size: 12px;
+      opacity: 0.6;
+      padding: 6px 12px 0;
+    }
   }
 }
 
@@ -1127,6 +1165,21 @@
   font-weight: 600;
   cursor: pointer;
 }
+.settingsPanel .settingsKeybindInput {
+  min-width: 120px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--rounded-xs);
+  padding: 6px 10px;
+  background: var(--panel-field-bg);
+  color: var(--text-color);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+.settingsPanel .settingsKeybindInput.isCapturing {
+  outline: 1px solid var(--isUser-fill);
+  outline-offset: 2px;
+}
 .settingsPanel .settingsSelect {
   min-width: 180px;
   border: 1px solid var(--panel-border);
@@ -1281,8 +1334,7 @@
   align-items: center;
   color: var(--title);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0 12px;
-  padding-bottom: 6px;
+  padding: 8px 12px;
   gap: 12px;
 }
 .detailsPanel .detailsHeader .detailsTitle {
@@ -1310,6 +1362,10 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+.detailsPanel .detailsHeader .detailsDropdownCaret {
+  opacity: 0.6;
+  font-size: 0.8em;
 }
 .detailsPanel .detailsHeader .detailsNicknameBtn {
   color: var(--isUser-fill);
@@ -1368,10 +1424,20 @@
 .detailsPanel .detailsHeader .detailsSortBtn.isActive {
   background: rgba(255, 255, 255, 0.2);
 }
-.detailsPanel .detailsHeader .tooltip {
-  opacity: 0.6;
-  margin-left: 12px;
-  font-size: 12px;
+.detailsPanel .detailsHeader .detailsRefreshBtn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  transition: 0.2s;
+}
+.detailsPanel .detailsHeader .detailsRefreshBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 .detailsPanel .detailsHeader .detailsHeaderControls {
   margin-left: auto;
@@ -1551,6 +1617,11 @@
   text-shadow: var(--text-shadow);
   color: var(--dps-text);
   font-weight: 400;
+}
+.detailsPanel .detailsSkills .detailsFootnote {
+  font-size: 12px;
+  opacity: 0.6;
+  padding: 6px 12px 0;
 }
 
 .updateModal.isOpen {

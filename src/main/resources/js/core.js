@@ -16,6 +16,7 @@ class DpsApp {
       language: "dpsMeter.language",
       debugLogging: "dpsMeter.debugLoggingEnabled",
       theme: "dpsMeter.theme",
+      refreshKeybind: "dpsMeter.refreshKeybind",
     };
 
     this.dpsFormatter = new Intl.NumberFormat("en-US");
@@ -174,6 +175,7 @@ class DpsApp {
     this.detailsTargetBtn = document.querySelector(".detailsTargetBtn");
     this.detailsTargetMenu = document.querySelector(".detailsTargetMenu");
     this.detailsSortButtons = document.querySelectorAll(".detailsSortBtn");
+    this.detailsRefreshBtn = document.querySelector(".detailsRefreshBtn");
     this.detailsStatsEl = document.querySelector(".detailsStats");
     this.skillsListEl = document.querySelector(".skills");
 
@@ -191,6 +193,9 @@ class DpsApp {
       dpsFormatter: this.dpsFormatter,
       getDetails: (row, options) => this.getDetails(row, options),
       getDetailsContext: () => this.getDetailsContext(),
+    });
+    this.detailsRefreshBtn?.addEventListener("click", () => {
+      this.detailsUI?.refresh?.();
     });
     this.setupDetailsPanelSettings();
     this.setupSettingsPanel();
@@ -313,6 +318,16 @@ class DpsApp {
     if (this.elBossName) {
       this.elBossName.textContent = this.getDefaultTargetLabel();
     }
+    if (this.battleTimeRoot) {
+      this.battleTimeRoot.classList.add("isVisible");
+    }
+    if (this.analysisStatusEl) {
+      this.analysisStatusEl.textContent =
+        this.i18n?.t("battleTime.analysing", "Ready - monitoring combat...") ??
+        "Ready - monitoring combat...";
+      this.analysisStatusEl.style.display = "";
+    }
+    this.updateConnectionStatusUi();
     this.logDebug("Target label reset: resetAll invoked.");
     this.logDebug("Meter list reset: resetAll invoked.");
     if (callBackend) {
@@ -791,6 +806,7 @@ class DpsApp {
     this.languageSelect = document.querySelector(".languageSelect");
     this.targetSelect = document.querySelector(".targetSelect");
     this.themeSelect = document.querySelector(".themeSelect");
+    this.refreshKeybindInput = document.querySelector(".settingsKeybindInput");
 
     const storedName = this.safeGetStorage(this.storageKeys.userName) || "";
     const storedOnlyShow = this.safeGetStorage(this.storageKeys.onlyShowUser) === "true";
@@ -798,6 +814,9 @@ class DpsApp {
     const storedTargetSelection = this.safeGetStorage(this.storageKeys.targetSelection);
     const storedLanguage = this.safeGetStorage(this.storageKeys.language);
     const storedTheme = this.safeGetSetting(this.storageKeys.theme);
+    const storedKeybind =
+      this.safeGetSetting(this.storageKeys.refreshKeybind) ||
+      this.safeGetStorage(this.storageKeys.refreshKeybind);
 
     this.setUserName(storedName, { persist: false, syncBackend: true });
     this.setOnlyShowUser(storedOnlyShow, { persist: false });
@@ -870,6 +889,72 @@ class DpsApp {
           });
         }
       });
+    }
+
+    const normalizeKeybind = (value) => {
+      if (!value) return "";
+      const cleaned = String(value).replace(/\s+/g, "").toUpperCase();
+      const parts = cleaned.split("+").filter(Boolean);
+      const mods = new Set();
+      let key = "";
+      parts.forEach((part) => {
+        if (part === "CTRL" || part === "CONTROL") mods.add("Ctrl");
+        else if (part === "ALT") mods.add("Alt");
+        else if (part === "SHIFT") mods.add("Shift");
+        else if (part === "META" || part === "CMD" || part === "WIN") mods.add("Meta");
+        else key = part;
+      });
+      const modText = ["Ctrl", "Alt", "Shift", "Meta"].filter((m) => mods.has(m));
+      if (key) {
+        modText.push(key.length === 1 ? key.toUpperCase() : key);
+      }
+      return modText.join("+");
+    };
+
+    const setKeybindValue = (value, { persist = true, syncBackend = true } = {}) => {
+      const normalized = normalizeKeybind(value || "Ctrl+R");
+      if (this.refreshKeybindInput) {
+        this.refreshKeybindInput.textContent = normalized || "Ctrl+R";
+        this.refreshKeybindInput.dataset.value = normalized || "Ctrl+R";
+      }
+      if (persist) {
+        this.safeSetSetting(this.storageKeys.refreshKeybind, normalized);
+      }
+      if (syncBackend) {
+        window.javaBridge?.setRefreshKeybind?.(normalized);
+      }
+    };
+
+    setKeybindValue(storedKeybind || "Ctrl+R", { persist: !storedKeybind, syncBackend: true });
+
+    if (this.refreshKeybindInput) {
+      let capturing = false;
+      const captureHandler = (event) => {
+        if (!capturing) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const key = event.key;
+        const isModifier = ["Control", "Shift", "Alt", "Meta"].includes(key);
+        if (isModifier) return;
+        const parts = [];
+        if (event.ctrlKey) parts.push("Ctrl");
+        if (event.altKey) parts.push("Alt");
+        if (event.shiftKey) parts.push("Shift");
+        if (event.metaKey) parts.push("Meta");
+        parts.push(key.length === 1 ? key.toUpperCase() : key.toUpperCase());
+        const nextValue = parts.join("+");
+        setKeybindValue(nextValue, { persist: true, syncBackend: true });
+        capturing = false;
+        this.refreshKeybindInput.classList.remove("isCapturing");
+      };
+
+      this.refreshKeybindInput.addEventListener("click", () => {
+        capturing = true;
+        this.refreshKeybindInput.classList.add("isCapturing");
+        this.refreshKeybindInput.textContent = "Press keys...";
+      });
+
+      window.addEventListener("keydown", captureHandler, true);
     }
 
     this.settingsBtn?.addEventListener("click", () => {
@@ -1104,6 +1189,10 @@ class DpsApp {
       }
     }
     return this.dpsFormatter.format(n);
+  }
+
+  triggerRefreshFromKeybind() {
+    this.resetAll({ callBackend: true });
   }
 
   getMetricForRow(row) {
@@ -1417,6 +1506,7 @@ const setupDebugConsole = () => {
 
 // setupDebugConsole();
 const dpsApp = DpsApp.createInstance();
+window.dpsApp = dpsApp;
 const debug = globalThis.uiDebug;
 
 window.addEventListener("error", (event) => {
