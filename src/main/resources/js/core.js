@@ -770,6 +770,9 @@ class DpsApp {
 
     if (this.detailsOpacityInput) {
       this.detailsOpacityInput.value = String(Math.round(initialOpacity * 100));
+      const stopDrag = (event) => event.stopPropagation();
+      this.detailsOpacityInput.addEventListener("mousedown", stopDrag);
+      this.detailsOpacityInput.addEventListener("touchstart", stopDrag, { passive: true });
       this.detailsOpacityInput.addEventListener("input", (event) => {
         const nextValue = Number(event.target?.value);
         const nextOpacity = Number.isFinite(nextValue) ? nextValue / 100 : 1;
@@ -807,11 +810,11 @@ class DpsApp {
 
   parseDetailsOpacity(value) {
     if (value === null || value === undefined || value === "") {
-      return 0.5;
+      return 0.65;
     }
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
-      return 0.5;
+      return 0.65;
     }
     return Math.min(1, Math.max(0, parsed));
   }

@@ -28,8 +28,12 @@
   --panel-bg: rgba(12, 22, 40, 0.92);
   --panel-field-bg: rgba(0, 0, 0, 0.35);
   --title: rgba(235, 245, 255, 0.95);
+  --indicator-combat: #5fcaff;
+  --indicator-end: #7b6dff;
+  --indicator-wait: #ffb86b;
+  --indicator-idle: #7f8a9a;
   --font: 16px;
-  --details-bg-opacity: 0.5;
+  --details-bg-opacity: 0.65;
 }
 
 :root[data-theme="aion2"] {
@@ -567,16 +571,16 @@
   }
 
   &.state-fighting .status {
-    background: var(--dps);
+    background: var(--indicator-combat);
   }
   &.state-grace .status {
-    background: var(--warning-fill);
+    background: var(--indicator-wait);
   }
   &.state-ended .status {
-    background: rgba(255, 255, 255, 0.28);
+    background: var(--indicator-end);
   }
   &.state-idle .status {
-    background: rgba(255, 255, 255, 0.28);
+    background: var(--indicator-idle);
   }
 }
 
@@ -1159,13 +1163,16 @@
   flex: 0 0 auto;
 }
 .battleTime.state-fighting .status {
-  background: var(--dps);
+  background: var(--indicator-combat);
 }
 .battleTime.state-grace .status {
-  background: var(--warning-fill);
+  background: var(--indicator-wait);
 }
 .battleTime.state-ended .status {
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--indicator-end);
+}
+.battleTime.state-idle .status {
+  background: var(--indicator-idle);
 }
 
 .detailsPanel.open {
