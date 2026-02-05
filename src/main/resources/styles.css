@@ -324,7 +324,7 @@
 
   .characterNameInput {
     flex: 1;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid var(--panel-border);
     border-radius: var(--rounded-xs);
     padding: 6px 8px;
     background: rgba(0, 0, 0, 0.35);
@@ -332,13 +332,22 @@
   }
 
   .settingsAction {
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--panel-border);
     border-radius: var(--rounded-xs);
     padding: 6px 10px;
     background: rgba(0, 0, 0, 0.35);
     color: var(--text-color);
     font-weight: 600;
     cursor: pointer;
+  }
+
+  .settingsSelect {
+    min-width: 180px;
+    border: 1px solid var(--panel-border);
+    border-radius: var(--rounded-xs);
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text-color);
   }
 
   .settingsCheckbox {
@@ -351,7 +360,7 @@
   }
 
   .discordButton {
-    border: none;
+    border: 1px solid var(--panel-border);
     border-radius: var(--rounded-xs);
     padding: 8px;
     color: white;
@@ -379,7 +388,7 @@
   }
 
   .quitButton {
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    border: 1px solid var(--panel-border);
     border-radius: var(--rounded-xs);
     padding: 8px;
     color: white;
@@ -834,7 +843,7 @@
 }
 .header .bossNames {
   flex: 1;
-  color: var(--text-color);
+  color: var(--title);
   text-shadow: var(--text-shadow);
   font-weight: bold;
   height: 24px;
@@ -924,14 +933,14 @@
 }
 .settingsPanel .characterNameInput {
   flex: 1;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--panel-border);
   border-radius: var(--rounded-xs);
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.35);
   color: var(--text-color);
 }
 .settingsPanel .settingsAction {
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--panel-border);
   border-radius: var(--rounded-xs);
   padding: 6px 10px;
   background: rgba(0, 0, 0, 0.35);
@@ -941,7 +950,7 @@
 }
 .settingsPanel .settingsSelect {
   min-width: 180px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--panel-border);
   border-radius: var(--rounded-xs);
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.35);
@@ -954,7 +963,7 @@
   font-size: 13px;
 }
 .settingsPanel .discordButton {
-  border: none;
+  border: 1px solid var(--panel-border);
   border-radius: var(--rounded-xs);
   padding: 8px;
   color: white;
