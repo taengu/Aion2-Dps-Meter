@@ -897,6 +897,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
 
     private var mode: Mode = Mode.BOSS_ONLY
     private var currentTarget: Int = 0
+    private var lastDpsSnapshot: DpsData? = null
     @Volatile private var targetSelectionMode: TargetSelectionMode = TargetSelectionMode.MOST_DAMAGE
     private val targetSwitchStaleMs = 10_000L
     private var lastLocalHitTime: Long = -1L
@@ -937,6 +938,14 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         val nicknameData = dataStorage.getNickname()
         var totalDamage = 0.0
         if (battleTime == 0L) {
+            val snapshot = lastDpsSnapshot
+            if (snapshot != null) {
+                refreshNicknameSnapshot(snapshot, nicknameData)
+                snapshot.targetName = dpsData.targetName
+                snapshot.targetMode = dpsData.targetMode
+                snapshot.battleTime = dpsData.battleTime
+                return snapshot
+            }
             return dpsData
         }
         val pdps = when (targetDecision.mode) {
@@ -946,11 +955,12 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         pdps.forEach { pdp ->
             totalDamage += pdp.getDamage()
             val uid = dataStorage.getSummonData()[pdp.getActorId()] ?: pdp.getActorId()
-            val nickname:String = nicknameData[uid]
-                ?: nicknameData[dataStorage.getSummonData()[uid]?:uid]
-                ?: uid.toString()
-            if (!dpsData.map.containsKey(uid)) {
+            val nickname = resolveNickname(uid, nicknameData)
+            val existing = dpsData.map[uid]
+            if (existing == null) {
                 dpsData.map[uid] = PersonalData(nickname = nickname)
+            } else if (existing.nickname != nickname) {
+                dpsData.map[uid] = existing.copy(nickname = nickname)
             }
             pdp.setSkillCode(
                 inferOriginalSkillCode(
@@ -987,7 +997,26 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             }
         }
         dpsData.battleTime = battleTime
+        if (dpsData.map.isNotEmpty()) {
+            lastDpsSnapshot = dpsData
+        }
         return dpsData
+    }
+
+    private fun resolveNickname(uid: Int, nicknameData: Map<Int, String>): String {
+        val summonData = dataStorage.getSummonData()
+        return nicknameData[uid]
+            ?: nicknameData[summonData[uid] ?: uid]
+            ?: uid.toString()
+    }
+
+    private fun refreshNicknameSnapshot(snapshot: DpsData, nicknameData: Map<Int, String>) {
+        snapshot.map.entries.toList().forEach { (uid, data) ->
+            val nickname = resolveNickname(uid, nicknameData)
+            if (data.nickname != nickname) {
+                snapshot.map[uid] = data.copy(nickname = nickname)
+            }
+        }
     }
 
     private fun decideTarget(): TargetDecision {
