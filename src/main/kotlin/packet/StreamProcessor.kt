@@ -51,14 +51,14 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                     ((data[start + i + 3].toInt() and 0xFF) shl 24)
                 val normalized = normalizeSkillId(raw)
                 if (normalized in 3_000_000..3_999_999) {
-                    offset = start + i + 5
+                    offset = start + i + 4
                     return AUTO_ATTACK_CODE
                 }
                 if (
                     normalized in 11_000_000..19_999_999 ||
                     normalized in 100_000..199_999
                 ) {
-                    offset = start + i + 5
+                    offset = start + i + 4
                     return normalized
                 }
             }
