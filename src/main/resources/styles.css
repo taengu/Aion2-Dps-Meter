@@ -472,7 +472,7 @@
   /* top: calc(100% + 4px); */
   top: 0;
   font-weight: bold;
-  width: 920px;
+  width: 940px;
   border: 1px solid var(--panel-border);
   background: rgba(12, 22, 40, var(--details-bg-opacity, 0.5));
   padding: 6px 4px;

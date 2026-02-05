@@ -59,7 +59,8 @@ class CaptureDispatcher(
 
     private fun ensureAionRunning(): Boolean {
         val now = System.currentTimeMillis()
-        if (now - lastWindowCheckMs >= WINDOW_CHECK_INTERVAL_MS) {
+        val intervalMs = if (isAionRunning) WINDOW_CHECK_RUNNING_INTERVAL_MS else WINDOW_CHECK_STOPPED_INTERVAL_MS
+        if (now - lastWindowCheckMs >= intervalMs) {
             lastWindowCheckMs = now
             val running = WindowTitleDetector.findAion2WindowTitle() != null
             if (!running && isAionRunning) {
@@ -96,6 +97,7 @@ class CaptureDispatcher(
     }
 
     companion object {
-        private const val WINDOW_CHECK_INTERVAL_MS = 1000L
+        private const val WINDOW_CHECK_STOPPED_INTERVAL_MS = 10_000L
+        private const val WINDOW_CHECK_RUNNING_INTERVAL_MS = 60_000L
     }
 }
