@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.tbread.webview
 
 import com.tbread.DpsCalculator

@@ -790,9 +790,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
         if (reader.offset >= packet.size) return logUnparsedDamage()
 
-        val unknownInfo: VarIntOutput?
         val unknownValue = reader.tryReadVarInt() ?: return logUnparsedDamage()
-        unknownInfo = VarIntOutput(unknownValue, 1)
+        val unknownInfo = VarIntOutput(unknownValue, 1)
         val finalDamage = reader.tryReadVarInt() ?: return logUnparsedDamage()
         var adjustedDamage = finalDamage
         var multiHitCount = 0
@@ -852,7 +851,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         pdp.setMultiHitCount(multiHitCount)
         pdp.setMultiHitDamage(multiHitDamage)
         pdp.setHealAmount(healAmount)
-        unknownInfo?.let { pdp.setUnknown(it) }
+        pdp.setUnknown(unknownInfo)
         pdp.setDamage(VarIntOutput(adjustedDamage, 1))
         pdp.setHexPayload(toHex(packet))
 
