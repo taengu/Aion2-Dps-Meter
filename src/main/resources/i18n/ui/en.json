@@ -87,7 +87,7 @@
   },
   "connection": {
     "auto": "Auto",
-    "detecting": "Detecting correct device/port...",
+    "detecting": "Detecting device/port...",
     "loopback": "Local Loopback"
   },
   "target": {

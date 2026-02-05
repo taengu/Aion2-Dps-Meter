@@ -87,7 +87,7 @@
   },
   "connection": {
     "auto": "자동",
-    "detecting": "Detecting correct device/port...",
+    "detecting": "Detecting device/port...",
     "loopback": "로컬 루프백"
   },
   "target": {

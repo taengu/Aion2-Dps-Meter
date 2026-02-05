@@ -87,7 +87,7 @@
   },
   "connection": {
     "auto": "自動",
-    "detecting": "Detecting correct device/port...",
+    "detecting": "Detecting device/port...",
     "loopback": "本地回環"
   },
   "target": {
