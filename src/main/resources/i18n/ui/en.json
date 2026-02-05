@@ -71,7 +71,7 @@
   "battleTime": {
     "analysing": "Ready - monitoring combat...",
     "idle": "Idle",
-    "notRunning": "Aion2 not running"
+    "notRunning": "AION2 not running"
   },
   "meter": {
     "identifyingPlayer": "Player #{id}"

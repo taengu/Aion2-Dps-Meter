@@ -127,7 +127,7 @@ class DpsApp {
 
     const getBattleTimeStatusText = () => {
       if (!this.aionRunning) {
-        return this.i18n?.t("battleTime.notRunning", "Aion2 not running") ?? "Aion2 not running";
+        return this.i18n?.t("battleTime.notRunning", "AION2 not running") ?? "AION2 not running";
       }
       if (this.isDetectingPort) {
         return this.i18n?.t("connection.detecting", "Detecting correct device/port...") ??
@@ -1032,7 +1032,7 @@ class DpsApp {
     if (!this.battleTimeRoot || !this.analysisStatusEl) return;
     if (!this.aionRunning) {
       this.applyConnectionStatusOverride(
-        this.i18n?.t("battleTime.notRunning", "Aion2 not running") ?? "Aion2 not running"
+        this.i18n?.t("battleTime.notRunning", "AION2 not running") ?? "AION2 not running"
       );
       return;
     }
@@ -1169,7 +1169,7 @@ class DpsApp {
     let startWidth = 0;
     let startHeight = 0;
     const minWidth = 300;
-    const minHeight = 160;
+    const minHeight = 120;
 
     const onMouseMove = (event) => {
       if (!isResizing) return;
