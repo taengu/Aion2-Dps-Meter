@@ -56,6 +56,7 @@ class DpsApp {
     this.targetSelection = "mostDamage";
     this.lastTargetMode = "";
     this.lastTargetName = "";
+    this.lastTargetId = 0;
     this._lastRenderedListSignature = "";
     this._lastRenderedTargetLabel = "";
     this._lastTargetSelection = this.targetSelection;
@@ -166,6 +167,11 @@ class DpsApp {
     this.detailsPanel = document.querySelector(".detailsPanel");
     this.detailsClose = document.querySelector(".detailsClose");
     this.detailsTitle = document.querySelector(".detailsTitle");
+    this.detailsNicknameBtn = document.querySelector(".detailsNicknameBtn");
+    this.detailsNicknameMenu = document.querySelector(".detailsNicknameMenu");
+    this.detailsTargetBtn = document.querySelector(".detailsTargetBtn");
+    this.detailsTargetMenu = document.querySelector(".detailsTargetMenu");
+    this.detailsSortButtons = document.querySelectorAll(".detailsSortBtn");
     this.detailsStatsEl = document.querySelector(".detailsStats");
     this.skillsListEl = document.querySelector(".skills");
 
@@ -173,10 +179,16 @@ class DpsApp {
       detailsPanel: this.detailsPanel,
       detailsClose: this.detailsClose,
       detailsTitle: this.detailsTitle,
+      detailsNicknameBtn: this.detailsNicknameBtn,
+      detailsNicknameMenu: this.detailsNicknameMenu,
+      detailsTargetBtn: this.detailsTargetBtn,
+      detailsTargetMenu: this.detailsTargetMenu,
+      detailsSortButtons: this.detailsSortButtons,
       detailsStatsEl: this.detailsStatsEl,
       skillsListEl: this.skillsListEl,
       dpsFormatter: this.dpsFormatter,
-      getDetails: (row) => this.getDetails(row),
+      getDetails: (row, options) => this.getDetails(row, options),
+      getDetailsContext: () => this.getDetailsContext(),
     });
     this.setupDetailsPanelSettings();
     this.setupSettingsPanel();
@@ -206,6 +218,15 @@ class DpsApp {
 
   nowMs() {
     return typeof performance !== "undefined" ? performance.now() : Date.now();
+  }
+
+  formatBattleTime(ms) {
+    const totalMs = Number(ms);
+    if (!Number.isFinite(totalMs) || totalMs <= 0) return "00:00";
+    const totalSeconds = Math.floor(totalMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
 
   safeParseJSON(raw, fallback = {}) {
@@ -274,6 +295,7 @@ class DpsApp {
     this.lastJson = null;
     this.lastTargetMode = "";
     this.lastTargetName = "";
+    this.lastTargetId = 0;
     this._lastRenderedListSignature = "";
     this._lastRenderedTargetLabel = "";
     this._lastRenderedRowsSummary = null;
@@ -335,10 +357,11 @@ class DpsApp {
 
     const previousTargetName = this.lastTargetName;
     const previousTargetMode = this.lastTargetMode;
-    const { rows, targetName, targetMode, battleTimeMs } = this.buildRowsFromPayload(raw);
+    const { rows, targetName, targetMode, battleTimeMs, targetId } = this.buildRowsFromPayload(raw);
     this._lastBattleTimeMs = battleTimeMs;
     this.lastTargetMode = targetMode;
     this.lastTargetName = targetName;
+    this.lastTargetId = targetId;
 
 
     const showByServer = rows.length > 0;
@@ -390,7 +413,7 @@ class DpsApp {
     }
 
     // render
-    const nextTargetLabel = targetName ? targetName : this.getDefaultTargetLabel(targetMode);
+    const nextTargetLabel = this.getTargetLabel({ targetId, targetName, targetMode });
     if (this.elBossName) {
       this.elBossName.textContent = nextTargetLabel;
     }
@@ -432,6 +455,8 @@ class DpsApp {
     const payload = this.safeParseJSON(raw, {});
     const targetName = typeof payload?.targetName === "string" ? payload.targetName : "";
     const targetMode = typeof payload?.targetMode === "string" ? payload.targetMode : "";
+    const targetIdRaw = payload?.targetId;
+    const targetId = Number.isFinite(Number(targetIdRaw)) ? Number(targetIdRaw) : 0;
 
     const mapObj = payload?.map && typeof payload.map === "object" ? payload.map : {};
     const rows = this.buildRowsFromMapObject(mapObj);
@@ -439,7 +464,7 @@ class DpsApp {
     const battleTimeMsRaw = payload?.battleTime;
     const battleTimeMs = Number.isFinite(Number(battleTimeMsRaw)) ? Number(battleTimeMsRaw) : null;
 
-    return { rows, targetName, targetMode, battleTimeMs };
+    return { rows, targetName, targetMode, battleTimeMs, targetId };
   }
 
   buildRowsFromMapObject(mapObj) {
@@ -484,8 +509,23 @@ class DpsApp {
     return rows;
   }
 
-  async getDetails(row) {
-    const raw = await window.dpsData?.getBattleDetail?.(row.id);
+  getDetailsContext() {
+    const raw = window.dpsData?.getDetailsContext?.();
+    if (!raw) return null;
+    if (typeof raw === "string") {
+      return this.safeParseJSON(raw, null);
+    }
+    return raw;
+  }
+
+  async getDetails(row, { targetId = null, attackerIds = null, totalTargetDamage = null, showSkillIcons = false } = {}) {
+    let raw = null;
+    if (targetId && window.dpsData?.getTargetDetails) {
+      const payload = Array.isArray(attackerIds) ? JSON.stringify(attackerIds) : "";
+      raw = await window.dpsData.getTargetDetails(targetId, payload);
+    } else {
+      raw = await window.dpsData?.getBattleDetail?.(row.id);
+    }
     let detailObj = raw;
     // globalThis.uiDebug?.log?.("getBattleDetail", detailObj);
 
@@ -502,86 +542,120 @@ class DpsApp {
     let totalPerfect = 0;
     let totalDouble = 0;
 
-    for (const [code, value] of Object.entries(detailObj)) {
-      if (!value || typeof value !== "object") continue;
+    const pushSkill = ({
+      codeKey,
+      name,
+      time,
+      dmg,
+      crit = 0,
+      parry = 0,
+      back = 0,
+      perfect = 0,
+      double = 0,
+      heal = 0,
+      countForTotals = true,
+      job = "",
+    }) => {
+      const dmgInt = Math.trunc(Number(String(dmg ?? "").replace(/,/g, ""))) || 0;
+      if (dmgInt <= 0) {
+        return;
+      }
 
-      const nameRaw = typeof value.skillName === "string" ? value.skillName.trim() : "";
-      const translatedName = this.i18n?.getSkillName?.(code, nameRaw) ?? nameRaw;
-      const baseName =
-        translatedName ||
-        this.i18n?.format?.("skills.fallback", { code }, `Skill ${code}`) ||
-        `Skill ${code}`;
-      const dotName =
-        this.i18n?.format?.("skills.dot", { name: baseName }, `${baseName} - DOT`) ||
-        `${baseName} - DOT`;
+      const t = Number(time) || 0;
 
-      // 공통
-      const pushSkill = ({
-        codeKey,
+      totalDmg += dmgInt;
+      if (countForTotals) {
+        totalTimes += t;
+        totalCrit += Number(crit) || 0;
+        totalParry += Number(parry) || 0;
+        totalBack += Number(back) || 0;
+        totalPerfect += Number(perfect) || 0;
+        totalDouble += Number(double) || 0;
+      }
+      skills.push({
+        code: String(codeKey),
         name,
-        time,
-        dmg,
-        crit = 0,
-        parry = 0,
-        back = 0,
-        perfect = 0,
-        double = 0,
-        heal = 0,
-        countForTotals = true,
-      }) => {
-        const dmgInt = Math.trunc(Number(String(dmg ?? "").replace(/,/g, ""))) || 0;
-        if (dmgInt <= 0) {
-          return;
-        }
-
-        const t = Number(time) || 0;
-
-        totalDmg += dmgInt;
-        if (countForTotals) {
-          totalTimes += t;
-          totalCrit += Number(crit) || 0;
-          totalParry += Number(parry) || 0;
-          totalBack += Number(back) || 0;
-          totalPerfect += Number(perfect) || 0;
-          totalDouble += Number(double) || 0;
-        }
-        skills.push({
-          code: String(codeKey),
-          name,
-          time: t,
-          crit: Number(crit) || 0,
-          parry: Number(parry) || 0,
-          back: Number(back) || 0,
-          perfect: Number(perfect) || 0,
-          double: Number(double) || 0,
-          heal: Number(heal) || 0,
-          dmg: dmgInt,
-        });
-      };
-
-      // 일반 피해
-      pushSkill({
-        codeKey: code,
-        name: baseName,
-        time: value.times,
-        dmg: value.damageAmount,
-        crit: value.critTimes,
-        parry: value.parryTimes,
-        back: value.backTimes,
-        perfect: value.perfectTimes,
-        double: value.doubleTimes,
-        heal: value.healAmount,
+        time: t,
+        crit: Number(crit) || 0,
+        parry: Number(parry) || 0,
+        back: Number(back) || 0,
+        perfect: Number(perfect) || 0,
+        double: Number(double) || 0,
+        heal: Number(heal) || 0,
+        dmg: dmgInt,
+        job,
       });
+    };
 
-      // 도트피해
-      if (Number(String(value.dotDamageAmount ?? "").replace(/,/g, "")) > 0) {
+    const detailSkills = Array.isArray(detailObj?.skills) ? detailObj.skills : null;
+    if (detailSkills) {
+      for (const value of detailSkills) {
+        if (!value || typeof value !== "object") continue;
+        const code = String(value.code ?? "");
+        const nameRaw = typeof value.name === "string" ? value.name.trim() : "";
+        const translatedName = this.i18n?.getSkillName?.(code, nameRaw) ?? nameRaw;
+        const baseName =
+          translatedName ||
+          this.i18n?.format?.("skills.fallback", { code }, `Skill ${code}`) ||
+          `Skill ${code}`;
+        const dotName =
+          this.i18n?.format?.("skills.dot", { name: baseName }, `${baseName} - DOT`) ||
+          `${baseName} - DOT`;
+        const isDot = !!value.isDot;
+
         pushSkill({
-          codeKey: `${code}-dot`, // 유니크키
-          name: dotName,
-          time: value.dotTimes,
-          dmg: value.dotDamageAmount,
-          countForTotals: false,
+          codeKey: isDot ? `${code}-dot` : code,
+          name: isDot ? dotName : baseName,
+          time: value.time,
+          dmg: value.dmg,
+          crit: value.crit,
+          parry: value.parry,
+          back: value.back,
+          perfect: value.perfect,
+          double: value.double,
+          heal: value.heal,
+          job: value.job ?? "",
+          countForTotals: !isDot,
         });
+      }
+    } else {
+      for (const [code, value] of Object.entries(detailObj)) {
+        if (!value || typeof value !== "object") continue;
+
+        const nameRaw = typeof value.skillName === "string" ? value.skillName.trim() : "";
+        const translatedName = this.i18n?.getSkillName?.(code, nameRaw) ?? nameRaw;
+        const baseName =
+          translatedName ||
+          this.i18n?.format?.("skills.fallback", { code }, `Skill ${code}`) ||
+          `Skill ${code}`;
+        const dotName =
+          this.i18n?.format?.("skills.dot", { name: baseName }, `${baseName} - DOT`) ||
+          `${baseName} - DOT`;
+
+        // 일반 피해
+        pushSkill({
+          codeKey: code,
+          name: baseName,
+          time: value.times,
+          dmg: value.damageAmount,
+          crit: value.critTimes,
+          parry: value.parryTimes,
+          back: value.backTimes,
+          perfect: value.perfectTimes,
+          double: value.doubleTimes,
+          heal: value.healAmount,
+        });
+
+        // 도트피해
+        if (Number(String(value.dotDamageAmount ?? "").replace(/,/g, "")) > 0) {
+          pushSkill({
+            codeKey: `${code}-dot`, // 유니크키
+            name: dotName,
+            time: value.dotTimes,
+            dmg: value.dotDamageAmount,
+            countForTotals: false,
+          });
+        }
       }
     }
 
@@ -589,8 +663,18 @@ class DpsApp {
       if (den <= 0) return 0;
       return Math.round((num / den) * 1000) / 10;
     };
-    const contributionPct = Number(row?.damageContribution);
-    const combatTime = this.battleTime?.getCombatTimeText?.() ?? "00:00";
+    const fallbackContribution = Number(row?.damageContribution);
+    const baseTotalDamage = Number.isFinite(Number(totalTargetDamage))
+      ? Number(totalTargetDamage)
+      : Number(detailObj?.totalTargetDamage);
+    const contributionPct =
+      Number.isFinite(baseTotalDamage) && baseTotalDamage > 0
+        ? (totalDmg / baseTotalDamage) * 100
+        : fallbackContribution;
+    const battleTimeMsRaw = Number(detailObj?.battleTime);
+    const combatTime = Number.isFinite(battleTimeMsRaw)
+      ? this.formatBattleTime(battleTimeMsRaw)
+      : this.battleTime?.getCombatTimeText?.() ?? "00:00";
 
     return {
       totalDmg,
@@ -603,6 +687,7 @@ class DpsApp {
       combatTime,
 
       skills,
+      showSkillIcons,
     };
   }
 
@@ -1146,9 +1231,19 @@ class DpsApp {
     return this.i18n?.t("header.title", "DPS METER") ?? "DPS METER";
   }
 
+  getTargetLabel({ targetId = 0, targetName = "", targetMode = "" } = {}) {
+    if (Number.isFinite(Number(targetId)) && Number(targetId) > 0) {
+      return `Mob #${Number(targetId)}`;
+    }
+    if (targetName) {
+      return targetName;
+    }
+    return this.getDefaultTargetLabel(targetMode);
+  }
+
   refreshBossLabel() {
     if (!this.elBossName) return;
-    if (this.lastTargetName) {
+    if (this.lastTargetName || this.lastTargetId) {
       return;
     }
     this.elBossName.textContent = this.getDefaultTargetLabel(this.lastTargetMode);

@@ -631,6 +631,104 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding: 0 12px;
     padding-bottom: 6px;
+    gap: 12px;
+
+    .detailsTitle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      flex-wrap: wrap;
+    }
+
+    .detailsTitleSeparator,
+    .detailsTitleVs {
+      opacity: 0.6;
+    }
+
+    .detailsDropdownWrapper {
+      position: relative;
+    }
+
+    .detailsDropdownBtn {
+      background: transparent;
+      border: none;
+      color: inherit;
+      font: inherit;
+      padding: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .detailsNicknameBtn {
+      color: var(--isUser-fill);
+      font-size: 18px;
+    }
+
+    .detailsTargetBtn,
+    .detailsTargetSuffix {
+      color: var(--indicator-end);
+    }
+
+    .detailsDropdownMenu {
+      position: absolute;
+      left: 0;
+      top: calc(100% + 6px);
+      min-width: 200px;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(12, 22, 40, 0.95);
+      box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+      display: none;
+      z-index: 6;
+    }
+
+    .detailsDropdownMenu.isOpen {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .detailsDropdownItem {
+      background: transparent;
+      border: none;
+      color: inherit;
+      text-align: left;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .detailsDropdownItem:hover,
+    .detailsDropdownItem.isActive {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .detailsTargetSort {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 4px;
+    }
+
+    .detailsSortBtn {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: transparent;
+      color: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .detailsSortBtn.isActive {
+      background: rgba(255, 255, 255, 0.2);
+    }
 
     .tooltip {
       opacity: 0.6;
@@ -751,6 +849,7 @@
 
       color: var(--isUser-fill);
     }
+
 
     .cell.dmg {
       flex: 0 0 220px;
@@ -1185,6 +1284,91 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0 12px;
   padding-bottom: 6px;
+  gap: 12px;
+}
+.detailsPanel .detailsHeader .detailsTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  flex-wrap: wrap;
+}
+.detailsPanel .detailsHeader .detailsTitleSeparator,
+.detailsPanel .detailsHeader .detailsTitleVs {
+  opacity: 0.6;
+}
+.detailsPanel .detailsHeader .detailsDropdownWrapper {
+  position: relative;
+}
+.detailsPanel .detailsHeader .detailsDropdownBtn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.detailsPanel .detailsHeader .detailsNicknameBtn {
+  color: var(--isUser-fill);
+  font-size: 18px;
+}
+.detailsPanel .detailsHeader .detailsTargetBtn,
+.detailsPanel .detailsHeader .detailsTargetSuffix {
+  color: var(--indicator-end);
+}
+.detailsPanel .detailsHeader .detailsDropdownMenu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  min-width: 200px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 22, 40, 0.95);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+  display: none;
+  z-index: 6;
+}
+.detailsPanel .detailsHeader .detailsDropdownMenu.isOpen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.detailsPanel .detailsHeader .detailsDropdownItem {
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.detailsPanel .detailsHeader .detailsDropdownItem:hover,
+.detailsPanel .detailsHeader .detailsDropdownItem.isActive {
+  background: rgba(255, 255, 255, 0.08);
+}
+.detailsPanel .detailsHeader .detailsTargetSort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+}
+.detailsPanel .detailsHeader .detailsSortBtn {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.detailsPanel .detailsHeader .detailsSortBtn.isActive {
+  background: rgba(255, 255, 255, 0.2);
 }
 .detailsPanel .detailsHeader .tooltip {
   opacity: 0.6;

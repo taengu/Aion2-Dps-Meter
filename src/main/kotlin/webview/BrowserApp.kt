@@ -21,6 +21,7 @@ import javafx.util.Duration
 import javafx.application.Platform
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import netscape.javascript.JSObject
 import org.slf4j.LoggerFactory
@@ -232,6 +233,18 @@ class BrowserApp(
 
     fun getBattleDetail(uid:Int):String{
         return Json.encodeToString(dpsData.map[uid]?.analyzedData)
+    }
+
+    fun getDetailsContext(): String {
+        return Json.encodeToString(dpsCalculator.getDetailsContext())
+    }
+
+    fun getTargetDetails(targetId: Int, actorIdsJson: String?): String {
+        val actorIds = actorIdsJson
+            ?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { Json.decodeFromString<List<Int>>(it) }.getOrNull() }
+            ?.toSet()
+        return Json.encodeToString(dpsCalculator.getTargetDetails(targetId, actorIds))
     }
 
     fun getVersion():String{

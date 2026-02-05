@@ -2,15 +2,28 @@ const createDetailsUI = ({
   detailsPanel,
   detailsClose,
   detailsTitle,
+  detailsNicknameBtn,
+  detailsNicknameMenu,
+  detailsTargetBtn,
+  detailsTargetMenu,
+  detailsSortButtons,
   detailsStatsEl,
   skillsListEl,
   dpsFormatter,
   getDetails,
+  getDetailsContext,
 }) => {
   let openedRowId = null;
   let openSeq = 0;
   let lastRow = null;
   let lastDetails = null;
+  let detailsContext = null;
+  let detailsActors = new Map();
+  let detailsTargets = [];
+  let selectedTargetId = null;
+  let selectedAttackerIds = null;
+  let selectedAttackerLabel = "";
+  let sortMode = "recent";
 
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -23,10 +36,38 @@ const createDetailsUI = ({
     const n = Number(v);
     return Number.isFinite(n) ? `${n.toFixed(1)}%` : "-";
   };
+  const formatCompactNumber = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "-";
+    if (n >= 1_000_000) {
+      return `${(n / 1_000_000).toFixed(2)}m`;
+    }
+    if (n >= 1_000) {
+      return `${(n / 1_000).toFixed(1)}k`;
+    }
+    return `${Math.round(n)}`;
+  };
+  const formatMinutesSince = (timestampMs) => {
+    const ts = Number(timestampMs);
+    if (!Number.isFinite(ts) || ts <= 0) return "-";
+    const minutes = (Date.now() - ts) / 60000;
+    if (!Number.isFinite(minutes) || minutes < 0) return "-";
+    return `${minutes.toFixed(1)}m`;
+  };
+  const formatBattleTime = (ms) => {
+    const totalMs = Number(ms);
+    if (!Number.isFinite(totalMs) || totalMs <= 0) return "00:00";
+    const totalSeconds = Math.floor(totalMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  };
   const i18n = window.i18n;
   const labelText = (key, fallback) => i18n?.t?.(key, fallback) ?? fallback;
-  const formatTitle = (name) =>
-    i18n?.format?.("details.title", { name }, `${name} Details`) ?? `${name} Details`;
+  const detailsTitleLabel = detailsTitle?.querySelector?.(".detailsTitleLabel");
+  const detailsTitleSeparator = detailsTitle?.querySelector?.(".detailsTitleSeparator");
+  const detailsTitleVs = detailsTitle?.querySelector?.(".detailsTitleVs");
+  const detailsTargetSuffix = detailsTitle?.querySelector?.(".detailsTargetSuffix");
 
   const STATUS = [
     { key: "details.stats.totalDamage", fallback: "Total Damage", getValue: (d) => formatNum(d?.totalDmg) },
@@ -64,16 +105,68 @@ const createDetailsUI = ({
   const statSlots = STATUS.map((def) => createStatView(def.key, def.fallback));
   statSlots.forEach((value) => detailsStatsEl.appendChild(value.statEl));
 
+  const getTargetById = (targetId) =>
+    detailsTargets.find((target) => Number(target?.targetId) === Number(targetId));
+
+  const getActorDamage = (actorDamage, actorId) => {
+    if (!actorDamage || typeof actorDamage !== "object") return 0;
+    const byNumber = actorDamage[actorId];
+    const byString = actorDamage[String(actorId)];
+    return Number(byNumber ?? byString ?? 0) || 0;
+  };
+
+  const getTargetDamageForSelection = (target) => {
+    if (!target) return 0;
+    if (!Array.isArray(selectedAttackerIds) || selectedAttackerIds.length === 0) {
+      return Number(target.totalDamage) || 0;
+    }
+    return selectedAttackerIds.reduce(
+      (sum, actorId) => sum + getActorDamage(target.actorDamage, actorId),
+      0
+    );
+  };
+
+  const formatTargetSuffix = (target) => {
+    if (!target) return "";
+    if (sortMode === "recent") {
+      return formatMinutesSince(target.lastDamageTime);
+    }
+    if (sortMode === "time") {
+      return formatBattleTime(target.battleTime);
+    }
+    return formatCompactNumber(getTargetDamageForSelection(target));
+  };
+
+  const updateHeaderText = () => {
+    if (detailsTitleLabel) {
+      detailsTitleLabel.textContent = labelText("details.header", "Details");
+    }
+    if (detailsTitleSeparator) {
+      detailsTitleSeparator.textContent = "-";
+    }
+    if (detailsTitleVs) {
+      detailsTitleVs.textContent = "vs";
+    }
+    if (detailsNicknameBtn) {
+      detailsNicknameBtn.textContent = selectedAttackerLabel || "-";
+    }
+    if (detailsTargetBtn) {
+      const targetLabel = selectedTargetId ? `Mob #${selectedTargetId}` : "-";
+      detailsTargetBtn.textContent = targetLabel;
+    }
+    if (detailsTargetSuffix) {
+      const target = getTargetById(selectedTargetId);
+      const suffix = formatTargetSuffix(target);
+      detailsTargetSuffix.textContent = suffix ? `(${suffix})` : "";
+    }
+  };
+
   const updateLabels = () => {
     for (let i = 0; i < statSlots.length; i++) {
       const slot = statSlots[i];
       slot.labelEl.textContent = labelText(slot.labelKey, slot.fallbackLabel);
     }
-    if (!detailsPanel.classList.contains("open")) {
-      detailsTitle.textContent = labelText("details.header", "Details");
-    } else if (currentRowName) {
-      detailsTitle.textContent = formatTitle(currentRowName);
-    }
+    updateHeaderText();
   };
 
   const renderStats = (details) => {
@@ -88,6 +181,11 @@ const createDetailsUI = ({
 
     const nameEl = document.createElement("div");
     nameEl.className = "cell name";
+
+    const nameTextEl = document.createElement("span");
+    nameTextEl.className = "skillNameText";
+
+    nameEl.appendChild(nameTextEl);
 
     const hitEl = document.createElement("div");
     const critEl = document.createElement("div");
@@ -135,6 +233,7 @@ const createDetailsUI = ({
     return {
       rowEl,
       nameEl,
+      nameTextEl,
       hitEl,
       critEl,
       parryEl,
@@ -158,6 +257,7 @@ const createDetailsUI = ({
 
   const renderSkills = (details) => {
     const skills = Array.isArray(details?.skills) ? details.skills : [];
+    const showSkillColors = !!details?.showSkillIcons;
     const topSkills = [...skills].sort((a, b) => (Number(b?.dmg) || 0) - (Number(a?.dmg) || 0));
     // .slice(0, 12);
 
@@ -202,7 +302,22 @@ const createDetailsUI = ({
       const perfectRate = pct(perfect, hits);
       const doubleRate = pct(double, hits);
 
-      view.nameEl.textContent = skill.name ?? "";
+      view.nameTextEl.textContent = skill.name ?? "";
+      if (showSkillColors && skill.job) {
+        const jobColorMap = {
+          정령성: "#4FD1C5",
+          궁성: "#41D98A",
+          살성: "#7BE35A",
+          수호성: "#5F8CFF",
+          마도성: "#9A6BFF",
+          호법성: "#E06BFF",
+          치유성: "#F2C15A",
+          검성: "#FF9A3D",
+        };
+        view.nameTextEl.style.color = jobColorMap[skill.job] || "";
+      } else {
+        view.nameTextEl.style.color = "";
+      }
       view.hitEl.textContent = `${hits}`;
       view.critEl.textContent = `${critRate}%`;
 
@@ -217,11 +332,218 @@ const createDetailsUI = ({
     }
   };
 
-  let currentRowName = "";
+  const loadDetailsContext = () => {
+    const nextContext = typeof getDetailsContext === "function" ? getDetailsContext() : null;
+    if (!nextContext) {
+      detailsContext = null;
+      detailsActors = new Map();
+      detailsTargets = [];
+      selectedTargetId = null;
+      return null;
+    }
+    detailsContext = nextContext;
+    detailsActors = new Map();
+    detailsTargets = Array.isArray(nextContext.targets) ? nextContext.targets : [];
+    const actorList = Array.isArray(nextContext.actors) ? nextContext.actors : [];
+    actorList.forEach((actor) => {
+      detailsActors.set(Number(actor.actorId), actor);
+    });
+    if (!selectedTargetId) {
+      selectedTargetId = nextContext.currentTargetId || detailsTargets[0]?.targetId || null;
+    }
+    return nextContext;
+  };
+
+  const getTargetActorIds = (target) => {
+    if (!target || typeof target.actorDamage !== "object") return [];
+    return Object.keys(target.actorDamage)
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+  };
+
+  const resolveActorLabel = (actorId) => {
+    const actor = detailsActors.get(Number(actorId));
+    if (actor?.nickname) return actor.nickname;
+    return `Player #${actorId}`;
+  };
+
+  const renderNicknameMenu = () => {
+    if (!detailsNicknameMenu) return;
+    detailsNicknameMenu.innerHTML = "";
+    const allItem = document.createElement("button");
+    allItem.type = "button";
+    allItem.className = "detailsDropdownItem";
+    allItem.dataset.value = "all";
+    allItem.textContent = "All";
+    if (!selectedAttackerIds || selectedAttackerIds.length === 0) {
+      allItem.classList.add("isActive");
+    }
+    detailsNicknameMenu.appendChild(allItem);
+
+    const target = getTargetById(selectedTargetId);
+    const actorIds = getTargetActorIds(target);
+    const actorEntries = actorIds
+      .map((id) => ({
+        id,
+        damage: getActorDamage(target?.actorDamage, id),
+        label: resolveActorLabel(id),
+      }))
+      .sort((a, b) => b.damage - a.damage);
+
+    actorEntries.forEach((entry) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "detailsDropdownItem";
+      item.dataset.value = String(entry.id);
+      item.textContent = entry.label;
+      if (selectedAttackerIds?.includes?.(entry.id)) {
+        item.classList.add("isActive");
+      }
+      detailsNicknameMenu.appendChild(item);
+    });
+  };
+
+  const getTargetSortValue = (target) => {
+    if (!target) return 0;
+    if (sortMode === "recent") {
+      return Number(target.lastDamageTime) || 0;
+    }
+    if (sortMode === "time") {
+      return Number(target.battleTime) || 0;
+    }
+    return getTargetDamageForSelection(target);
+  };
+
+  const renderTargetMenu = () => {
+    if (!detailsTargetMenu) return;
+    detailsTargetMenu.innerHTML = "";
+    const targetsSorted = [...detailsTargets].sort((a, b) => getTargetSortValue(b) - getTargetSortValue(a));
+
+    targetsSorted.forEach((target) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "detailsDropdownItem";
+      item.dataset.value = String(target.targetId);
+      const suffix = formatTargetSuffix(target);
+      item.textContent = `Mob #${target.targetId}${suffix ? ` (${suffix})` : ""}`;
+      if (Number(target.targetId) === Number(selectedTargetId)) {
+        item.classList.add("isActive");
+      }
+      detailsTargetMenu.appendChild(item);
+    });
+  };
+
+  const syncSortButtons = () => {
+    if (!detailsSortButtons) return;
+    detailsSortButtons.forEach((button) => {
+      const mode = button?.dataset?.sort;
+      button.classList.toggle("isActive", mode === sortMode);
+    });
+  };
+
+  const applyTargetSelection = async (targetId) => {
+    selectedTargetId = Number(targetId) || null;
+    const target = getTargetById(selectedTargetId);
+    const actorIds = getTargetActorIds(target);
+    if (selectedAttackerIds && selectedAttackerIds.length > 0) {
+      const stillValid = selectedAttackerIds.some((id) => actorIds.includes(id));
+      if (!stillValid) {
+        selectedAttackerIds = null;
+        selectedAttackerLabel = "All";
+      }
+    }
+    if (selectedAttackerIds && selectedAttackerIds.length === 1) {
+      selectedAttackerLabel = resolveActorLabel(selectedAttackerIds[0]);
+    }
+    renderNicknameMenu();
+    renderTargetMenu();
+    updateHeaderText();
+    await refreshDetailsView();
+  };
+
+  const applyAttackerSelection = async (actorId) => {
+    if (actorId === "all") {
+      selectedAttackerIds = null;
+      selectedAttackerLabel = "All";
+    } else {
+      const numericId = Number(actorId);
+      selectedAttackerIds = Number.isFinite(numericId) ? [numericId] : null;
+      selectedAttackerLabel = selectedAttackerIds ? resolveActorLabel(numericId) : "All";
+    }
+    renderNicknameMenu();
+    renderTargetMenu();
+    updateHeaderText();
+    await refreshDetailsView();
+  };
+
+  const refreshDetailsView = async (seq) => {
+    if (!lastRow) return;
+    if (!detailsContext) {
+      const details = await getDetails(lastRow);
+      if (typeof seq === "number" && seq !== openSeq) return;
+      render(details, lastRow);
+      return;
+    }
+    const target = getTargetById(selectedTargetId);
+    const totalTargetDamage = target ? target.totalDamage : null;
+    const details = await getDetails(lastRow, {
+      targetId: selectedTargetId,
+      attackerIds: selectedAttackerIds,
+      totalTargetDamage,
+      showSkillIcons: !selectedAttackerIds || selectedAttackerIds.length === 0,
+    });
+    if (typeof seq === "number" && seq !== openSeq) return;
+    render(details, lastRow);
+  };
+
+  detailsNicknameBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    detailsNicknameMenu?.classList.toggle("isOpen");
+    detailsTargetMenu?.classList.remove("isOpen");
+  });
+
+  detailsTargetBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    detailsTargetMenu?.classList.toggle("isOpen");
+    detailsNicknameMenu?.classList.remove("isOpen");
+  });
+
+  detailsNicknameMenu?.addEventListener("click", async (event) => {
+    const button = event.target?.closest?.(".detailsDropdownItem");
+    if (!button) return;
+    const value = button.dataset.value;
+    detailsNicknameMenu?.classList.remove("isOpen");
+    await applyAttackerSelection(value);
+  });
+
+  detailsTargetMenu?.addEventListener("click", async (event) => {
+    const button = event.target?.closest?.(".detailsDropdownItem");
+    if (!button) return;
+    const value = button.dataset.value;
+    detailsTargetMenu?.classList.remove("isOpen");
+    await applyTargetSelection(value);
+  });
+
+  detailsSortButtons?.forEach?.((button) => {
+    button.addEventListener("click", async () => {
+      const mode = button?.dataset?.sort;
+      if (!mode || sortMode === mode) return;
+      sortMode = mode;
+      syncSortButtons();
+      renderTargetMenu();
+      updateHeaderText();
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target?.closest?.(".detailsDropdownWrapper")) return;
+    detailsNicknameMenu?.classList.remove("isOpen");
+    detailsTargetMenu?.classList.remove("isOpen");
+  });
 
   const render = (details, row) => {
-    currentRowName = String(row.name);
-    detailsTitle.textContent = formatTitle(currentRowName);
+    selectedAttackerLabel = selectedAttackerLabel || String(row.name ?? "");
+    updateHeaderText();
     renderStats(details);
     renderSkills(details);
     lastRow = row;
@@ -251,8 +573,17 @@ const createDetailsUI = ({
     openedRowId = rowId;
     lastRow = row;
 
-    currentRowName = String(row.name);
-    detailsTitle.textContent = formatTitle(currentRowName);
+    selectedAttackerLabel = String(row.name ?? "");
+    const rowIdNum = Number(rowId);
+    selectedAttackerIds = Number.isFinite(rowIdNum) ? [rowIdNum] : null;
+    loadDetailsContext();
+    if (detailsContext && detailsContext.currentTargetId) {
+      selectedTargetId = detailsContext.currentTargetId;
+    }
+    renderNicknameMenu();
+    renderTargetMenu();
+    syncSortButtons();
+    updateHeaderText();
     detailsPanel.classList.add("open");
 
     // 이전 값 비우기
@@ -265,11 +596,9 @@ const createDetailsUI = ({
     const seq = ++openSeq;
 
     try {
-      const details = await getDetails(row);
+      await refreshDetailsView(seq);
 
       if (seq !== openSeq) return;
-
-      render(details, row);
     } catch (e) {
       if (seq !== openSeq) return;
       // uiDebug?.log("getDetails:error", { id: rowId, message: e?.message });

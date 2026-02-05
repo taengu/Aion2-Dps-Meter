@@ -1,9 +1,15 @@
 package com.tbread
 
+import com.tbread.entity.DetailSkillEntry
+import com.tbread.entity.DetailsActorSummary
+import com.tbread.entity.DetailsContext
+import com.tbread.entity.DetailsTargetSummary
 import com.tbread.entity.DpsData
 import com.tbread.entity.JobClass
 import com.tbread.entity.ParsedDamagePacket
 import com.tbread.entity.PersonalData
+import com.tbread.entity.SpecialDamage
+import com.tbread.entity.TargetDetailsResponse
 import com.tbread.entity.TargetInfo
 import com.tbread.logging.DebugLogWriter
 import com.tbread.packet.LocalPlayer
@@ -13,6 +19,11 @@ import java.util.UUID
 
 class DpsCalculator(private val dataStorage: DataStorage) {
     private val logger = LoggerFactory.getLogger(DpsCalculator::class.java)
+
+    private data class ActorMetaBuilder(
+        var nickname: String,
+        var job: String = ""
+    )
 
     enum class Mode {
         ALL, BOSS_ONLY
@@ -929,6 +940,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         dpsData.targetMode = targetDecision.mode.id
 
         currentTarget = targetDecision.trackingTargetId
+        dpsData.targetId = currentTarget
         dataStorage.setCurrentTarget(currentTarget)
 
         val battleTime = when (targetDecision.mode) {
@@ -943,6 +955,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 refreshNicknameSnapshot(snapshot, nicknameData)
                 snapshot.targetName = dpsData.targetName
                 snapshot.targetMode = dpsData.targetMode
+                snapshot.targetId = dpsData.targetId
                 snapshot.battleTime = dpsData.battleTime
                 return snapshot
             }
@@ -1017,6 +1030,147 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 snapshot.map[uid] = data.copy(nickname = nickname)
             }
         }
+    }
+
+    fun getDetailsContext(): DetailsContext {
+        val pdpMap = dataStorage.getBossModeData()
+        val nicknameData = dataStorage.getNickname()
+        val summonData = dataStorage.getSummonData()
+
+        val actorMeta = mutableMapOf<Int, ActorMetaBuilder>()
+        val targets = mutableListOf<DetailsTargetSummary>()
+
+        pdpMap.forEach { (targetId, pdps) ->
+            var totalDamage = 0
+            val actorDamage = mutableMapOf<Int, Int>()
+
+            pdps.forEach { pdp ->
+                val uid = summonData[pdp.getActorId()] ?: pdp.getActorId()
+                val damage = pdp.getDamage()
+                totalDamage += damage
+                actorDamage[uid] = (actorDamage[uid] ?: 0) + damage
+
+                val meta = actorMeta.getOrPut(uid) { ActorMetaBuilder(resolveNickname(uid, nicknameData)) }
+                if (meta.job.isEmpty()) {
+                    val inferredCode = inferOriginalSkillCode(
+                        pdp.getSkillCode1(),
+                        pdp.getTargetId(),
+                        pdp.getActorId(),
+                        pdp.getDamage(),
+                        pdp.getHexPayload()
+                    ) ?: -1
+                    val job = JobClass.convertFromSkill(inferredCode)
+                    if (job != null) {
+                        meta.job = job.className
+                    }
+                }
+            }
+
+            val info = targetInfoMap[targetId]
+            targets.add(
+                DetailsTargetSummary(
+                    targetId = targetId,
+                    battleTime = info?.parseBattleTime() ?: 0L,
+                    lastDamageTime = info?.lastDamageTime() ?: 0L,
+                    totalDamage = totalDamage,
+                    actorDamage = actorDamage
+                )
+            )
+        }
+
+        val actors = actorMeta.map { (id, meta) ->
+            DetailsActorSummary(actorId = id, nickname = meta.nickname, job = meta.job)
+        }
+
+        return DetailsContext(currentTargetId = currentTarget, targets = targets, actors = actors)
+    }
+
+    fun getTargetDetails(targetId: Int, actorIds: Set<Int>?): TargetDetailsResponse {
+        val pdps = dataStorage.getBossModeData()[targetId] ?: return TargetDetailsResponse(
+            targetId = targetId,
+            totalTargetDamage = 0,
+            battleTime = 0L,
+            skills = emptyList()
+        )
+        val summonData = dataStorage.getSummonData()
+        val actorJobs = mutableMapOf<Int, String>()
+        val skillMap = mutableMapOf<String, DetailSkillEntry>()
+        var totalTargetDamage = 0
+
+        pdps.forEach { pdp ->
+            val uid = summonData[pdp.getActorId()] ?: pdp.getActorId()
+            val damage = pdp.getDamage()
+            totalTargetDamage += damage
+            if (actorIds != null && !actorIds.contains(uid)) {
+                return@forEach
+            }
+
+            val inferredCode = inferOriginalSkillCode(
+                pdp.getSkillCode1(),
+                pdp.getTargetId(),
+                pdp.getActorId(),
+                pdp.getDamage(),
+                pdp.getHexPayload()
+            ) ?: pdp.getSkillCode1()
+            var job = actorJobs[uid] ?: ""
+            if (job.isEmpty()) {
+                val converted = JobClass.convertFromSkill(inferredCode)
+                if (converted != null) {
+                    job = converted.className
+                    actorJobs[uid] = job
+                }
+            }
+
+            val isDot = pdp.isDoT()
+            val key = "$uid|$inferredCode|$isDot"
+            val existing = skillMap[key]
+            val next = if (existing == null) {
+                DetailSkillEntry(
+                    code = inferredCode,
+                    name = SKILL_MAP[inferredCode] ?: "",
+                    time = 0,
+                    dmg = 0,
+                    crit = 0,
+                    parry = 0,
+                    back = 0,
+                    perfect = 0,
+                    double = 0,
+                    heal = 0,
+                    job = job,
+                    isDot = isDot
+                )
+            } else if (existing.job.isEmpty() && job.isNotEmpty()) {
+                existing.copy(job = job)
+            } else {
+                existing
+            }
+
+            var updated = next.copy(
+                time = next.time + 1,
+                dmg = next.dmg + damage,
+                heal = next.heal + pdp.getHealAmount()
+            )
+
+            if (!isDot) {
+                updated = updated.copy(
+                    crit = updated.crit + if (pdp.isCrit()) 1 else 0,
+                    parry = updated.parry + if (pdp.getSpecials().contains(SpecialDamage.PARRY)) 1 else 0,
+                    back = updated.back + if (pdp.getSpecials().contains(SpecialDamage.BACK)) 1 else 0,
+                    perfect = updated.perfect + if (pdp.getSpecials().contains(SpecialDamage.PERFECT)) 1 else 0,
+                    double = updated.double + if (pdp.getSpecials().contains(SpecialDamage.DOUBLE)) 1 else 0
+                )
+            }
+
+            skillMap[key] = updated
+        }
+
+        val battleTime = targetInfoMap[targetId]?.parseBattleTime() ?: 0L
+        return TargetDetailsResponse(
+            targetId = targetId,
+            totalTargetDamage = totalTargetDamage,
+            battleTime = battleTime,
+            skills = skillMap.values.toList()
+        )
     }
 
     private fun decideTarget(): TargetDecision {
