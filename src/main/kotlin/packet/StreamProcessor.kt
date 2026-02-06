@@ -158,6 +158,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             if (flag && !processed) {
                 logger.trace("Remaining packet {}", toHex(packet))
+                parsed = parseActorNameBindingRules(packet) || parsed
+                parsed = parseLootAttributionActorName(packet) || parsed
                 parsed = castNicknameNet(packet) || parsed
             }
             return parsed
