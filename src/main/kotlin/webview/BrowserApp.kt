@@ -409,7 +409,13 @@ class BrowserApp(
         }
         engine.loadWorker.stateProperty().addListener { _, _, newState ->
             when (newState) {
-                Worker.State.SUCCEEDED -> injectBridge()
+                Worker.State.SUCCEEDED -> {
+                    injectBridge()
+                    if (stage.opacity < 1.0) {
+                        stage.opacity = 1.0
+                        ensureStageVisible(stage, "webview-loaded")
+                    }
+                }
                 Worker.State.FAILED -> logger.error("WebView failed to load index.html")
                 else -> Unit
             }
@@ -439,8 +445,18 @@ class BrowserApp(
         stage.isAlwaysOnTop = true
         stage.title = "Aion2 Dps Overlay"
         stage.setOnShown { uiReadyNotifier() }
+        stage.opacity = 0.0
         stage.show()
         ensureStageVisible(stage, "initial")
+        Timeline(KeyFrame(Duration.seconds(2.0), {
+            if (stage.opacity < 1.0) {
+                stage.opacity = 1.0
+                ensureStageVisible(stage, "fallback-show")
+            }
+        })).apply {
+            cycleCount = 1
+            play()
+        }
         Timeline(KeyFrame(Duration.seconds(1.0), {
             ensureStageVisible(stage, "delayed")
         })).apply {
