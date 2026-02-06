@@ -808,10 +808,21 @@ class DpsApp {
   }
 
   reinitTargetSelection(reason) {
+    this.resetTargetTrackingState();
     this.setTargetSelection(this.targetSelection, { persist: false, syncBackend: true, reason });
     if (!this.isCollapse) {
       this.fetchDps();
     }
+  }
+
+  resetTargetTrackingState() {
+    this.lastTargetMode = "";
+    this.lastTargetName = "";
+    this.lastTargetId = 0;
+    this._lastRenderedTargetLabel = "";
+    this._lastLoggedTargetId = null;
+    this._lastLoggedTargetMode = null;
+    this._lastLoggedTargetName = null;
   }
 
   updateLocalPlayerIdentity(rows = []) {
