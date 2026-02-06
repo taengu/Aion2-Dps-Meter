@@ -1535,6 +1535,9 @@ class DpsApp {
     if (targetMode === "allTargets") {
       return this.getDefaultTargetLabel(targetMode);
     }
+    if (targetMode === "lastHitByMe" && (!Number(targetId) || Number(targetId) <= 0) && !targetName) {
+      return this.getDefaultTargetLabel("allTargets");
+    }
     if (Number.isFinite(Number(targetId)) && Number(targetId) > 0) {
       return `Mob #${Number(targetId)}`;
     }
@@ -1560,7 +1563,11 @@ class DpsApp {
     if (this.lastTargetName || this.lastTargetId) {
       return;
     }
-    this.elBossName.textContent = this.getDefaultTargetLabel(this.lastTargetMode);
+    this.elBossName.textContent = this.getTargetLabel({
+      targetMode: this.lastTargetMode,
+      targetId: this.lastTargetId,
+      targetName: this.lastTargetName,
+    });
   }
 
   bindDragToMoveWindow() {
