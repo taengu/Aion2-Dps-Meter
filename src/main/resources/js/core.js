@@ -748,6 +748,46 @@ class DpsApp {
     }
   }
 
+  triggerDetailsFlash() {
+    if (!this.detailsPanel) return;
+    this.detailsPanel.classList.add("flash");
+    window.setTimeout(() => {
+      this.detailsPanel?.classList.remove("flash");
+    }, 1000);
+  }
+
+  triggerMeterFlash() {
+    const meterEl = document.querySelector(".meter");
+    if (!meterEl) return;
+    meterEl.classList.add("flash");
+    window.setTimeout(() => {
+      meterEl.classList.remove("flash");
+    }, 1000);
+  }
+
+  captureMainMeterScreenshot() {
+    const meterRect = document.querySelector(".meter")?.getBoundingClientRect?.();
+    if (!meterRect) return;
+    const scale = window.devicePixelRatio || 1;
+    const success = window.javaBridge?.captureScreenshotToClipboard?.(
+      meterRect.left,
+      meterRect.top,
+      meterRect.width,
+      meterRect.height,
+      scale
+    );
+    if (success) {
+      this.triggerMeterFlash();
+    }
+  }
+
+  reinitTargetSelection(reason) {
+    this.setTargetSelection(this.targetSelection, { persist: false, syncBackend: true, reason });
+    if (!this.isCollapse) {
+      this.fetchDps();
+    }
+  }
+
   updateLocalPlayerIdentity(rows = []) {
     if (!Array.isArray(rows) || !rows.length || !this.USER_NAME) {
       return;
@@ -770,6 +810,7 @@ class DpsApp {
       this.localActorIdInput.value = String(actorId);
     }
     this.refreshConnectionInfo({ skipSettingsRefresh: true });
+    this.reinitTargetSelection("local id update");
   }
 
   getDetailsContext() {
@@ -1019,6 +1060,7 @@ class DpsApp {
   }
 
   bindHeaderButtons() {
+    this.logoBtn = document.querySelector(".bossIcon");
     this.collapseBtn?.addEventListener("click", () => {
       this.listSortDirection = this.listSortDirection === "asc" ? "desc" : "asc";
       this.renderCurrentRows();
@@ -1058,6 +1100,9 @@ class DpsApp {
       const nextMode = this.displayMode === "totalDamage" ? "dps" : "totalDamage";
       this.setDisplayMode(nextMode, { persist: true });
       this.renderCurrentRows();
+    });
+    this.logoBtn?.addEventListener("click", () => {
+      this.captureMainMeterScreenshot();
     });
   }
 

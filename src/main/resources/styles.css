@@ -342,6 +342,10 @@ html[lang="ko"] * {
   min-width: 300px;
   min-height: 30px;
   padding-bottom: 32px;
+
+  &.flash {
+    animation: detailsFlash 1s ease-out;
+  }
 }
 
 .header {

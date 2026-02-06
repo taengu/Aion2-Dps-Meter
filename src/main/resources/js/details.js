@@ -294,16 +294,22 @@ const createDetailsUI = ({
       slot.valueEl.style.alignItems = "center";
 
       const actorStats = details.perActorStats || [];
-      actorStats.forEach((actor) => {
-        const span = document.createElement("span");
-        span.textContent = resolveStatValue(statKey, actor);
-        span.style.fontWeight = "400";
-        const color = getJobColor(actor.job || getActorJob(actor.actorId));
-        if (color) {
-          span.style.color = color;
-        }
-        slot.valueEl.appendChild(span);
-      });
+      if (statKey !== "details.stats.combatTime") {
+        actorStats.forEach((actor) => {
+          const span = document.createElement("span");
+          if (statKey === "details.stats.totalDamage") {
+            span.textContent = formatCompactNumber(actor.totalDmg);
+          } else {
+            span.textContent = resolveStatValue(statKey, actor);
+          }
+          span.style.fontWeight = "400";
+          const color = getJobColor(actor.job || getActorJob(actor.actorId));
+          if (color) {
+            span.style.color = color;
+          }
+          slot.valueEl.appendChild(span);
+        });
+      }
 
       const totalSpan = document.createElement("span");
       totalSpan.textContent = resolveStatValue(statKey, details);
