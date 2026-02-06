@@ -797,6 +797,12 @@ class DpsApp {
         actorId: entry.actorId,
         job: entry.job,
         totalDmg: entry.totalDmg,
+        totalTimes: entry.totalTimes,
+        totalCrit: entry.totalCrit,
+        totalParry: entry.totalParry,
+        totalBack: entry.totalBack,
+        totalPerfect: entry.totalPerfect,
+        totalDouble: entry.totalDouble,
         contributionPct:
           Number.isFinite(baseTotalDamage) && baseTotalDamage > 0
             ? (entry.totalDmg / baseTotalDamage) * 100
@@ -819,6 +825,7 @@ class DpsApp {
       totalPerfectPct: pct(totalPerfect, totalTimes),
       totalDoublePct: pct(totalDouble, totalTimes),
       combatTime,
+      battleTimeMs: Number.isFinite(battleTimeMsRaw) ? battleTimeMsRaw : 0,
 
       skills,
       showSkillIcons,

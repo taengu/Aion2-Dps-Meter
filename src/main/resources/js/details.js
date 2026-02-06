@@ -429,9 +429,6 @@ const createDetailsUI = ({
     actorList.forEach((actor) => {
       detailsActors.set(Number(actor.actorId), actor);
     });
-    if (!selectedTargetId) {
-      selectedTargetId = nextContext.currentTargetId || detailsTargets[0]?.targetId || null;
-    }
     return nextContext;
   };
 
@@ -590,6 +587,81 @@ const createDetailsUI = ({
     await refreshDetailsView();
   };
 
+  const combinePerActorStats = (detailsList = []) => {
+    const totals = new Map();
+    detailsList.forEach((details) => {
+      const stats = Array.isArray(details?.perActorStats) ? details.perActorStats : [];
+      stats.forEach((entry) => {
+        const actorId = Number(entry?.actorId);
+        if (!Number.isFinite(actorId)) return;
+        const next = totals.get(actorId) || {
+          actorId,
+          job: entry?.job || "",
+          totalDmg: 0,
+          totalTimes: 0,
+          totalCrit: 0,
+          totalParry: 0,
+          totalBack: 0,
+          totalPerfect: 0,
+          totalDouble: 0,
+        };
+        next.totalDmg += Number(entry?.totalDmg) || 0;
+        if (!next.job && entry?.job) next.job = entry.job;
+        next.totalTimes += Number(entry?.totalTimes) || 0;
+        next.totalCrit += Number(entry?.totalCrit) || 0;
+        next.totalParry += Number(entry?.totalParry) || 0;
+        next.totalBack += Number(entry?.totalBack) || 0;
+        next.totalPerfect += Number(entry?.totalPerfect) || 0;
+        next.totalDouble += Number(entry?.totalDouble) || 0;
+        totals.set(actorId, next);
+      });
+    });
+    return [...totals.values()].sort((a, b) => b.totalDmg - a.totalDmg);
+  };
+
+  const buildCombinedDetails = (detailsList = [], totalTargetDamage = 0, showSkillIcons = true) => {
+    const skills = detailsList.flatMap((details) => (Array.isArray(details?.skills) ? details.skills : []));
+    let totalDmg = 0;
+    let totalTimes = 0;
+    let totalCrit = 0;
+    let totalParry = 0;
+    let totalBack = 0;
+    let totalPerfect = 0;
+    let totalDouble = 0;
+
+    skills.forEach((skill) => {
+      const dmg = Number(skill?.dmg) || 0;
+      totalDmg += dmg;
+      if (!skill?.isDot) {
+        totalTimes += Number(skill?.time) || 0;
+        totalCrit += Number(skill?.crit) || 0;
+        totalParry += Number(skill?.parry) || 0;
+        totalBack += Number(skill?.back) || 0;
+        totalPerfect += Number(skill?.perfect) || 0;
+        totalDouble += Number(skill?.double) || 0;
+      }
+    });
+
+    const pct = (num, den) => (den > 0 ? Math.round((num / den) * 1000) / 10 : 0);
+    const battleTimeMs = detailsList.reduce((sum, details) => sum + (Number(details?.battleTimeMs) || 0), 0);
+
+    return {
+      totalDmg,
+      contributionPct: totalTargetDamage > 0 ? (totalDmg / totalTargetDamage) * 100 : 0,
+      totalCritPct: pct(totalCrit, totalTimes),
+      totalParryPct: pct(totalParry, totalTimes),
+      totalBackPct: pct(totalBack, totalTimes),
+      totalPerfectPct: pct(totalPerfect, totalTimes),
+      totalDoublePct: pct(totalDouble, totalTimes),
+      combatTime: formatBattleTime(battleTimeMs),
+      battleTimeMs,
+      skills,
+      showSkillIcons,
+      perActorStats: combinePerActorStats(detailsList),
+      showCombinedTotals: !selectedAttackerIds || selectedAttackerIds.length === 0,
+    };
+  };
+
   const refreshDetailsView = async (seq) => {
     if (!lastRow) return;
     if (!detailsContext) {
@@ -598,13 +670,49 @@ const createDetailsUI = ({
       render(details, lastRow);
       return;
     }
+
+    const showSkillIcons = !selectedAttackerIds || selectedAttackerIds.length === 0;
+    if (selectedTargetId === null) {
+      const targetList = detailsTargets.filter((target) => Number(target?.targetId) > 0);
+      if (!targetList.length) {
+        const details = await getDetails(lastRow, {
+          targetId: null,
+          attackerIds: selectedAttackerIds,
+          totalTargetDamage: null,
+          showSkillIcons,
+        });
+        if (typeof seq === "number" && seq !== openSeq) return;
+        render(details, lastRow);
+        return;
+      }
+
+      const detailsList = await Promise.all(
+        targetList.map((target) =>
+          getDetails(lastRow, {
+            targetId: target.targetId,
+            attackerIds: selectedAttackerIds,
+            totalTargetDamage: target.totalDamage,
+            showSkillIcons,
+          })
+        )
+      );
+      const totalTargetDamage = targetList.reduce(
+        (sum, target) => sum + (Number(target?.totalDamage) || 0),
+        0
+      );
+      const mergedDetails = buildCombinedDetails(detailsList, totalTargetDamage, showSkillIcons);
+      if (typeof seq === "number" && seq !== openSeq) return;
+      render(mergedDetails, lastRow);
+      return;
+    }
+
     const target = getTargetById(selectedTargetId);
     const totalTargetDamage = target ? target.totalDamage : null;
     const details = await getDetails(lastRow, {
       targetId: selectedTargetId,
       attackerIds: selectedAttackerIds,
       totalTargetDamage,
-      showSkillIcons: !selectedAttackerIds || selectedAttackerIds.length === 0,
+      showSkillIcons,
     });
     if (typeof seq === "number" && seq !== openSeq) return;
     render(details, lastRow);
@@ -695,6 +803,8 @@ const createDetailsUI = ({
       selectedTargetId = null;
     } else if (detailsContext && detailsContext.currentTargetId) {
       selectedTargetId = detailsContext.currentTargetId;
+    } else {
+      selectedTargetId = detailsTargets[0]?.targetId ?? null;
     }
     if (selectedAttackerIds && selectedAttackerIds.length === 1) {
       selectedAttackerLabel = resolveActorLabel(selectedAttackerIds[0]);
@@ -735,8 +845,12 @@ const createDetailsUI = ({
 
   const refresh = async () => {
     if (!detailsPanel.classList.contains("open") || !lastRow) return;
+    const previousTargetId = selectedTargetId;
+    const previousAttackerIds = Array.isArray(selectedAttackerIds) ? [...selectedAttackerIds] : null;
     const seq = ++openSeq;
     loadDetailsContext();
+    selectedTargetId = previousTargetId;
+    selectedAttackerIds = previousAttackerIds;
     renderNicknameMenu();
     renderTargetMenu();
     syncSortButtons();
