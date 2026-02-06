@@ -587,6 +587,29 @@ html[lang="ko"] * {
     transform: scaleX(0);
 
     transition: transform 150ms ease;
+    overflow: hidden;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -40%;
+      width: 40%;
+      opacity: 0;
+      pointer-events: none;
+      background: linear-gradient(
+              110deg,
+              rgba(255, 255, 255, 0) 0%,
+              rgba(255, 255, 255, 0.35) 50%,
+              rgba(255, 255, 255, 0) 100%
+      );
+    }
+  }
+
+  .item:hover .fill::after {
+    opacity: 1;
+    animation: meterBarHoverRipple 900ms ease-out;
   }
 
   .content {
@@ -673,6 +696,7 @@ html[lang="ko"] * {
 
   &.state-fighting .status {
     background: var(--indicator-combat);
+    animation: combatStatusRipple 1.4s ease-out infinite;
   }
   &.state-grace .status {
     background: var(--indicator-wait);
@@ -1460,6 +1484,22 @@ html[lang="ko"] * {
   transform-origin: left center;
   transform: scaleX(0);
   transition: transform 150ms ease;
+  overflow: hidden;
+}
+.list .item .fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 40%;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.35) 50%, rgba(255, 255, 255, 0) 100%);
+}
+.list .item:hover .fill::after {
+  opacity: 1;
+  animation: meterBarHoverRipple 900ms ease-out;
 }
 .list .item .content {
   position: relative;
@@ -1520,6 +1560,7 @@ html[lang="ko"] * {
 }
 .battleTime.state-fighting .status {
   background: var(--indicator-combat);
+  animation: combatStatusRipple 1.4s ease-out infinite;
 }
 .battleTime.state-grace .status {
   background: var(--indicator-wait);
@@ -1788,6 +1829,38 @@ html[lang="ko"] * {
 }
 .detailsPanel .detailsSkills .skills::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+@keyframes meterBarHoverRipple {
+  0% {
+    left: -40%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    left: 110%;
+    opacity: 0;
+  }
+}
+
+@keyframes combatStatusRipple {
+  0% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.25),
+      0 0 0 0 var(--indicator-combat);
+  }
+  70% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.25),
+      0 0 0 10px rgba(0, 0, 0, 0);
+  }
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(0, 0, 0, 0.25),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
 }
 .detailsPanel .detailsSkills .skills .skillRow {
   display: flex;
