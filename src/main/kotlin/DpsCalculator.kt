@@ -980,8 +980,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         val currentLocalId = LocalPlayer.playerId
         if (currentLocalId != lastKnownLocalPlayerId) {
             lastKnownLocalPlayerId = currentLocalId
-            lastLocalHitTime = -1L
-            currentTarget = 0
+            restartTargetSelection()
         }
         val pdpMap = dataStorage.getBossModeData()
 
