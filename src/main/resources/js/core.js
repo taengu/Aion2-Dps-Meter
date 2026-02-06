@@ -929,9 +929,17 @@ class DpsApp {
     if (this.refreshKeybindInput) {
       let capturing = false;
       let pendingValue = "";
+      let captureStarted = false;
+      const pressedKeys = new Set();
+      let captureMods = { ctrl: false, alt: false, shift: false, meta: false };
+      let captureKey = "";
       const startCapture = () => {
         capturing = true;
         pendingValue = "";
+        captureStarted = false;
+        pressedKeys.clear();
+        captureMods = { ctrl: false, alt: false, shift: false, meta: false };
+        captureKey = "";
         this.refreshKeybindInput.classList.add("isCapturing");
         this.refreshKeybindInput.textContent = "Press Ctrl/Alt + key...";
       };
@@ -939,7 +947,20 @@ class DpsApp {
       const stopCapture = () => {
         capturing = false;
         pendingValue = "";
+        captureStarted = false;
+        pressedKeys.clear();
+        captureMods = { ctrl: false, alt: false, shift: false, meta: false };
+        captureKey = "";
         this.refreshKeybindInput.classList.remove("isCapturing");
+      };
+
+      const updateCaptureMods = () => {
+        captureMods = {
+          ctrl: pressedKeys.has("Control"),
+          alt: pressedKeys.has("Alt"),
+          shift: pressedKeys.has("Shift"),
+          meta: pressedKeys.has("Meta"),
+        };
       };
 
       const captureKeydown = (event) => {
@@ -948,16 +969,30 @@ class DpsApp {
         event.stopPropagation();
         const key = event.key;
         const isModifier = ["Control", "Shift", "Alt", "Meta"].includes(key);
-        if (isModifier) return;
-        if (!event.ctrlKey && !event.altKey) {
+        if (!captureStarted) {
+          if (key !== "Control" && key !== "Alt") {
+            return;
+          }
+          captureStarted = true;
+        }
+        pressedKeys.add(key);
+        updateCaptureMods();
+        if (!isModifier) {
+          captureKey = key;
+        }
+        if (!captureStarted || !captureKey) {
+          this.refreshKeybindInput.textContent = "Press Ctrl/Alt + key...";
+          return;
+        }
+        if (!captureMods.ctrl && !captureMods.alt) {
           return;
         }
         const parts = [];
-        if (event.ctrlKey) parts.push("Ctrl");
-        if (event.altKey) parts.push("Alt");
-        if (event.shiftKey) parts.push("Shift");
-        if (event.metaKey) parts.push("Meta");
-        parts.push(key.length === 1 ? key.toUpperCase() : key.toUpperCase());
+        if (captureMods.ctrl) parts.push("Ctrl");
+        if (captureMods.alt) parts.push("Alt");
+        if (captureMods.shift) parts.push("Shift");
+        if (captureMods.meta) parts.push("Meta");
+        parts.push(captureKey.length === 1 ? captureKey.toUpperCase() : captureKey.toUpperCase());
         pendingValue = parts.join("+");
         this.refreshKeybindInput.textContent = "Release to save...";
       };
@@ -966,10 +1001,18 @@ class DpsApp {
         if (!capturing) return;
         event.preventDefault();
         event.stopPropagation();
-        if (!pendingValue) {
+        const key = event.key;
+        pressedKeys.delete(key);
+        updateCaptureMods();
+        if (!captureStarted) {
           return;
         }
-        setKeybindValue(pendingValue, { persist: true, syncBackend: true });
+        if (pressedKeys.size > 0) {
+          return;
+        }
+        if (pendingValue) {
+          setKeybindValue(pendingValue, { persist: true, syncBackend: true });
+        }
         stopCapture();
       };
 
@@ -1237,6 +1280,10 @@ class DpsApp {
     }
 
     window.javaBridge?.resetDps?.();
+    this.renderCurrentRows();
+    if (!this.isCollapse) {
+      this.fetchDps();
+    }
     this.logDebug(`Damage data refreshed (${reason}).`);
   }
 
