@@ -54,7 +54,7 @@ class DpsApp {
     this._windowTitleTimer = null;
 
     this.i18n = window.i18n;
-    this.targetSelection = "lastHitByMe";
+    this.targetSelection = "targetLock";
     this.listSortDirection = "desc";
     this.lastTargetMode = "";
     this.lastTargetName = "";
@@ -818,7 +818,7 @@ class DpsApp {
       this.refreshDamageData({ reason: "manual refresh" });
     });
     this.targetModeBtn?.addEventListener("click", () => {
-      const nextMode = this.targetSelection === "allTargets" ? "lastHitByMe" : "allTargets";
+      const nextMode = this.targetSelection === "allTargets" ? "targetLock" : "allTargets";
       console.log("[Target Mode Toggle]", {
         from: this.targetSelection,
         to: nextMode,
@@ -869,7 +869,7 @@ class DpsApp {
     this.setOnlyShowUser(storedOnlyShow, { persist: false });
     this.setDebugLogging(storedDebugLogging, { persist: false, syncBackend: true });
     const normalizedTargetSelection =
-      storedTargetSelection === "allTargets" ? "allTargets" : this.targetSelection;
+      storedTargetSelection === "allTargets" ? "allTargets" : "targetLock";
     this.setTargetSelection(normalizedTargetSelection, {
       persist: false,
       syncBackend: true,
@@ -1255,7 +1255,7 @@ class DpsApp {
 
   setTargetSelection(mode, { persist = false, syncBackend = false, reason = "update" } = {}) {
     const previousSelection = this.targetSelection;
-    this.targetSelection = mode === "allTargets" ? "allTargets" : "lastHitByMe";
+    this.targetSelection = mode === "allTargets" ? "allTargets" : "targetLock";
     if (persist) {
       localStorage.setItem(this.storageKeys.targetSelection, String(this.targetSelection));
     }
@@ -1526,7 +1526,7 @@ class DpsApp {
 
   getDefaultTargetLabel(targetMode = "") {
     if (targetMode === "allTargets") {
-      return this.i18n?.t("target.all", "All targets") ?? "All targets";
+      return this.i18n?.t("target.all", "All Mobs") ?? "All Mobs";
     }
     return this.i18n?.t("header.title", "DPS METER") ?? "DPS METER";
   }
@@ -1548,11 +1548,7 @@ class DpsApp {
     if (!this.targetModeBtn) return;
     const isAllTargets = this.targetSelection === "allTargets";
     this.targetModeBtn.classList.toggle("isAllTargets", isAllTargets);
-    const label = isAllTargets ? "ALL" : "";
-    const labelEl = this.targetModeBtn.querySelector(".targetModeLabel");
-    if (labelEl) {
-      labelEl.textContent = label;
-    }
+    this.targetModeBtn.textContent = isAllTargets ? "ALL" : "TARGET";
     const ariaLabel = isAllTargets
       ? "All targets mode"
       : "Target mode";
