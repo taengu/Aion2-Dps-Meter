@@ -22,7 +22,14 @@
       "saveToFolder": "Save screenshots to folder"
     },
     "screenshot": {
-      "captured": "Captured Screenshot"
+      "ariaLabel": "Save screenshot to clipboard",
+      "captured": "Captured Screenshot",
+      "savedToClipboard": "Saved to clipboard"
+    },
+    "sort": {
+      "recent": "Recent",
+      "time": "Time",
+      "damage": "Damage"
     },
     "skills": {
       "skill": "Skill",
