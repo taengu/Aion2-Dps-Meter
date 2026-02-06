@@ -80,6 +80,7 @@ class DpsApp {
     this.trainSelectionMode = "all";
     this._detailsFlashTimer = null;
     this._meterFlashTimer = null;
+    this._recentLocalIdByName = new Map();
 
     DpsApp.instance = this;
   }
@@ -864,12 +865,31 @@ class DpsApp {
     if (this.USER_NAME) {
       window.javaBridge?.bindLocalNickname?.(String(actorId), this.USER_NAME);
       this.setUserName(this.USER_NAME, { persist: true, syncBackend: true });
+      this.rememberLocalIdForName(this.USER_NAME, actorId);
     }
     if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
       this.localActorIdInput.value = String(actorId);
     }
     this.refreshConnectionInfo({ skipSettingsRefresh: true });
     this.reinitTargetSelection(reason || "local id update");
+  }
+
+  rememberLocalIdForName(name, actorId) {
+    const key = String(name ?? "").trim().toLowerCase();
+    if (!key || !Number.isFinite(actorId) || actorId <= 0) return;
+    this._recentLocalIdByName.set(key, { actorId, timestamp: Date.now() });
+  }
+
+  getRecentLocalIdForName(name) {
+    const key = String(name ?? "").trim().toLowerCase();
+    if (!key) return null;
+    const entry = this._recentLocalIdByName.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > 120000) {
+      this._recentLocalIdByName.delete(key);
+      return null;
+    }
+    return entry.actorId;
   }
 
   getDetailsContext() {
@@ -1773,6 +1793,11 @@ class DpsApp {
       window.javaBridge?.setCharacterName?.(trimmed);
     }
     if (previousName && previousName !== trimmed) {
+      const cachedId = this.getRecentLocalIdForName(trimmed);
+      if (cachedId) {
+        this.applyLocalPlayerIdUpdate(cachedId, "local name update cached id");
+        return;
+      }
       this.localPlayerId = null;
       if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
         this.localActorIdInput.value = "";
