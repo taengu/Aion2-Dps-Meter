@@ -861,7 +861,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         pdp.setMultiHitCount(multiHitCount)
         pdp.setMultiHitDamage(multiHitDamage)
         pdp.setHealAmount(healAmount)
-        unknownInfo?.let { pdp.setUnknown(it) }
+        pdp.setUnknown(unknownInfo)
         pdp.setDamage(VarIntOutput(adjustedDamage, 1))
         pdp.setHexPayload(toHex(packet))
 

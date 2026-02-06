@@ -1147,10 +1147,10 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 return@forEach
             }
             val timestamp = pdp.getTimeStamp()
-            if (startTime == null || timestamp < startTime!!) {
+            if (startTime == null || timestamp < startTime) {
                 startTime = timestamp
             }
-            if (endTime == null || timestamp > endTime!!) {
+            if (endTime == null || timestamp > endTime) {
                 endTime = timestamp
             }
 
@@ -1214,10 +1214,14 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             skillMap[key] = updated
         }
 
-        val battleTime = if (startTime != null && endTime != null) {
-            endTime!! - startTime!!
-        } else {
-            targetInfoMap[targetId]?.parseBattleTime() ?: 0L
+        val battleTime = run {
+            val start = startTime
+            val end = endTime
+            if (start != null && end != null) {
+                end - start
+            } else {
+                targetInfoMap[targetId]?.parseBattleTime() ?: 0L
+            }
         }
         return TargetDetailsResponse(
             targetId = targetId,
@@ -1355,16 +1359,17 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             pdps.forEach { pdp ->
                 if (pdp.getTargetId() != targetId) return@forEach
                 val timestamp = pdp.getTimeStamp()
-                if (startTime == null || timestamp < startTime!!) {
+                if (startTime == null || timestamp < startTime) {
                     startTime = timestamp
                 }
-                if (endTime == null || timestamp > endTime!!) {
+                if (endTime == null || timestamp > endTime) {
                     endTime = timestamp
                 }
             }
         }
-        if (startTime == null || endTime == null) return 0
-        return endTime!! - startTime!!
+        val start = startTime ?: return 0
+        val end = endTime ?: return 0
+        return end - start
     }
 
     private fun selectTargetLastHitByMe(localActorIds: Set<Int>, fallbackTarget: Int): Int {

@@ -25,7 +25,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import netscape.javascript.JSObject
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
@@ -244,9 +243,14 @@ class BrowserApp(
 
         val bridge = JSBridge(stage, dpsCalculator, hostServices, { cachedWindowTitle }, uiReadyNotifier)
         val injectBridge = {
-            val window = engine.executeScript("window") as JSObject
-            window.setMember("javaBridge", bridge)
-            window.setMember("dpsData", this)
+            runCatching {
+                val window = engine.executeScript("window")
+                val setMember = window.javaClass.getMethod("setMember", String::class.java, Any::class.java)
+                setMember.invoke(window, "javaBridge", bridge)
+                setMember.invoke(window, "dpsData", this)
+            }.onFailure { error ->
+                logger.warn("Failed to inject Java bridge into WebView", error)
+            }
         }
         engine.loadWorker.stateProperty().addListener { _, _, newState ->
             if (newState == Worker.State.SUCCEEDED) {
