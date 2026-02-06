@@ -46,7 +46,11 @@ class AionMeterApp : Application() {
             primaryStage.icons.add(javafx.scene.image.Image(iconStream))
         }
 
-        // Launch background tasks
+        // Initialize and show the browser
+        val browserApp = BrowserApp(calculator, dispatcher) { markUiReady() }
+        browserApp.start(primaryStage)
+
+        // Launch background tasks after UI initialization
         appScope.launch {
             try {
                 dispatcher.run()
@@ -73,14 +77,6 @@ class AionMeterApp : Application() {
                 delay(delayMs)
             }
         }
-
-        // Initialize and show the browser
-        val browserApp = BrowserApp(calculator, dispatcher) { markUiReady() }
-        browserApp.start(primaryStage)
-
-        // Ensure the window actually paints
-        primaryStage.show()
-        primaryStage.toFront()
     }
 
     override fun stop() {
