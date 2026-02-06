@@ -274,7 +274,7 @@
   position: absolute;
   color: var(--text-color);
   display: none;
-  left: 358px;
+  left: 372px;
   top: 0;
   width: 420px;
   border: 1px solid var(--panel-border);
@@ -628,7 +628,7 @@
   display: none;
   /* display: block; */
   /* left: calc(100% + 8px); */
-  left: 358px;
+  left: 372px;
   /* top: calc(100% + 4px); */
   top: 0;
   font-weight: bold;
@@ -1236,11 +1236,12 @@
 }
 .settingsPanel .settingsSelect {
   min-width: 180px;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--rounded-xs);
-  padding: 6px 8px;
-  background: var(--panel-field-bg);
-  color: var(--text-color);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
 }
 .settingsPanel .settingsSelect option,
 .settingsPanel .settingsSelect optgroup {

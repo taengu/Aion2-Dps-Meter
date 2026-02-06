@@ -485,6 +485,11 @@ const createDetailsUI = ({
       item.className = "detailsDropdownItem";
       item.dataset.value = String(entry.id);
       item.textContent = entry.label;
+      const actor = detailsActors.get(Number(entry.id));
+      const color = getJobColor(actor?.job || "");
+      if (color) {
+        item.style.color = color;
+      }
       if (selectedAttackerIds?.includes?.(entry.id)) {
         item.classList.add("isActive");
       }
@@ -728,9 +733,15 @@ const createDetailsUI = ({
   };
   detailsClose?.addEventListener("click", close);
 
-  const refresh = () => {
+  const refresh = async () => {
     if (!detailsPanel.classList.contains("open") || !lastRow) return;
-    open(lastRow, { force: true, restartOnSwitch: false });
+    const seq = ++openSeq;
+    loadDetailsContext();
+    renderNicknameMenu();
+    renderTargetMenu();
+    syncSortButtons();
+    updateHeaderText();
+    await refreshDetailsView(seq);
   };
 
   return { open, close, isOpen, render, updateLabels, refresh };

@@ -1465,6 +1465,15 @@ class DpsApp {
     this.meterUI?.onResetMeterUi?.();
     this.renderCurrentRows();
 
+    if (this.battleTimeRoot) {
+      this.battleTimeRoot.classList.add("isVisible");
+    }
+    if (this.analysisStatusEl) {
+      this.analysisStatusEl.textContent =
+        this.i18n?.t("battleTime.analysing", "Monitoring data...") ?? "Monitoring data...";
+      this.analysisStatusEl.style.display = "";
+    }
+
     if (this.elBossName) {
       this.elBossName.textContent = this.getDefaultTargetLabel(this.targetSelection);
     }
@@ -1845,10 +1854,11 @@ const setupDebugConsole = () => {
   return globalThis.uiDebug;
 };
 
-setupDebugConsole();
+// Keep JavaFX overlay console hidden unless explicitly re-enabled for troubleshooting.
+// setupDebugConsole();
 const dpsApp = DpsApp.createInstance();
 window.dpsApp = dpsApp;
-const debug = globalThis.uiDebug;
+const debug = globalThis.uiDebug || { log: () => {}, clear: () => {} };
 
 window.addEventListener("error", (event) => {
   debug?.log?.("window.error", {
