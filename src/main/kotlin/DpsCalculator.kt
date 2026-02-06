@@ -940,7 +940,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
     }
 
     fun bindLocalActorId(actorId: Long) {
-        LocalPlayer.playerId = actorId.takeIf { it > 0 }
+        updateLocalPlayerId(actorId)
     }
 
     fun bindLocalNickname(actorId: Long, nickname: String?) {
@@ -950,7 +950,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         dataStorage.bindNickname(uid, clean)
         val localName = LocalPlayer.characterName?.trim().orEmpty()
         if (localName.isNotBlank() && localName == clean) {
-            LocalPlayer.playerId = actorId
+            updateLocalPlayerId(actorId)
         }
     }
 
@@ -966,6 +966,14 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         currentTarget = 0
         targetInfoMap.clear()
         dataStorage.setCurrentTarget(0)
+    }
+
+    private fun updateLocalPlayerId(actorId: Long) {
+        val nextId = actorId.takeIf { it > 0 }
+        if (nextId == null || LocalPlayer.playerId == nextId) return
+        LocalPlayer.playerId = nextId
+        lastKnownLocalPlayerId = nextId
+        restartTargetSelection()
     }
 
     fun getDps(): DpsData {
