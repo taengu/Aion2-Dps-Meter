@@ -858,9 +858,11 @@ class DpsApp {
       return;
     }
     this.localPlayerId = actorId;
+    window.javaBridge?.bindLocalActorId?.(String(actorId));
     window.javaBridge?.setLocalPlayerId?.(String(actorId));
     if (this.USER_NAME) {
       window.javaBridge?.bindLocalNickname?.(String(actorId), this.USER_NAME);
+      this.setUserName(this.USER_NAME, { persist: true, syncBackend: true });
     }
     if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
       this.localActorIdInput.value = String(actorId);
