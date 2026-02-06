@@ -514,8 +514,8 @@ html[lang="ko"] * {
   }
 
   .characterNameInput {
-    flex: 0 1 180px;
-    max-width: 180px;
+    flex: 0 1 160px;
+    max-width: 160px;
     border: 1px solid var(--panel-border);
     border-radius: var(--rounded-xs);
     padding: 6px 8px;
@@ -1470,8 +1470,8 @@ html[lang="ko"] * {
   margin: 0 6px;
 }
 .settingsPanel .characterNameInput {
-  flex: 0 1 180px;
-  max-width: 180px;
+  flex: 0 1 160px;
+  max-width: 160px;
   border: 1px solid var(--panel-border);
   border-radius: var(--rounded-xs);
   padding: 6px 8px;
@@ -1828,6 +1828,12 @@ html[lang="ko"] * {
   gap: 4px;
   margin-left: 4px;
 }
+.detailsPanel .detailsHeader .detailsScreenshotWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 8px;
+}
 .detailsPanel .detailsHeader .detailsScreenshotBtn {
   cursor: pointer;
   display: inline-flex;
@@ -1841,8 +1847,8 @@ html[lang="ko"] * {
   transition: 0.2s;
 }
 .detailsPanel .detailsHeader .detailsScreenshotBtn svg {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
 }
 .detailsPanel .detailsHeader .detailsScreenshotNote {
   font-size: 12px;
