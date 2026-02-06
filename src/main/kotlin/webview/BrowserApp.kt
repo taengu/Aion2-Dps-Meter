@@ -143,6 +143,10 @@ class BrowserApp(
             return Json.encodeToString(info)
         }
 
+        fun getLastParsedAtMs(): Long {
+            return CombatPortDetector.lastParsedAtMs()
+        }
+
         fun getAion2WindowTitle(): String? {
             return windowTitleProvider()
         }

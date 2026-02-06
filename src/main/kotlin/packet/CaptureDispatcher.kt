@@ -56,6 +56,9 @@ class CaptureDispatcher(
                 if (parsed && CombatPortDetector.currentPort() == null) {
                     CombatPortDetector.confirmCandidate(cap.srcPort, cap.dstPort, cap.deviceName)
                 }
+                if (parsed) {
+                    CombatPortDetector.markPacketParsed()
+                }
             } catch (e: Exception) {
                 CrashLogWriter.log(
                     "Parser stopped while processing ${cap.deviceName} ${cap.srcPort}-${cap.dstPort}",

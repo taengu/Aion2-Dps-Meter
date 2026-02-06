@@ -1780,6 +1780,14 @@ class DpsApp {
       this.elBossName.textContent = this.getDefaultTargetLabel(this.targetSelection);
     }
 
+    const lastParsedAtMs = Number(window.javaBridge?.getLastParsedAtMs?.());
+    if (Number.isFinite(lastParsedAtMs) && lastParsedAtMs > 0) {
+      const idleMs = Date.now() - lastParsedAtMs;
+      if (idleMs > 60_000) {
+        window.javaBridge?.resetAutoDetection?.();
+      }
+    }
+
     window.javaBridge?.resetDps?.();
     this.logDebug(`Damage data refreshed (${reason}).`);
   }
