@@ -78,7 +78,17 @@ class BrowserApp(
 
         fun setCharacterName(name: String?) {
             val trimmed = name?.trim().orEmpty()
-            LocalPlayer.characterName = if (trimmed.isBlank()) null else trimmed
+            val normalized = if (trimmed.isBlank()) null else trimmed
+            val changed = LocalPlayer.characterName != normalized
+            LocalPlayer.characterName = normalized
+            if (changed) {
+                LocalPlayer.playerId = null
+            }
+        }
+
+        fun setLocalPlayerId(actorId: String?) {
+            val parsed = actorId?.trim()?.toLongOrNull()
+            LocalPlayer.playerId = parsed?.takeIf { it > 0 }
         }
 
         fun setTargetSelection(mode: String?) {

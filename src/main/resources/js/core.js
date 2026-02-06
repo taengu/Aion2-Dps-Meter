@@ -63,6 +63,7 @@ class DpsApp {
     this._lastRenderedTargetLabel = "";
     this._lastTargetSelection = this.targetSelection;
     this._lastRenderedRowsSummary = null;
+    this.localPlayerId = null;
 
     DpsApp.instance = this;
   }
@@ -378,6 +379,7 @@ class DpsApp {
     const previousTargetMode = this.lastTargetMode;
     const previousTargetId = this.lastTargetId;
     const { rows, targetName, targetMode, battleTimeMs, targetId } = this.buildRowsFromPayload(raw);
+    this.updateLocalPlayerIdentity(rows);
     this._lastBattleTimeMs = battleTimeMs;
     this.lastTargetMode = targetMode;
     this.lastTargetName = targetName;
@@ -557,6 +559,26 @@ class DpsApp {
     }
 
     return rows;
+  }
+
+  updateLocalPlayerIdentity(rows = []) {
+    if (!Array.isArray(rows) || !rows.length || !this.USER_NAME) {
+      return;
+    }
+    const matched = rows.find((row) => row?.name === this.USER_NAME);
+    if (!matched) {
+      return;
+    }
+    const actorId = Number(matched.id);
+    if (!Number.isFinite(actorId) || actorId <= 0) {
+      return;
+    }
+    if (this.localPlayerId === actorId) {
+      return;
+    }
+    this.localPlayerId = actorId;
+    window.javaBridge?.setLocalPlayerId?.(String(actorId));
+    this.refreshConnectionInfo({ skipSettingsRefresh: true });
   }
 
   getDetailsContext() {
@@ -883,10 +905,6 @@ class DpsApp {
 
     if (this.characterNameInput) {
       this.characterNameInput.value = this.USER_NAME;
-      this.characterNameInput.addEventListener("input", (event) => {
-        const value = event.target?.value ?? "";
-        this.setUserName(value, { persist: true, syncBackend: true });
-      });
     }
 
     if (this.onlyMeCheckbox) {
@@ -1217,7 +1235,10 @@ class DpsApp {
     const trimmed = String(name ?? "").trim();
     this.USER_NAME = trimmed;
     if (this.characterNameInput && document.activeElement !== this.characterNameInput) {
-      this.characterNameInput.value = trimmed;
+      const idText = Number.isFinite(Number(this.localPlayerId)) && Number(this.localPlayerId) > 0
+        ? ` (#${Math.trunc(Number(this.localPlayerId))})`
+        : "";
+      this.characterNameInput.value = `${trimmed}${idText}`;
     }
     if (persist) {
       localStorage.setItem(this.storageKeys.userName, trimmed);
@@ -1436,9 +1457,15 @@ class DpsApp {
     this.lockedPort.textContent = port;
     if (this.localPlayerIdEl) {
       const localPlayerId = Number(info?.localPlayerId);
-      this.localPlayerIdEl.textContent = Number.isFinite(localPlayerId) && localPlayerId > 0
-        ? String(Math.trunc(localPlayerId))
-        : "-";
+      this.localPlayerId = Number.isFinite(localPlayerId) && localPlayerId > 0
+        ? Math.trunc(localPlayerId)
+        : null;
+      this.localPlayerIdEl.textContent = this.localPlayerId ? String(this.localPlayerId) : "-";
+      if (this.characterNameInput) {
+        const nickname = String(info?.characterName || this.USER_NAME || "").trim();
+        const idText = this.localPlayerId ? ` (#${this.localPlayerId})` : "";
+        this.characterNameInput.value = `${nickname}${idText}`;
+      }
     }
     this.updateConnectionStatusUi();
     if (!skipSettingsRefresh) {
