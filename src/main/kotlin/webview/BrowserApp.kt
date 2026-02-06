@@ -53,7 +53,7 @@ class BrowserApp(
         val device: String?
     )
 
-    class JSBridge(
+    inner class JSBridge(
         private val stage: Stage,
         private val dpsCalculator: DpsCalculator,
         private val hostServices: HostServices,

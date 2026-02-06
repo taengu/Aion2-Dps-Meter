@@ -58,10 +58,23 @@ class RefreshKeybindManager(
     override fun nativeKeyPressed(nativeEvent: NativeKeyEvent) {
         val current = keybind
         if (nativeEvent.keyCode != current.keyCode) return
-        if (current.ctrl && !nativeEvent.isControlDown) return
-        if (current.alt && !nativeEvent.isAltDown) return
-        if (current.shift && !nativeEvent.isShiftDown) return
-        if (current.meta && !nativeEvent.isMetaDown) return
+        val mods = nativeEvent.modifiers
+        val ctrlPressed = (mods and NativeKeyEvent.CTRL_L_MASK != 0) ||
+            (mods and NativeKeyEvent.CTRL_R_MASK != 0) ||
+            (mods and NativeKeyEvent.CTRL_MASK != 0)
+        val altPressed = (mods and NativeKeyEvent.ALT_L_MASK != 0) ||
+            (mods and NativeKeyEvent.ALT_R_MASK != 0) ||
+            (mods and NativeKeyEvent.ALT_MASK != 0)
+        val shiftPressed = (mods and NativeKeyEvent.SHIFT_L_MASK != 0) ||
+            (mods and NativeKeyEvent.SHIFT_R_MASK != 0) ||
+            (mods and NativeKeyEvent.SHIFT_MASK != 0)
+        val metaPressed = (mods and NativeKeyEvent.META_L_MASK != 0) ||
+            (mods and NativeKeyEvent.META_R_MASK != 0) ||
+            (mods and NativeKeyEvent.META_MASK != 0)
+        if (current.ctrl && !ctrlPressed) return
+        if (current.alt && !altPressed) return
+        if (current.shift && !shiftPressed) return
+        if (current.meta && !metaPressed) return
         onTrigger()
     }
 
