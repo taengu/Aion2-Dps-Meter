@@ -1314,15 +1314,16 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         localActorIds.forEach { actorId ->
             val pdps = actorData[actorId] ?: return@forEach
             for (pdp in pdps) {
-                if (pdp.isDoT()) continue
                 val timestamp = pdp.getTimeStamp()
                 val targetId = pdp.getTargetId()
+                val damage = pdp.getDamage()
+                if (targetId <= 0 || damage <= 0) continue
                 if (timestamp > mostRecentTime) {
                     mostRecentTime = timestamp
                     mostRecentTarget = targetId
                 }
                 if (timestamp >= cutoff) {
-                    recentDamage[targetId] = (recentDamage[targetId] ?: 0) + pdp.getDamage()
+                    recentDamage[targetId] = (recentDamage[targetId] ?: 0) + damage
                     val existingTime = recentTimes[targetId] ?: 0L
                     if (timestamp > existingTime) {
                         recentTimes[targetId] = timestamp
