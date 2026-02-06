@@ -86,6 +86,11 @@ class DataStorage {
         pendingNicknameStorage[uid] = nickname
     }
 
+    fun resetNicknameStorage() {
+        nicknameStorage.clear()
+        pendingNicknameStorage.clear()
+    }
+
     private fun applyPendingNickname(uid: Int) {
         if (nicknameStorage[uid] != null) return
         val pending = pendingNicknameStorage.remove(uid) ?: return
@@ -101,7 +106,7 @@ class DataStorage {
     }
 
     private fun flushNicknameStorage() {
-        nicknameStorage.clear()
+        resetNicknameStorage()
     }
 
     fun getSkillName(skillCode: Int): String {

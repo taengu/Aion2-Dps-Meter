@@ -91,7 +91,7 @@ class BrowserApp(
             val changed = LocalPlayer.characterName != normalized
             LocalPlayer.characterName = normalized
             if (changed) {
-                LocalPlayer.playerId = null
+                dpsCalculator.resetLocalIdentity()
             }
         }
 

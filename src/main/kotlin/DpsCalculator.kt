@@ -954,6 +954,13 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         }
     }
 
+    fun resetLocalIdentity() {
+        LocalPlayer.playerId = null
+        lastKnownLocalPlayerId = null
+        dataStorage.resetNicknameStorage()
+        resetDataStorage()
+    }
+
     fun getDps(): DpsData {
         val currentLocalId = LocalPlayer.playerId
         if (currentLocalId != lastKnownLocalPlayerId) {
