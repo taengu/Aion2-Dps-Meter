@@ -1,4 +1,12 @@
-const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow, getMetric, getSortDirection }) => {
+const createMeterUI = ({
+  elList,
+  dpsFormatter,
+  getUserName,
+  onClickUserRow,
+  getMetric,
+  getSortDirection,
+  getPinUserToTop,
+}) => {
   const MAX_CACHE = 32;
   const cjkRegex = /[\u3400-\u9FFF\uF900-\uFAFF]/;
 
@@ -87,6 +95,10 @@ const createMeterUI = ({ elList, dpsFormatter, getUserName, onClickUserRow, getM
     const user = sortedAll.find((x) => x.isUser);
 
     if (!user) return top6;
+    const pinUser = typeof getPinUserToTop === "function" && getPinUserToTop();
+    if (pinUser) {
+      return [user, ...top6.filter((row) => !row.isUser)];
+    }
     if (top6.some((x) => x.isUser)) return top6;
     return [...top6, user];
   };

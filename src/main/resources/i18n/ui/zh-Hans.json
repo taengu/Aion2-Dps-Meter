@@ -52,6 +52,7 @@
     "resetDetection": "重置检测",
     "characterName": "角色名称",
     "characterNamePlaceholder": "输入你的角色名称",
+    "pinMeToTop": "将我置顶",
     "debugLogging": "启用调试日志",
     "quit": "退出",
     "discord": "在 Discord 获取支持",
