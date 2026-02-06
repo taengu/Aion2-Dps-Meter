@@ -16,6 +16,9 @@
       "ariaLabel": "開啟詳細設定"
     },
     "panelBackground": "面板背景",
+    "screenshot": {
+      "captured": "已擷取截圖"
+    },
     "skills": {
       "skill": "技能",
       "hits": "命中",
@@ -24,7 +27,8 @@
       "perfect": "完美",
       "double": "雙重",
       "back": "背擊",
-      "totalDamage": "總傷害"
+      "totalDamage": "總傷害",
+      "heal": "治療"
     },
     "stats": {
       "totalDamage": "總傷害",
@@ -34,8 +38,13 @@
       "doubleRate": "雙重率",
       "backRate": "背擊率",
       "parryRate": "格擋率",
-      "combatTime": "戰鬥時間"
-    }
+      "combatTime": "戰鬥時間",
+      "multiHitDamage": "多段傷害",
+      "multiHitHits": "多段命中"
+    },
+    "titleFor": "針對",
+    "titleVs": "vs",
+    "all": "全部"
   },
   "settings": {
     "title": "設定",
@@ -43,22 +52,23 @@
     "resetDetection": "重置偵測",
     "characterName": "角色名稱",
     "characterNamePlaceholder": "輸入你的角色名稱",
-    "onlyMe": "只顯示我的角色",
+    "pinMeToTop": "將我置頂",
     "debugLogging": "啟用除錯記錄",
     "quit": "結束",
     "discord": "在 Discord 取得支援",
     "theme": {
       "label": "主題",
       "options": {
-        "classic": "經典",
         "aion2": "AION2",
+        "asmodian": "魔族",
+        "cogni": "認知",
+        "elyos": "天族",
         "ember": "餘燼",
+        "fera": "菲拉",
         "frost": "霜寒",
         "natura": "自然",
-        "storm": "風暴",
-        "void": "虛空",
         "obsidian": "黑曜",
-        "cyber": "賽博"
+        "varian": "瓦里安"
       }
     },
     "language": {
@@ -72,10 +82,31 @@
         "lastHitByMe": "我最近攻擊的目標",
         "allTargets": "所有目標合計"
       }
+    },
+    "refreshKeybind": {
+      "label": "重新整理快捷鍵"
+    },
+    "allTargetsWindow": {
+      "label": "所有目標時間窗",
+      "options": {
+        "30s": "30秒",
+        "1m": "1分鐘",
+        "2m": "2分鐘",
+        "3m": "3分鐘",
+        "5m": "5分鐘"
+      }
+    },
+    "meterSettings": "計量設定",
+    "trainingMode": {
+      "label": "訓練模式",
+      "options": {
+        "all": "全部",
+        "highestDamage": "最高傷害"
+      }
     }
   },
   "battleTime": {
-    "analysing": "準備就緒 - 監控戰鬥中...",
+    "analysing": "正在監控資料...",
     "idle": "閒置",
     "notRunning": "AION2 not running"
   },
@@ -97,6 +128,7 @@
     "loopback": "本地回環"
   },
   "target": {
-    "all": "所有目標"
+    "all": "所有目標",
+    "train": "訓練用稻草人"
   }
 }

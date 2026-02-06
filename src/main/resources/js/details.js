@@ -24,6 +24,7 @@ const createDetailsUI = ({
   let selectedAttackerIds = null;
   let selectedAttackerLabel = "";
   let sortMode = "recent";
+  let detectedJobByActorId = new Map();
 
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -138,17 +139,58 @@ const createDetailsUI = ({
   };
 
   const jobColorMap = {
-    정령성: "#4FD1C5",
+    정령성: "#E06BFF",
+    Spiritmaster: "#E06BFF",
     궁성: "#41D98A",
+    Ranger: "#41D98A",
     살성: "#7BE35A",
+    Assassin: "#7BE35A",
     수호성: "#5F8CFF",
+    Templar: "#5F8CFF",
     마도성: "#9A6BFF",
-    호법성: "#E06BFF",
+    Sorcerer: "#9A6BFF",
+    호법성: "#FF9A3D",
+    Chanter: "#FF9A3D",
     치유성: "#F2C15A",
-    검성: "#FF9A3D",
+    Cleric: "#F2C15A",
+    검성: "#4FD1C5",
+    Gladiator: "#4FD1C5",
   };
 
   const getJobColor = (job) => jobColorMap[job] || "";
+
+  const getActorJob = (actorId) => {
+    const numericId = Number(actorId);
+    if (!Number.isFinite(numericId) || numericId <= 0) return "";
+    const contextJob = detailsActors.get(numericId)?.job;
+    if (contextJob) return contextJob;
+    const detectedJob = detectedJobByActorId.get(numericId);
+    if (detectedJob) return detectedJob;
+    if (Number(lastRow?.id) === numericId) {
+      return String(lastRow?.job || "");
+    }
+    return "";
+  };
+
+  const rememberJobsFromDetails = (details) => {
+    if (!details || typeof details !== "object") return;
+    const actorStats = Array.isArray(details.perActorStats) ? details.perActorStats : [];
+    actorStats.forEach((entry) => {
+      const actorId = Number(entry?.actorId);
+      const job = String(entry?.job || "").trim();
+      if (Number.isFinite(actorId) && actorId > 0 && job) {
+        detectedJobByActorId.set(actorId, job);
+      }
+    });
+    const skills = Array.isArray(details.skills) ? details.skills : [];
+    skills.forEach((skill) => {
+      const actorId = Number(skill?.actorId);
+      const job = String(skill?.job || "").trim();
+      if (Number.isFinite(actorId) && actorId > 0 && job) {
+        detectedJobByActorId.set(actorId, job);
+      }
+    });
+  };
 
   const updateHeaderText = () => {
     const nicknameTextEl = detailsNicknameBtn?.querySelector?.(".detailsDropdownText");
@@ -157,10 +199,10 @@ const createDetailsUI = ({
       detailsTitleLabel.textContent = labelText("details.header", "Details");
     }
     if (detailsTitleSeparator) {
-      detailsTitleSeparator.textContent = "for";
+      detailsTitleSeparator.textContent = labelText("details.titleFor", "for");
     }
     if (detailsTitleVs) {
-      detailsTitleVs.textContent = "vs";
+      detailsTitleVs.textContent = labelText("details.titleVs", "vs");
     }
     if (detailsNicknameBtn) {
       if (nicknameTextEl) {
@@ -171,12 +213,12 @@ const createDetailsUI = ({
       const actorId = Array.isArray(selectedAttackerIds) && selectedAttackerIds.length === 1
         ? selectedAttackerIds[0]
         : null;
-      const actorJob = actorId ? detailsActors.get(Number(actorId))?.job : "";
+      const actorJob = actorId ? getActorJob(actorId) : "";
       const color = actorJob ? getJobColor(actorJob) : "";
       detailsNicknameBtn.style.color = color || "";
     }
     if (detailsTargetBtn) {
-      const targetLabel = selectedTargetId ? `Mob #${selectedTargetId}` : "-";
+      const targetLabel = selectedTargetId ? `Mob #${selectedTargetId}` : labelText("details.all", "All");
       if (targetTextEl) {
         targetTextEl.textContent = targetLabel;
       } else {
@@ -256,7 +298,7 @@ const createDetailsUI = ({
         const span = document.createElement("span");
         span.textContent = resolveStatValue(statKey, actor);
         span.style.fontWeight = "400";
-        const color = getJobColor(actor.job);
+        const color = getJobColor(actor.job || getActorJob(actor.actorId));
         if (color) {
           span.style.color = color;
         }
@@ -397,7 +439,8 @@ const createDetailsUI = ({
       const doubleRate = pct(double, hits);
 
       view.nameTextEl.textContent = skill.name ?? "";
-      const skillColor = skill.job ? getJobColor(skill.job) : "";
+      const resolvedJob = skill.job || getActorJob(skill.actorId);
+      const skillColor = resolvedJob ? getJobColor(resolvedJob) : "";
       view.nameTextEl.style.color = skillColor || "";
       view.hitEl.textContent = `${hits}`;
       view.critEl.textContent = `${critRate}%`;
@@ -429,9 +472,6 @@ const createDetailsUI = ({
     actorList.forEach((actor) => {
       detailsActors.set(Number(actor.actorId), actor);
     });
-    if (!selectedTargetId) {
-      selectedTargetId = nextContext.currentTargetId || detailsTargets[0]?.targetId || null;
-    }
     return nextContext;
   };
 
@@ -463,7 +503,7 @@ const createDetailsUI = ({
     allItem.type = "button";
     allItem.className = "detailsDropdownItem";
     allItem.dataset.value = "all";
-    allItem.textContent = "All";
+    allItem.textContent = labelText("details.all", "All");
     if (!selectedAttackerIds || selectedAttackerIds.length === 0) {
       allItem.classList.add("isActive");
     }
@@ -485,6 +525,10 @@ const createDetailsUI = ({
       item.className = "detailsDropdownItem";
       item.dataset.value = String(entry.id);
       item.textContent = entry.label;
+      const color = getJobColor(getActorJob(entry.id));
+      if (color) {
+        item.style.color = color;
+      }
       if (selectedAttackerIds?.includes?.(entry.id)) {
         item.classList.add("isActive");
       }
@@ -507,6 +551,16 @@ const createDetailsUI = ({
     if (!detailsTargetMenu) return;
     detailsTargetMenu.innerHTML = "";
     const targetsSorted = [...detailsTargets].sort((a, b) => getTargetSortValue(b) - getTargetSortValue(a));
+
+    const allItem = document.createElement("button");
+    allItem.type = "button";
+    allItem.className = "detailsDropdownItem";
+    allItem.dataset.value = "all";
+    allItem.textContent = labelText("details.all", "All");
+    if (!selectedTargetId) {
+      allItem.classList.add("isActive");
+    }
+    detailsTargetMenu.appendChild(allItem);
 
     targetsSorted.forEach((target) => {
       const item = document.createElement("button");
@@ -537,10 +591,14 @@ const createDetailsUI = ({
   };
 
   const applyTargetSelection = async (targetId) => {
-    selectedTargetId = Number(targetId) || null;
+    if (targetId === "all") {
+      selectedTargetId = null;
+    } else {
+      selectedTargetId = Number(targetId) || null;
+    }
     const target = getTargetById(selectedTargetId);
     const actorIds = getTargetActorIds(target);
-    if (selectedAttackerIds && selectedAttackerIds.length > 0) {
+    if (targetId !== "all" && selectedAttackerIds && selectedAttackerIds.length > 0) {
       const stillValid = selectedAttackerIds.some((id) => actorIds.includes(id));
       if (!stillValid) {
         selectedAttackerIds = null;
@@ -571,6 +629,81 @@ const createDetailsUI = ({
     await refreshDetailsView();
   };
 
+  const combinePerActorStats = (detailsList = []) => {
+    const totals = new Map();
+    detailsList.forEach((details) => {
+      const stats = Array.isArray(details?.perActorStats) ? details.perActorStats : [];
+      stats.forEach((entry) => {
+        const actorId = Number(entry?.actorId);
+        if (!Number.isFinite(actorId)) return;
+        const next = totals.get(actorId) || {
+          actorId,
+          job: entry?.job || "",
+          totalDmg: 0,
+          totalTimes: 0,
+          totalCrit: 0,
+          totalParry: 0,
+          totalBack: 0,
+          totalPerfect: 0,
+          totalDouble: 0,
+        };
+        next.totalDmg += Number(entry?.totalDmg) || 0;
+        if (!next.job && entry?.job) next.job = entry.job;
+        next.totalTimes += Number(entry?.totalTimes) || 0;
+        next.totalCrit += Number(entry?.totalCrit) || 0;
+        next.totalParry += Number(entry?.totalParry) || 0;
+        next.totalBack += Number(entry?.totalBack) || 0;
+        next.totalPerfect += Number(entry?.totalPerfect) || 0;
+        next.totalDouble += Number(entry?.totalDouble) || 0;
+        totals.set(actorId, next);
+      });
+    });
+    return [...totals.values()].sort((a, b) => b.totalDmg - a.totalDmg);
+  };
+
+  const buildCombinedDetails = (detailsList = [], totalTargetDamage = 0, showSkillIcons = true) => {
+    const skills = detailsList.flatMap((details) => (Array.isArray(details?.skills) ? details.skills : []));
+    let totalDmg = 0;
+    let totalTimes = 0;
+    let totalCrit = 0;
+    let totalParry = 0;
+    let totalBack = 0;
+    let totalPerfect = 0;
+    let totalDouble = 0;
+
+    skills.forEach((skill) => {
+      const dmg = Number(skill?.dmg) || 0;
+      totalDmg += dmg;
+      if (!skill?.isDot) {
+        totalTimes += Number(skill?.time) || 0;
+        totalCrit += Number(skill?.crit) || 0;
+        totalParry += Number(skill?.parry) || 0;
+        totalBack += Number(skill?.back) || 0;
+        totalPerfect += Number(skill?.perfect) || 0;
+        totalDouble += Number(skill?.double) || 0;
+      }
+    });
+
+    const pct = (num, den) => (den > 0 ? Math.round((num / den) * 1000) / 10 : 0);
+    const battleTimeMs = detailsList.reduce((sum, details) => sum + (Number(details?.battleTimeMs) || 0), 0);
+
+    return {
+      totalDmg,
+      contributionPct: totalTargetDamage > 0 ? (totalDmg / totalTargetDamage) * 100 : 0,
+      totalCritPct: pct(totalCrit, totalTimes),
+      totalParryPct: pct(totalParry, totalTimes),
+      totalBackPct: pct(totalBack, totalTimes),
+      totalPerfectPct: pct(totalPerfect, totalTimes),
+      totalDoublePct: pct(totalDouble, totalTimes),
+      combatTime: formatBattleTime(battleTimeMs),
+      battleTimeMs,
+      skills,
+      showSkillIcons,
+      perActorStats: combinePerActorStats(detailsList),
+      showCombinedTotals: !selectedAttackerIds || selectedAttackerIds.length === 0,
+    };
+  };
+
   const refreshDetailsView = async (seq) => {
     if (!lastRow) return;
     if (!detailsContext) {
@@ -579,13 +712,49 @@ const createDetailsUI = ({
       render(details, lastRow);
       return;
     }
+
+    const showSkillIcons = !selectedAttackerIds || selectedAttackerIds.length === 0;
+    if (selectedTargetId === null) {
+      const targetList = detailsTargets.filter((target) => Number(target?.targetId) > 0);
+      if (!targetList.length) {
+        const details = await getDetails(lastRow, {
+          targetId: null,
+          attackerIds: selectedAttackerIds,
+          totalTargetDamage: null,
+          showSkillIcons,
+        });
+        if (typeof seq === "number" && seq !== openSeq) return;
+        render(details, lastRow);
+        return;
+      }
+
+      const detailsList = await Promise.all(
+        targetList.map((target) =>
+          getDetails(lastRow, {
+            targetId: target.targetId,
+            attackerIds: selectedAttackerIds,
+            totalTargetDamage: target.totalDamage,
+            showSkillIcons,
+          })
+        )
+      );
+      const totalTargetDamage = targetList.reduce(
+        (sum, target) => sum + (Number(target?.totalDamage) || 0),
+        0
+      );
+      const mergedDetails = buildCombinedDetails(detailsList, totalTargetDamage, showSkillIcons);
+      if (typeof seq === "number" && seq !== openSeq) return;
+      render(mergedDetails, lastRow);
+      return;
+    }
+
     const target = getTargetById(selectedTargetId);
     const totalTargetDamage = target ? target.totalDamage : null;
     const details = await getDetails(lastRow, {
       targetId: selectedTargetId,
       attackerIds: selectedAttackerIds,
       totalTargetDamage,
-      showSkillIcons: !selectedAttackerIds || selectedAttackerIds.length === 0,
+      showSkillIcons,
     });
     if (typeof seq === "number" && seq !== openSeq) return;
     render(details, lastRow);
@@ -637,6 +806,13 @@ const createDetailsUI = ({
   });
 
   const render = (details, row) => {
+    if (row?.id && row?.job) {
+      const rowActorId = Number(row.id);
+      if (Number.isFinite(rowActorId) && rowActorId > 0) {
+        detectedJobByActorId.set(rowActorId, String(row.job));
+      }
+    }
+    rememberJobsFromDetails(details);
     selectedAttackerLabel = selectedAttackerLabel || String(row.name ?? "");
     updateHeaderText();
     renderStats(details);
@@ -647,7 +823,7 @@ const createDetailsUI = ({
 
   const isOpen = () => detailsPanel.classList.contains("open");
 
-  const open = async (row, { force = false, restartOnSwitch = true } = {}) => {
+  const open = async (row, { force = false, restartOnSwitch = true, defaultTargetAll = false } = {}) => {
     const rowId = row?.id ?? null;
     // if (!rowId) return;
 
@@ -672,8 +848,12 @@ const createDetailsUI = ({
     const rowIdNum = Number(rowId);
     selectedAttackerIds = Number.isFinite(rowIdNum) ? [rowIdNum] : null;
     loadDetailsContext();
-    if (detailsContext && detailsContext.currentTargetId) {
+    if (defaultTargetAll) {
+      selectedTargetId = null;
+    } else if (detailsContext && detailsContext.currentTargetId) {
       selectedTargetId = detailsContext.currentTargetId;
+    } else {
+      selectedTargetId = detailsTargets[0]?.targetId ?? null;
     }
     if (selectedAttackerIds && selectedAttackerIds.length === 1) {
       selectedAttackerLabel = resolveActorLabel(selectedAttackerIds[0]);
@@ -712,9 +892,19 @@ const createDetailsUI = ({
   };
   detailsClose?.addEventListener("click", close);
 
-  const refresh = () => {
+  const refresh = async () => {
     if (!detailsPanel.classList.contains("open") || !lastRow) return;
-    open(lastRow, { force: true, restartOnSwitch: false });
+    const previousTargetId = selectedTargetId;
+    const previousAttackerIds = Array.isArray(selectedAttackerIds) ? [...selectedAttackerIds] : null;
+    const seq = ++openSeq;
+    loadDetailsContext();
+    selectedTargetId = previousTargetId;
+    selectedAttackerIds = previousAttackerIds;
+    renderNicknameMenu();
+    renderTargetMenu();
+    syncSortButtons();
+    updateHeaderText();
+    await refreshDetailsView(seq);
   };
 
   return { open, close, isOpen, render, updateLabels, refresh };

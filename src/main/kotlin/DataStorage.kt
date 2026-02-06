@@ -2,6 +2,7 @@ package com.tbread
 
 import com.tbread.entity.ParsedDamagePacket
 import com.tbread.logging.DebugLogWriter
+import com.tbread.packet.LocalPlayer
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentSkipListSet
@@ -66,6 +67,16 @@ class DataStorage {
         logger.debug("Nickname registered {} -> {}", nicknameStorage[uid], nickname)
         DebugLogWriter.debug(logger, "Nickname registered {} -> {}", nicknameStorage[uid], nickname)
         nicknameStorage[uid] = nickname
+
+        val localName = LocalPlayer.characterName?.trim().orEmpty()
+        if (localName.isNotBlank() && nickname.trim() == localName) {
+            LocalPlayer.playerId = uid.toLong()
+        }
+    }
+
+    fun bindNickname(uid: Int, nickname: String) {
+        if (uid <= 0 || nickname.isBlank()) return
+        appendNickname(uid, nickname.trim())
     }
 
     fun cachePendingNickname(uid: Int, nickname: String) {

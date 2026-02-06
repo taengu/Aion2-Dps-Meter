@@ -16,6 +16,9 @@
       "ariaLabel": "Open details settings"
     },
     "panelBackground": "Panel background",
+    "screenshot": {
+      "captured": "Captured Screenshot"
+    },
     "skills": {
       "skill": "Skill",
       "hits": "Hits",
@@ -24,7 +27,8 @@
       "perfect": "Perfect",
       "double": "Double",
       "back": "Back",
-      "totalDamage": "Total Damage"
+      "totalDamage": "Total Damage",
+      "heal": "Heal"
     },
     "stats": {
       "totalDamage": "Total Damage",
@@ -34,8 +38,13 @@
       "doubleRate": "Double Rate",
       "backRate": "Back Attack Rate",
       "parryRate": "Parry Rate",
-      "combatTime": "Combat Time"
-    }
+      "combatTime": "Combat Time",
+      "multiHitDamage": "Multi-hit Damage",
+      "multiHitHits": "Multi-hit Hits"
+    },
+    "titleFor": "for",
+    "titleVs": "vs",
+    "all": "All"
   },
   "settings": {
     "title": "Settings",
@@ -43,22 +52,23 @@
     "resetDetection": "Reset detection",
     "characterName": "Character name",
     "characterNamePlaceholder": "Enter your character name",
-    "onlyMe": "Only show my character",
+    "pinMeToTop": "Pin Me To Top",
     "debugLogging": "Enable debug logging",
     "quit": "Quit",
     "discord": "Get support on our Discord",
     "theme": {
       "label": "Theme",
       "options": {
-        "classic": "Classic",
         "aion2": "AION2",
+        "asmodian": "Asmodian",
+        "cogni": "Cogni",
+        "elyos": "Elyos",
         "ember": "Ember",
+        "fera": "Fera",
         "frost": "Frost",
         "natura": "Natura",
-        "storm": "Storm",
-        "void": "Void",
         "obsidian": "Obsidian",
-        "cyber": "Cyber"
+        "varian": "Varian"
       }
     },
     "language": {
@@ -72,10 +82,31 @@
         "lastHitByMe": "Last hit by me",
         "allTargets": "All targets combined"
       }
+    },
+    "refreshKeybind": {
+      "label": "Refresh keybind"
+    },
+    "allTargetsWindow": {
+      "label": "All Targets window",
+      "options": {
+        "30s": "30 seconds",
+        "1m": "1 minute",
+        "2m": "2 minutes",
+        "3m": "3 minutes",
+        "5m": "5 minutes"
+      }
+    },
+    "meterSettings": "Meter Settings",
+    "trainingMode": {
+      "label": "Training Mode",
+      "options": {
+        "all": "All",
+        "highestDamage": "Highest Damage"
+      }
     }
   },
   "battleTime": {
-    "analysing": "Ready - monitoring combat...",
+    "analysing": "Monitoring data...",
     "idle": "Idle",
     "notRunning": "AION2 not running"
   },
@@ -97,6 +128,7 @@
     "loopback": "Local Loopback"
   },
   "target": {
-    "all": "All targets"
+    "all": "All Targets",
+    "train": "Training Scarecrow"
   }
 }

@@ -7,14 +7,18 @@ class DpsApp {
     this.USER_NAME = "";
     this.onlyShowUser = false;
     this.debugLoggingEnabled = false;
+    this.pinMeToTop = false;
     this.storageKeys = {
       userName: "dpsMeter.userName",
       onlyShowUser: "dpsMeter.onlyShowUser",
+      allTargetsWindowMs: "dpsMeter.allTargetsWindowMs",
+      trainSelectionMode: "dpsMeter.trainSelectionMode",
       detailsBackgroundOpacity: "dpsMeter.detailsBackgroundOpacity",
       targetSelection: "dpsMeter.targetSelection",
       displayMode: "dpsMeter.displayMode",
       language: "dpsMeter.language",
       debugLogging: "dpsMeter.debugLoggingEnabled",
+      pinMeToTop: "dpsMeter.pinMeToTop",
       theme: "dpsMeter.theme",
       refreshKeybind: "dpsMeter.refreshKeybind",
     };
@@ -25,15 +29,16 @@ class DpsApp {
     this.displayMode = "dps";
     this.theme = "aion2";
     this.availableThemes = [
-      "classic",
       "aion2",
+      "asmodian",
+      "cogni",
+      "elyos",
       "ember",
+      "fera",
       "frost",
       "natura",
-      "storm",
-      "void",
       "obsidian",
-      "cyber",
+      "varian",
     ];
 
     // 빈데이터 덮어쓰기 방지 스냅샷
@@ -63,6 +68,8 @@ class DpsApp {
     this._lastRenderedTargetLabel = "";
     this._lastTargetSelection = this.targetSelection;
     this._lastRenderedRowsSummary = null;
+    this.localPlayerId = null;
+    this.trainSelectionMode = "all";
 
     DpsApp.instance = this;
   }
@@ -123,7 +130,7 @@ class DpsApp {
     this._connectionStatusOverride = false;
 
     this.resetBtn = document.querySelector(".resetBtn");
-    this.targetModeBtn = document.querySelector(".targetModeBtn");
+    this.targetModeBtn = document.querySelector(".footerBtns .targetModeBtn");
     this.collapseBtn = document.querySelector(".collapseBtn");
     this.metricToggleBtn = document.querySelector(".metricToggleBtn");
 
@@ -137,22 +144,36 @@ class DpsApp {
       getUserName: () => this.USER_NAME,
       getMetric: (row) => this.getMetricForRow(row),
       getSortDirection: () => this.listSortDirection,
-      onClickUserRow: (row) => this.detailsUI.open(row),
+      getPinUserToTop: () => this.pinMeToTop,
+      onClickUserRow: (row) =>
+        this.detailsUI.open(row, {
+          defaultTargetAll: this.lastTargetMode === "allTargets",
+        }),
     });
+
+    const withBacklog = (text) => {
+      if (!window.javaBridge?.isRunningFromIde?.()) return text;
+      const backlog = window.javaBridge?.getParsingBacklog?.();
+      if (!Number.isFinite(backlog)) return text;
+      return `${text} (backlog: ${backlog})`;
+    };
 
     const getBattleTimeStatusText = () => {
       if (!this.aionRunning) {
-        return this.i18n?.t("battleTime.notRunning", "AION2 not running") ?? "AION2 not running";
+        const text = this.i18n?.t("battleTime.notRunning", "AION2 not running") ?? "AION2 not running";
+        return withBacklog(text);
       }
       if (this.isDetectingPort) {
-        return this.i18n?.t("connection.detecting", "Detecting AION2 connection...") ??
+        const text = this.i18n?.t("connection.detecting", "Detecting AION2 connection...") ??
           "Detecting AION2 connection...";
+        return withBacklog(text);
       }
       if (this.battleTime?.getState?.() === "state-idle") {
-        return this.i18n?.t("battleTime.idle", "Idle") ?? "Idle";
+        const text = this.i18n?.t("battleTime.idle", "Idle") ?? "Idle";
+        return withBacklog(text);
       }
-      return this.i18n?.t("battleTime.analysing", "Ready - monitoring combat...") ??
-        "Ready - monitoring combat...";
+      const text = this.i18n?.t("battleTime.analysing", "Monitoring data...") ?? "Monitoring data...";
+      return withBacklog(text);
     };
 
     this.battleTime = createBattleTimeUI({
@@ -176,6 +197,8 @@ class DpsApp {
     this.detailsTargetBtn = document.querySelector(".detailsTargetBtn");
     this.detailsTargetMenu = document.querySelector(".detailsTargetMenu");
     this.detailsSortButtons = document.querySelectorAll(".detailsSortBtn");
+    this.detailsScreenshotBtn = document.querySelector(".detailsScreenshotBtn");
+    this.detailsScreenshotNote = document.querySelector(".detailsScreenshotNote");
     this.detailsRefreshBtn = document.querySelector(".detailsRefreshBtn");
     this.detailsStatsEl = document.querySelector(".detailsStats");
     this.skillsListEl = document.querySelector(".skills");
@@ -198,13 +221,47 @@ class DpsApp {
     this.detailsRefreshBtn?.addEventListener("click", () => {
       this.detailsUI?.refresh?.();
     });
+    if (this.detailsScreenshotBtn) {
+      let screenshotNoteTimer = null;
+      this.detailsScreenshotBtn.addEventListener("click", () => {
+        const tooltipText =
+          this.i18n?.t("details.screenshot.captured", "Captured Screenshot") ?? "Captured Screenshot";
+        const meterRect = document.querySelector(".meter")?.getBoundingClientRect?.();
+        const detailsRect = this.detailsPanel?.classList?.contains("open")
+          ? this.detailsPanel.getBoundingClientRect()
+          : null;
+        if (!meterRect) return;
+        const minX = detailsRect ? Math.min(meterRect.left, detailsRect.left) : meterRect.left;
+        const minY = detailsRect ? Math.min(meterRect.top, detailsRect.top) : meterRect.top;
+        const maxX = detailsRect ? Math.max(meterRect.right, detailsRect.right) : meterRect.right;
+        const maxY = detailsRect ? Math.max(meterRect.bottom, detailsRect.bottom) : meterRect.bottom;
+        const rectWidth = Math.max(1, maxX - minX);
+        const rectHeight = Math.max(1, maxY - minY);
+        const scale = window.devicePixelRatio || 1;
+        const success = window.javaBridge?.captureScreenshotToClipboard?.(
+          minX,
+          minY,
+          rectWidth,
+          rectHeight,
+          scale
+        );
+        if (!success || !this.detailsScreenshotNote) return;
+        this.detailsScreenshotBtn.setAttribute("title", tooltipText);
+        this.detailsScreenshotNote.textContent = "Saved to clipboard";
+        this.detailsScreenshotNote.classList.add("isVisible");
+        if (screenshotNoteTimer) window.clearTimeout(screenshotNoteTimer);
+        screenshotNoteTimer = window.setTimeout(() => {
+          this.detailsScreenshotNote?.classList.remove("isVisible");
+          this.detailsScreenshotNote.textContent = "";
+        }, 2000);
+      });
+    }
     this.setupDetailsPanelSettings();
     this.setupSettingsPanel();
     this.detailsUI?.updateLabels?.();
     this.i18n?.onChange?.((lang) => {
-      if (this.languageSelect) {
-        this.languageSelect.value = lang;
-      }
+      this.settingsSelections.language = lang;
+      this.initializeSettingsDropdowns();
       this.detailsUI?.updateLabels?.();
       this.detailsUI?.refresh?.();
       this.updateDisplayToggleLabel();
@@ -325,8 +382,7 @@ class DpsApp {
     }
     if (this.analysisStatusEl) {
       this.analysisStatusEl.textContent =
-        this.i18n?.t("battleTime.analysing", "Ready - monitoring combat...") ??
-        "Ready - monitoring combat...";
+        this.i18n?.t("battleTime.analysing", "Monitoring data...") ?? "Monitoring data...";
       this.analysisStatusEl.style.display = "";
     }
     this.updateConnectionStatusUi();
@@ -378,6 +434,7 @@ class DpsApp {
     const previousTargetMode = this.lastTargetMode;
     const previousTargetId = this.lastTargetId;
     const { rows, targetName, targetMode, battleTimeMs, targetId } = this.buildRowsFromPayload(raw);
+    this.updateLocalPlayerIdentity(rows);
     this._lastBattleTimeMs = battleTimeMs;
     this.lastTargetMode = targetMode;
     this.lastTargetName = targetName;
@@ -457,15 +514,14 @@ class DpsApp {
     }
 
     this.updateConnectionStatusUi();
-    if (this.onlyShowUser && this.USER_NAME) {
+    if (targetMode === "trainTargets" && this.USER_NAME) {
       rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
-      listReasons.push(`filtered to user ${this.USER_NAME}`);
     }
-
     // render
     const nextTargetLabel = this.getTargetLabel({ targetId, targetName, targetMode });
     if (this.elBossName) {
       this.elBossName.textContent = nextTargetLabel;
+      this.elBossName.classList.toggle("isAllTargets", targetMode === "allTargets");
     }
     if (
       nextTargetLabel !== this._lastRenderedTargetLabel ||
@@ -557,6 +613,30 @@ class DpsApp {
     }
 
     return rows;
+  }
+
+  updateLocalPlayerIdentity(rows = []) {
+    if (!Array.isArray(rows) || !rows.length || !this.USER_NAME) {
+      return;
+    }
+    const matched = rows.find((row) => row?.name === this.USER_NAME);
+    if (!matched) {
+      return;
+    }
+    const actorId = Number(matched.id);
+    if (!Number.isFinite(actorId) || actorId <= 0) {
+      return;
+    }
+    if (this.localPlayerId === actorId) {
+      return;
+    }
+    this.localPlayerId = actorId;
+    window.javaBridge?.setLocalPlayerId?.(String(actorId));
+    window.javaBridge?.bindLocalNickname?.(String(actorId), this.USER_NAME);
+    if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
+      this.localActorIdInput.value = String(actorId);
+    }
+    this.refreshConnectionInfo({ skipSettingsRefresh: true });
   }
 
   getDetailsContext() {
@@ -768,6 +848,12 @@ class DpsApp {
         actorId: entry.actorId,
         job: entry.job,
         totalDmg: entry.totalDmg,
+        totalTimes: entry.totalTimes,
+        totalCrit: entry.totalCrit,
+        totalParry: entry.totalParry,
+        totalBack: entry.totalBack,
+        totalPerfect: entry.totalPerfect,
+        totalDouble: entry.totalDouble,
         contributionPct:
           Number.isFinite(baseTotalDamage) && baseTotalDamage > 0
             ? (entry.totalDmg / baseTotalDamage) * 100
@@ -790,6 +876,7 @@ class DpsApp {
       totalPerfectPct: pct(totalPerfect, totalTimes),
       totalDoublePct: pct(totalDouble, totalTimes),
       combatTime,
+      battleTimeMs: Number.isFinite(battleTimeMsRaw) ? battleTimeMsRaw : 0,
 
       skills,
       showSkillIcons,
@@ -818,7 +905,9 @@ class DpsApp {
       this.refreshDamageData({ reason: "manual refresh" });
     });
     this.targetModeBtn?.addEventListener("click", () => {
-      const nextMode = this.targetSelection === "allTargets" ? "lastHitByMe" : "allTargets";
+      const modes = ["lastHitByMe", "allTargets", "trainTargets"];
+      const currentIndex = modes.indexOf(this.targetSelection);
+      const nextMode = modes[(currentIndex + 1) % modes.length];
       console.log("[Target Mode Toggle]", {
         from: this.targetSelection,
         to: nextMode,
@@ -845,19 +934,38 @@ class DpsApp {
     this.settingsBtn = document.querySelector(".settingsBtn");
     this.lockedIp = document.querySelector(".lockedIp");
     this.lockedPort = document.querySelector(".lockedPort");
+    this.localActorIdInput = document.querySelector(".localActorIdInput");
+    this.allTargetsWindowDropdownBtn = document.querySelector(".allTargetsWindowDropdownBtn");
+    this.allTargetsWindowDropdownMenu = document.querySelector(".allTargetsWindowDropdownMenu");
+    this.trainSelectionModeDropdownBtn = document.querySelector(".trainSelectionModeDropdownBtn");
+    this.trainSelectionModeDropdownMenu = document.querySelector(".trainSelectionModeDropdownMenu");
     this.resetDetectBtn = document.querySelector(".resetDetectBtn");
     this.characterNameInput = document.querySelector(".characterNameInput");
-    this.onlyMeCheckbox = document.querySelector(".onlyMeCheckbox");
     this.debugLoggingCheckbox = document.querySelector(".debugLoggingCheckbox");
+    this.pinMeToTopCheckbox = document.querySelector(".pinMeToTopCheckbox");
     this.discordButton = document.querySelector(".discordButton");
     this.quitButton = document.querySelector(".quitButton");
-    this.languageSelect = document.querySelector(".languageSelect");
-    this.themeSelect = document.querySelector(".themeSelect");
+    this.languageDropdownBtn = document.querySelector(".languageDropdownBtn");
+    this.languageDropdownMenu = document.querySelector(".languageDropdownMenu");
+    this.themeDropdownBtn = document.querySelector(".themeDropdownBtn");
+    this.themeDropdownMenu = document.querySelector(".themeDropdownMenu");
     this.refreshKeybindInput = document.querySelector(".settingsKeybindInput");
+    this.settingsSelections = {
+      language: "en",
+      theme: this.theme,
+      allTargetsWindowMs: "120000",
+      trainSelectionMode: "all",
+    };
 
     const storedName = this.safeGetStorage(this.storageKeys.userName) || "";
-    const storedOnlyShow = this.safeGetStorage(this.storageKeys.onlyShowUser) === "true";
+    const storedAllTargetsWindowMs = this.safeGetSetting(this.storageKeys.allTargetsWindowMs) ||
+      this.safeGetStorage(this.storageKeys.allTargetsWindowMs) ||
+      "120000";
+    const storedTrainSelectionMode = this.safeGetSetting(this.storageKeys.trainSelectionMode) ||
+      this.safeGetStorage(this.storageKeys.trainSelectionMode) ||
+      "all";
     const storedDebugLogging = this.safeGetSetting(this.storageKeys.debugLogging) === "true";
+    const storedPinMeToTop = this.safeGetSetting(this.storageKeys.pinMeToTop) === "true";
     const storedTargetSelection = this.safeGetStorage(this.storageKeys.targetSelection);
     const storedLanguage = this.safeGetStorage(this.storageKeys.language);
     const storedTheme = this.safeGetSetting(this.storageKeys.theme);
@@ -866,10 +974,13 @@ class DpsApp {
       this.safeGetStorage(this.storageKeys.refreshKeybind);
 
     this.setUserName(storedName, { persist: false, syncBackend: true });
-    this.setOnlyShowUser(storedOnlyShow, { persist: false });
+    this.setOnlyShowUser(false, { persist: false });
     this.setDebugLogging(storedDebugLogging, { persist: false, syncBackend: true });
+    this.setPinMeToTop(storedPinMeToTop, { persist: false });
     const normalizedTargetSelection =
-      storedTargetSelection === "allTargets" ? "allTargets" : this.targetSelection;
+      storedTargetSelection === "allTargets" || storedTargetSelection === "trainTargets"
+        ? storedTargetSelection
+        : "lastHitByMe";
     this.setTargetSelection(normalizedTargetSelection, {
       persist: false,
       syncBackend: true,
@@ -882,19 +993,41 @@ class DpsApp {
 
     if (this.characterNameInput) {
       this.characterNameInput.value = this.USER_NAME;
-      this.characterNameInput.addEventListener("input", (event) => {
-        const value = event.target?.value ?? "";
-        this.setUserName(value, { persist: true, syncBackend: true });
+    }
+    if (this.localActorIdInput) {
+      this.localActorIdInput.value = this.localPlayerId ? String(this.localPlayerId) : "";
+      this.localActorIdInput.addEventListener("input", (event) => {
+        const digits = String(event.target?.value || "").replace(/[^0-9]/g, "");
+        event.target.value = digits;
+      });
+      this.localActorIdInput.addEventListener("change", (event) => {
+        const value = String(event.target?.value || "").trim();
+        if (!value) return;
+        this.localPlayerId = Number(value);
+        window.javaBridge?.bindLocalActorId?.(value);
+        if (this.USER_NAME) {
+          window.javaBridge?.bindLocalNickname?.(value, this.USER_NAME);
+        }
+        this.setUserName(this.USER_NAME, { persist: true, syncBackend: true });
       });
     }
 
-    if (this.onlyMeCheckbox) {
-      this.onlyMeCheckbox.checked = this.onlyShowUser;
-      this.onlyMeCheckbox.addEventListener("change", (event) => {
-        const isChecked = !!event.target?.checked;
-        this.setOnlyShowUser(isChecked, { persist: true });
-      });
-    }
+    const allowedWindows = ["30000", "60000", "120000", "180000", "300000"];
+    const selectedWindow = allowedWindows.includes(String(storedAllTargetsWindowMs))
+      ? String(storedAllTargetsWindowMs)
+      : "120000";
+    this.settingsSelections.allTargetsWindowMs = selectedWindow;
+    this.safeSetSetting(this.storageKeys.allTargetsWindowMs, selectedWindow);
+    window.javaBridge?.setAllTargetsWindowMs?.(selectedWindow);
+
+    const allowedModes = ["all", "highestDamage"];
+    const selectedMode = allowedModes.includes(String(storedTrainSelectionMode))
+      ? String(storedTrainSelectionMode)
+      : "all";
+    this.trainSelectionMode = selectedMode;
+    this.settingsSelections.trainSelectionMode = selectedMode;
+    this.safeSetSetting(this.storageKeys.trainSelectionMode, selectedMode);
+    window.javaBridge?.setTrainSelectionMode?.(selectedMode);
 
     if (this.debugLoggingCheckbox) {
       this.debugLoggingCheckbox.checked = this.debugLoggingEnabled;
@@ -903,28 +1036,19 @@ class DpsApp {
         this.setDebugLogging(isChecked, { persist: true, syncBackend: true });
       });
     }
-
-    if (this.languageSelect) {
-      const currentLanguage = this.i18n?.getLanguage?.() || storedLanguage || "en";
-      this.languageSelect.value = currentLanguage;
-      this.languageSelect.addEventListener("change", (event) => {
-        const value = event.target?.value;
-        if (value) {
-          this.safeSetStorage(this.storageKeys.language, value);
-          this.i18n?.setLanguage?.(value, { persist: true });
-        }
+    if (this.pinMeToTopCheckbox) {
+      this.pinMeToTopCheckbox.checked = this.pinMeToTop;
+      this.pinMeToTopCheckbox.addEventListener("change", (event) => {
+        const isChecked = !!event.target?.checked;
+        this.setPinMeToTop(isChecked, { persist: true });
       });
     }
 
-    if (this.themeSelect) {
-      this.themeSelect.value = this.theme;
-      this.themeSelect.addEventListener("change", (event) => {
-        const value = event.target?.value;
-        if (value) {
-          this.applyTheme(value, { persist: true });
-        }
-      });
-    }
+    const currentLanguage = this.i18n?.getLanguage?.() || storedLanguage || "en";
+    this.settingsSelections.language = currentLanguage;
+    this.settingsSelections.theme = this.theme;
+
+    this.initializeSettingsDropdowns();
 
     const normalizeKeybind = (value) => {
       if (!value) return "";
@@ -946,8 +1070,28 @@ class DpsApp {
       return modText.join("+");
     };
 
+    const parseKeybindParts = (value) => {
+      const normalized = normalizeKeybind(value);
+      const parts = normalized.split("+").filter(Boolean);
+      const key = parts.pop() || "";
+      const mods = new Set(parts);
+      return { mods, key };
+    };
+
+    const matchesKeybindEvent = (event, keybindValue) => {
+      const { mods, key } = parseKeybindParts(keybindValue);
+      if (!key) return false;
+      if (!!event.ctrlKey !== mods.has("Ctrl")) return false;
+      if (!!event.altKey !== mods.has("Alt")) return false;
+      if (!!event.shiftKey !== mods.has("Shift")) return false;
+      if (!!event.metaKey !== mods.has("Meta")) return false;
+      const eventKey = String(event.key || event.code || "").toUpperCase();
+      return eventKey === key || eventKey === `KEY${key}` || eventKey === `DIGIT${key}`;
+    };
+
     const setKeybindValue = (value, { persist = true, syncBackend = true } = {}) => {
       const normalized = normalizeKeybind(value || "Ctrl+R");
+      this._refreshKeybindValue = normalized || "Ctrl+R";
       if (this.refreshKeybindInput) {
         this.refreshKeybindInput.textContent = normalized || "Ctrl+R";
         this.refreshKeybindInput.dataset.value = normalized || "Ctrl+R";
@@ -962,103 +1106,136 @@ class DpsApp {
 
     setKeybindValue(storedKeybind || "Ctrl+R", { persist: !storedKeybind, syncBackend: true });
 
+    if (!this._refreshKeybindListenerBound) {
+      const keybindHandler = (event) => {
+        if (this.refreshKeybindInput?.classList?.contains("isCapturing")) return;
+        if (!matchesKeybindEvent(event, this._refreshKeybindValue || "Ctrl+R")) return;
+        event.preventDefault();
+        this.triggerRefreshFromKeybind();
+      };
+      document.addEventListener("keydown", keybindHandler, true);
+      window.addEventListener("keydown", keybindHandler, true);
+      this._refreshKeybindListenerBound = true;
+    }
+
     if (this.refreshKeybindInput) {
       let capturing = false;
       let pendingValue = "";
-      let captureStarted = false;
-      const pressedKeys = new Set();
-      let captureMods = { ctrl: false, alt: false, shift: false, meta: false };
-      let captureKey = "";
+      let captureMode = "dom";
+
+      const modifierKeys = ["Control", "Shift", "Alt", "Meta"];
+
+      const normalizeEventKey = (event) => {
+        const rawKey = String(event?.key || "");
+        if (rawKey && rawKey !== "Unidentified") return rawKey;
+        const code = String(event?.code || "");
+        if (code.startsWith("Key")) return code.slice(3);
+        if (code.startsWith("Digit")) return code.slice(5);
+        if (code) return code;
+        return "";
+      };
+
+      const buildComboFromEvent = (event, key) => {
+        const isModifierOnly = modifierKeys.includes(key);
+        if (isModifierOnly) return "";
+        const parts = [];
+        if (event.ctrlKey) parts.push("Ctrl");
+        if (event.altKey) parts.push("Alt");
+        if (event.shiftKey) parts.push("Shift");
+        if (event.metaKey) parts.push("Meta");
+        if (!parts.includes("Ctrl") && !parts.includes("Alt")) {
+          return "";
+        }
+        parts.push(key.length === 1 ? key.toUpperCase() : key.toUpperCase());
+        return parts.join("+");
+      };
+
       const startCapture = () => {
         capturing = true;
         pendingValue = "";
-        captureStarted = false;
-        pressedKeys.clear();
-        captureMods = { ctrl: false, alt: false, shift: false, meta: false };
-        captureKey = "";
         this.refreshKeybindInput.classList.add("isCapturing");
-        this.refreshKeybindInput.textContent = "Press Ctrl/Alt + key...";
+        this.refreshKeybindInput.textContent = "Press key combination...";
       };
 
-      const stopCapture = () => {
+      const stopCapture = ({ cancelNative = true } = {}) => {
         capturing = false;
         pendingValue = "";
-        captureStarted = false;
-        pressedKeys.clear();
-        captureMods = { ctrl: false, alt: false, shift: false, meta: false };
-        captureKey = "";
         this.refreshKeybindInput.classList.remove("isCapturing");
-      };
-
-      const updateCaptureMods = () => {
-        captureMods = {
-          ctrl: pressedKeys.has("Control"),
-          alt: pressedKeys.has("Alt"),
-          shift: pressedKeys.has("Shift"),
-          meta: pressedKeys.has("Meta"),
-        };
+        const currentValue = this.refreshKeybindInput.dataset.value || "Ctrl+R";
+        this.refreshKeybindInput.textContent = currentValue;
+        if (captureMode === "native" && cancelNative) {
+          window.javaBridge?.cancelRefreshKeybindCapture?.();
+        }
+        captureMode = "dom";
       };
 
       const captureKeydown = (event) => {
         if (!capturing) return;
+        if (captureMode === "native") return;
         event.preventDefault();
         event.stopPropagation();
-        const key = event.key;
-        const isModifier = ["Control", "Shift", "Alt", "Meta"].includes(key);
-        if (!captureStarted) {
-          if (key !== "Control" && key !== "Alt" && !event.ctrlKey && !event.altKey) {
-            return;
-          }
-          captureStarted = true;
-        }
-        pressedKeys.add(key);
-        updateCaptureMods();
-        if (!isModifier) {
-          captureKey = key;
-        }
-        if (!captureStarted || !captureKey) {
-          this.refreshKeybindInput.textContent = "Press Ctrl/Alt + key...";
+        const key = normalizeEventKey(event);
+        if (!key) return;
+        const combo = buildComboFromEvent(event, key);
+        if (!combo) {
+          this.refreshKeybindInput.textContent = "Press key combination...";
           return;
         }
-        if (!captureMods.ctrl && !captureMods.alt) {
-          return;
-        }
-        const parts = [];
-        if (captureMods.ctrl) parts.push("Ctrl");
-        if (captureMods.alt) parts.push("Alt");
-        if (captureMods.shift) parts.push("Shift");
-        if (captureMods.meta) parts.push("Meta");
-        parts.push(captureKey.length === 1 ? captureKey.toUpperCase() : captureKey.toUpperCase());
-        pendingValue = parts.join("+");
-        this.refreshKeybindInput.textContent = "Release to save...";
+        pendingValue = combo;
+        this.refreshKeybindInput.textContent = `Release to save... ${combo}`;
       };
 
       const captureKeyup = (event) => {
         if (!capturing) return;
+        if (captureMode === "native") return;
         event.preventDefault();
         event.stopPropagation();
-        const key = event.key;
-        pressedKeys.delete(key);
-        updateCaptureMods();
-        if (!captureStarted) {
-          return;
-        }
-        if (pressedKeys.size > 0) {
-          return;
-        }
+        const key = normalizeEventKey(event);
+        if (!key || modifierKeys.includes(key)) return;
         if (pendingValue) {
           setKeybindValue(pendingValue, { persist: true, syncBackend: true });
         }
         stopCapture();
       };
 
+      this.receiveKeybindCapture = (value) => {
+        if (!capturing) return;
+        if (value) {
+          setKeybindValue(value, { persist: true, syncBackend: true });
+        }
+        stopCapture({ cancelNative: false });
+      };
+      this.cancelKeybindCapture = () => {
+        if (!capturing) return;
+        stopCapture({ cancelNative: true });
+      };
+
       this.refreshKeybindInput.addEventListener("click", () => {
         startCapture();
+        const nativeStarted = window.javaBridge?.startRefreshKeybindCapture?.() || false;
+        captureMode = nativeStarted ? "native" : "dom";
+        if (captureMode === "dom") {
+          this.refreshKeybindInput.focus();
+        }
       });
-
-      window.addEventListener("keydown", captureKeydown, true);
-      window.addEventListener("keyup", captureKeyup, true);
+      document.addEventListener("keydown", captureKeydown, true);
+      document.addEventListener("keyup", captureKeyup, true);
+      document.addEventListener("keydown", (event) => {
+        if (!capturing) return;
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          stopCapture({ cancelNative: true });
+        }
+      }, true);
+      window.addEventListener("blur", () => {
+        if (capturing && captureMode === "dom") stopCapture();
+      });
+      this.refreshKeybindInput.addEventListener("blur", () => {
+        if (capturing && captureMode === "dom") stopCapture();
+      });
     }
+
 
     this.settingsBtn?.addEventListener("click", () => {
       this.toggleSettingsPanel();
@@ -1078,6 +1255,191 @@ class DpsApp {
     this.quitButton?.addEventListener("click", () => {
       window.javaBridge?.exitApp?.();
     });
+  }
+
+  initializeSettingsDropdowns() {
+    const previewThemeVars = (themeId) => {
+      const root = document.documentElement;
+      const previous = root.dataset.theme;
+      root.dataset.theme = themeId;
+      const computed = getComputedStyle(root);
+      const rowFill = computed.getPropertyValue("--row-fill").trim() || "rgba(255,255,255,0.08)";
+      const dpsText = computed.getPropertyValue("--dps-text").trim() || "#ffffff";
+      const dpsShadow = computed.getPropertyValue("--dps-shadow").trim() || "none";
+      root.dataset.theme = previous || "aion2";
+      return { rowFill, dpsText, dpsShadow };
+    };
+
+    const closeAll = () => {
+      document.querySelectorAll(".settingsDropdownMenu.isOpen").forEach((menu) => {
+        menu.classList.remove("isOpen");
+      });
+    };
+
+    const setupDropdown = (
+      button,
+      menu,
+      options,
+      currentValue,
+      onSelect,
+      { decorateItem = null, decorateButton = null } = {}
+    ) => {
+      if (!button || !menu) return;
+      const optionList = Array.isArray(options) ? options : [];
+      menu.innerHTML = "";
+
+      optionList.forEach((opt) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "settingsDropdownItem";
+        item.dataset.value = opt.value;
+        item.textContent = opt.label;
+        if (String(opt.value) === String(currentValue)) {
+          item.classList.add("isActive");
+        }
+        decorateItem?.(item, opt.value);
+        item.addEventListener("click", () => {
+          onSelect?.(opt.value);
+          menu.classList.remove("isOpen");
+          this.initializeSettingsDropdowns();
+        });
+        menu.appendChild(item);
+      });
+
+      const selected = optionList.find((opt) => String(opt.value) === String(currentValue)) || optionList[0];
+      const textEl = button.querySelector(".settingsDropdownText");
+      if (textEl) {
+        textEl.textContent = selected?.label || "-";
+      }
+      button.style.background = "";
+      button.style.color = "";
+      decorateButton?.(button, selected?.value);
+      button.onclick = (event) => {
+        event.stopPropagation();
+        const wasOpen = menu.classList.contains("isOpen");
+        closeAll();
+        menu.classList.toggle("isOpen", !wasOpen);
+      };
+    };
+
+    if (!this._settingsDropdownOutsideBound) {
+      document.addEventListener("click", (event) => {
+        if (!event.target?.closest?.(".settingsDropdownWrapper")) {
+          closeAll();
+        }
+      });
+      this._settingsDropdownOutsideBound = true;
+    }
+
+    const languageOptions = [
+      { value: "en", label: "English" },
+      { value: "ko", label: "한국어" },
+      { value: "zh-Hant", label: "繁體中文" },
+      { value: "zh-Hans", label: "简体中文" },
+    ];
+
+    const themeOptions = [
+      { value: "aion2", label: this.i18n?.t("settings.theme.options.aion2", "AION2") },
+      { value: "asmodian", label: this.i18n?.t("settings.theme.options.asmodian", "Asmodian") },
+      { value: "cogni", label: this.i18n?.t("settings.theme.options.cogni", "Cogni") },
+      { value: "elyos", label: this.i18n?.t("settings.theme.options.elyos", "Elyos") },
+      { value: "ember", label: this.i18n?.t("settings.theme.options.ember", "Ember") },
+      { value: "fera", label: this.i18n?.t("settings.theme.options.fera", "Fera") },
+      { value: "frost", label: this.i18n?.t("settings.theme.options.frost", "Frost") },
+      { value: "natura", label: this.i18n?.t("settings.theme.options.natura", "Natura") },
+      { value: "obsidian", label: this.i18n?.t("settings.theme.options.obsidian", "Obsidian") },
+      { value: "varian", label: this.i18n?.t("settings.theme.options.varian", "Varian") },
+    ];
+
+    themeOptions.sort((a, b) => a.label.localeCompare(b.label));
+
+    const allTargetsWindowOptions = [
+      { value: "30000", label: this.i18n?.t("settings.allTargetsWindow.options.30s", "30 seconds") },
+      { value: "60000", label: this.i18n?.t("settings.allTargetsWindow.options.1m", "1 minute") },
+      { value: "120000", label: this.i18n?.t("settings.allTargetsWindow.options.2m", "2 minutes") },
+      { value: "180000", label: this.i18n?.t("settings.allTargetsWindow.options.3m", "3 minutes") },
+      { value: "300000", label: this.i18n?.t("settings.allTargetsWindow.options.5m", "5 minutes") },
+    ];
+
+    const trainModeOptions = [
+      { value: "all", label: this.i18n?.t("settings.trainingMode.options.all", "All") },
+      {
+        value: "highestDamage",
+        label: this.i18n?.t("settings.trainingMode.options.highestDamage", "Highest Damage"),
+      },
+    ];
+
+    setupDropdown(
+      this.languageDropdownBtn,
+      this.languageDropdownMenu,
+      languageOptions,
+      this.settingsSelections.language,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.language = value;
+        this.safeSetStorage(this.storageKeys.language, value);
+        this.i18n?.setLanguage?.(value, { persist: true });
+      }
+    );
+
+    setupDropdown(
+      this.themeDropdownBtn,
+      this.themeDropdownMenu,
+      themeOptions,
+      this.settingsSelections.theme,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.theme = value;
+        this.applyTheme(value, { persist: true });
+      },
+      {
+        decorateItem: (item, value) => {
+          const colors = previewThemeVars(value);
+          item.style.background = colors.rowFill;
+          item.style.color = colors.dpsText;
+          item.style.textShadow = colors.dpsShadow;
+        },
+        decorateButton: (button, value) => {
+          const colors = previewThemeVars(value);
+          button.style.background = colors.rowFill;
+          button.style.color = colors.dpsText;
+          button.style.textShadow = colors.dpsShadow;
+          const textEl = button.querySelector(".settingsDropdownText");
+          if (textEl) {
+            textEl.style.textShadow = colors.dpsShadow;
+          }
+        },
+      }
+    );
+
+    setupDropdown(
+      this.allTargetsWindowDropdownBtn,
+      this.allTargetsWindowDropdownMenu,
+      allTargetsWindowOptions,
+      this.settingsSelections.allTargetsWindowMs,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.allTargetsWindowMs = value;
+        this.safeSetSetting(this.storageKeys.allTargetsWindowMs, value);
+        window.javaBridge?.setAllTargetsWindowMs?.(value);
+        if (!this.isCollapse) this.fetchDps();
+      }
+    );
+
+    setupDropdown(
+      this.trainSelectionModeDropdownBtn,
+      this.trainSelectionModeDropdownMenu,
+      trainModeOptions,
+      this.settingsSelections.trainSelectionMode,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.trainSelectionMode = value;
+        this.trainSelectionMode = value;
+        this.safeSetSetting(this.storageKeys.trainSelectionMode, value);
+        window.javaBridge?.setTrainSelectionMode?.(value);
+        if (!this.isCollapse) this.fetchDps();
+      }
+    );
   }
 
   setupDetailsPanelSettings() {
@@ -1210,6 +1572,7 @@ class DpsApp {
 
   closeSettingsPanel() {
     this.settingsPanel?.classList.remove("isOpen");
+    this.cancelKeybindCapture?.();
   }
 
   setUserName(name, { persist = false, syncBackend = false } = {}) {
@@ -1253,11 +1616,24 @@ class DpsApp {
     }
   }
 
+  setPinMeToTop(enabled, { persist = false } = {}) {
+    this.pinMeToTop = !!enabled;
+    if (this.pinMeToTopCheckbox && document.activeElement !== this.pinMeToTopCheckbox) {
+      this.pinMeToTopCheckbox.checked = this.pinMeToTop;
+    }
+    if (persist) {
+      this.safeSetSetting(this.storageKeys.pinMeToTop, String(this.pinMeToTop));
+    }
+    this.renderCurrentRows();
+  }
+
   setTargetSelection(mode, { persist = false, syncBackend = false, reason = "update" } = {}) {
     const previousSelection = this.targetSelection;
-    this.targetSelection = mode === "allTargets" ? "allTargets" : "lastHitByMe";
+    this.targetSelection = ["allTargets", "trainTargets"].includes(mode)
+      ? mode
+      : "lastHitByMe";
     if (persist) {
-      localStorage.setItem(this.storageKeys.targetSelection, String(this.targetSelection));
+      this.safeSetStorage(this.storageKeys.targetSelection, String(this.targetSelection));
     }
     if (syncBackend) {
       window.javaBridge?.setTargetSelection?.(this.targetSelection);
@@ -1275,8 +1651,8 @@ class DpsApp {
     const normalized = this.availableThemes.includes(themeId) ? themeId : this.availableThemes[0];
     this.theme = normalized;
     document.documentElement.dataset.theme = normalized;
-    if (this.themeSelect && document.activeElement !== this.themeSelect) {
-      this.themeSelect.value = normalized;
+    if (this.settingsSelections) {
+      this.settingsSelections.theme = normalized;
     }
     if (persist) {
       this.safeSetSetting(this.storageKeys.theme, normalized);
@@ -1349,6 +1725,15 @@ class DpsApp {
     this.meterUI?.onResetMeterUi?.();
     this.renderCurrentRows();
 
+    if (this.battleTimeRoot) {
+      this.battleTimeRoot.classList.add("isVisible");
+    }
+    if (this.analysisStatusEl) {
+      this.analysisStatusEl.textContent =
+        this.i18n?.t("battleTime.analysing", "Monitoring data...") ?? "Monitoring data...";
+      this.analysisStatusEl.style.display = "";
+    }
+
     if (this.elBossName) {
       this.elBossName.textContent = this.getDefaultTargetLabel(this.targetSelection);
     }
@@ -1375,7 +1760,7 @@ class DpsApp {
   renderCurrentRows() {
     if (this.isCollapse) return;
     let rowsToRender = Array.isArray(this.lastSnapshot) ? this.lastSnapshot : [];
-    if (this.onlyShowUser && this.USER_NAME) {
+    if (this.lastTargetMode === "trainTargets" && this.USER_NAME) {
       rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
     }
     const rowsSummary = this.getRowsSummary(rowsToRender);
@@ -1385,9 +1770,6 @@ class DpsApp {
         reasons.push("no snapshot available");
       } else {
         reasons.push("renderCurrentRows refresh");
-      }
-      if (this.onlyShowUser && this.USER_NAME) {
-        reasons.push(`filtered to user ${this.USER_NAME}`);
       }
       this.logDebug(
         `Meter list changed (${rowsToRender.length} rows). reason: ${
@@ -1406,6 +1788,9 @@ class DpsApp {
     if (typeof raw !== "string") {
       this.lockedIp.textContent = "-";
       this.lockedPort.textContent = "-";
+      if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
+        this.localActorIdInput.value = "";
+      }
       this.isDetectingPort = this.aionRunning;
       this.updateConnectionStatusUi();
       if (!skipSettingsRefresh) {
@@ -1430,6 +1815,17 @@ class DpsApp {
         : this.i18n?.t("connection.auto", "Auto");
     this.lockedIp.textContent = ip;
     this.lockedPort.textContent = port;
+    const localPlayerId = Number(info?.localPlayerId);
+    this.localPlayerId = Number.isFinite(localPlayerId) && localPlayerId > 0
+      ? Math.trunc(localPlayerId)
+      : null;
+    if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
+      this.localActorIdInput.value = this.localPlayerId ? String(this.localPlayerId) : "";
+    }
+    if (this.characterNameInput) {
+      const nickname = String(info?.characterName || this.USER_NAME || "").trim();
+      this.characterNameInput.value = nickname;
+    }
     this.updateConnectionStatusUi();
     if (!skipSettingsRefresh) {
       this.refreshSettingsPanelIfOpen();
@@ -1526,14 +1922,20 @@ class DpsApp {
 
   getDefaultTargetLabel(targetMode = "") {
     if (targetMode === "allTargets") {
-      return this.i18n?.t("target.all", "All targets") ?? "All targets";
+      return this.i18n?.t("target.all", "All Targets") ?? "All Targets";
+    }
+    if (targetMode === "trainTargets") {
+      return this.i18n?.t("target.train", "Training Scarecrow") ?? "Training Scarecrow";
     }
     return this.i18n?.t("header.title", "DPS METER") ?? "DPS METER";
   }
 
   getTargetLabel({ targetId = 0, targetName = "", targetMode = "" } = {}) {
-    if (targetMode === "allTargets") {
+    if (targetMode === "allTargets" || targetMode === "trainTargets") {
       return this.getDefaultTargetLabel(targetMode);
+    }
+    if (targetMode === "lastHitByMe" && (!Number(targetId) || Number(targetId) <= 0) && !targetName) {
+      return this.getDefaultTargetLabel("allTargets");
     }
     if (Number.isFinite(Number(targetId)) && Number(targetId) > 0) {
       return `Mob #${Number(targetId)}`;
@@ -1547,15 +1949,15 @@ class DpsApp {
   updateTargetModeButton() {
     if (!this.targetModeBtn) return;
     const isAllTargets = this.targetSelection === "allTargets";
+    const isTrainTargets = this.targetSelection === "trainTargets";
     this.targetModeBtn.classList.toggle("isAllTargets", isAllTargets);
-    const label = isAllTargets ? "ALL" : "";
-    const labelEl = this.targetModeBtn.querySelector(".targetModeLabel");
-    if (labelEl) {
-      labelEl.textContent = label;
-    }
+    this.targetModeBtn.classList.toggle("isTrainTargets", isTrainTargets);
+    this.targetModeBtn.textContent = isAllTargets ? "ALL" : isTrainTargets ? "TRAIN" : "TARGET";
     const ariaLabel = isAllTargets
       ? "All targets mode"
-      : "Target mode";
+      : isTrainTargets
+        ? "Train targets mode"
+        : "Target mode";
     this.targetModeBtn.setAttribute("aria-label", ariaLabel);
   }
 
@@ -1564,7 +1966,12 @@ class DpsApp {
     if (this.lastTargetName || this.lastTargetId) {
       return;
     }
-    this.elBossName.textContent = this.getDefaultTargetLabel(this.lastTargetMode);
+    this.elBossName.textContent = this.getTargetLabel({
+      targetMode: this.lastTargetMode,
+      targetId: this.lastTargetId,
+      targetName: this.lastTargetName,
+    });
+    this.elBossName.classList.toggle("isAllTargets", this.lastTargetMode === "allTargets");
   }
 
   bindDragToMoveWindow() {
@@ -1575,10 +1982,11 @@ class DpsApp {
       initialStageY = 0;
 
     document.addEventListener("mousedown", (e) => {
-      if (e.target?.closest?.(".resizeHandle")) {
+      const targetEl = e.target?.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
+      if (targetEl?.closest?.(".resizeHandle")) {
         return;
       }
-      if (e.target?.closest?.(".headerBtn, .footerBtn")) {
+      if (targetEl?.closest?.(".headerBtn, .footerBtn")) {
         return;
       }
       isDragging = true;
@@ -1648,7 +2056,6 @@ DpsApp.instance = null;
 
 // 디버그콘솔
 const setupDebugConsole = () => {
-  const g = globalThis;
   if (globalThis.uiDebug?.log) return globalThis.uiDebug;
 
   const consoleDiv = document.querySelector(".console");
@@ -1673,24 +2080,45 @@ const setupDebugConsole = () => {
     consoleDiv.scrollTop = consoleDiv.scrollHeight;
   };
 
+  const originalConsole = {
+    log: console.log.bind(console),
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+  };
+
+  const printToPanel = (level, args) => {
+    const line = args.map(safeStringify).join(" ");
+    appendLine(`[${level}] ${line}`);
+  };
+
+  if (!globalThis.__uiConsolePatched) {
+    ["log", "info", "warn", "error"].forEach((level) => {
+      console[level] = (...args) => {
+        originalConsole[level](...args);
+        printToPanel(level, args);
+      };
+    });
+    globalThis.__uiConsolePatched = true;
+  }
+
   globalThis.uiDebug = {
     clear() {
       consoleDiv.innerHTML = "";
     },
     log(...args) {
-      const line = args.map(safeStringify).join(" ");
-      appendLine(line);
-      console.log(...args);
+      printToPanel("debug", args);
     },
   };
 
   return globalThis.uiDebug;
 };
 
+// Keep JavaFX overlay console hidden unless explicitly re-enabled for troubleshooting.
 // setupDebugConsole();
 const dpsApp = DpsApp.createInstance();
 window.dpsApp = dpsApp;
-const debug = globalThis.uiDebug;
+const debug = globalThis.uiDebug || { log: () => {}, clear: () => {} };
 
 window.addEventListener("error", (event) => {
   debug?.log?.("window.error", {
@@ -1705,11 +2133,15 @@ window.addEventListener("unhandledrejection", (event) => {
   debug?.log?.("unhandledrejection", event.reason);
 });
 
-const startApp = async () => {
+let appStarted = false;
+const startApp = async ({ forced = false } = {}) => {
+  if (appStarted) return;
+  appStarted = true;
   debug?.log?.("startApp", {
     readyState: document.readyState,
     hasDpsData: !!window.dpsData,
     hasJavaBridge: !!window.javaBridge,
+    forced,
   });
   try {
     await window.i18n?.init?.();
@@ -1721,11 +2153,12 @@ const startApp = async () => {
   }
 };
 
-const waitForBridgeAndStart = () => {
+const waitForBridgeAndStart = (attempt = 0) => {
   // JavaFX WebView injects these after loadWorker SUCCEEDED (slightly later than DOMContentLoaded)
   const ready = !!window.javaBridge && !!window.dpsData;
 
   debug?.log?.("waitForBridge", {
+    attempt,
     readyState: document.readyState,
     hasDpsData: !!window.dpsData,
     hasJavaBridge: !!window.javaBridge,
@@ -1735,7 +2168,14 @@ const waitForBridgeAndStart = () => {
     startApp();
     return;
   }
-  setTimeout(waitForBridgeAndStart, 50);
+
+  if (attempt >= 200) {
+    debug?.log?.("waitForBridge.timeout", "Bridge not ready after 10s; forcing UI startup.");
+    startApp({ forced: true });
+    return;
+  }
+
+  setTimeout(() => waitForBridgeAndStart(attempt + 1), 50);
 };
 
 if (document.readyState === "loading") {

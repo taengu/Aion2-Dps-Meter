@@ -110,6 +110,10 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun parseBrokenLengthPacket(packet: ByteArray, flag: Boolean = true): Boolean {
         var parsed = false
+        if (packet.size < 4) {
+            logger.debug("Truncated packet skipped: {}", toHex(packet))
+            return parsed
+        }
         if (packet[2] != 0xff.toByte() || packet[3] != 0xff.toByte()) {
             logger.trace("Remaining packet buffer: {}", toHex(packet))
             val target = dataStorage.getCurrentTarget()
@@ -153,9 +157,13 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 }
             }
             if (flag && !processed) {
-                logger.debug("Remaining packet {}", toHex(packet))
+                logger.trace("Remaining packet {}", toHex(packet))
                 parsed = castNicknameNet(packet) || parsed
             }
+            return parsed
+        }
+        if (packet.size <= 10) {
+            logger.debug("Truncated packet skipped: {}", toHex(packet))
             return parsed
         }
         val newPacket = packet.copyOfRange(10, packet.size)
@@ -636,8 +644,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
                 val mobInfo2 = readVarInt(packet, offset)
                 if (mobInfo2.length < 0) return false
                 if (mobInfo.value == mobInfo2.value) {
-                    logger.debug("mid: {}, code: {}", summonInfo.value, mobInfo.value)
-                    DebugLogWriter.debug(logger, "mid: {}, code: {}", summonInfo.value, mobInfo.value)
+                    logger.trace("mid: {}, code: {}", summonInfo.value, mobInfo.value)
                     dataStorage.appendMob(summonInfo.value, mobInfo.value)
                 }
             }
@@ -862,7 +869,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         pdp.setMultiHitCount(multiHitCount)
         pdp.setMultiHitDamage(multiHitDamage)
         pdp.setHealAmount(healAmount)
-        unknownInfo?.let { pdp.setUnknown(it) }
+        pdp.setUnknown(unknownInfo)
         pdp.setDamage(VarIntOutput(adjustedDamage, 1))
         pdp.setHexPayload(toHex(packet))
 

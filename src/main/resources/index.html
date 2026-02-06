@@ -28,18 +28,17 @@
           </div>
 
           <div class="headerBtns">
-            <div
-              class="headerBtn targetModeBtn"
-              role="button"
-              aria-label="Target mode">
-              <span class="targetModeIcon"><i data-lucide="target"></i></span>
-              <span class="targetModeLabel">ALL</span>
-            </div>
             <div class="headerBtn resetBtn"><i data-lucide="rotate-ccw"></i></div>
             <div class="headerBtn settingsBtn"><i data-lucide="settings"></i></div>
           </div>
         </div>
         <div class="footerBtns">
+          <button
+            class="footerBtn targetModeBtn"
+            type="button"
+            aria-label="Target mode">
+            TARGET
+          </button>
           <button
             class="footerBtn metricToggleBtn"
             type="button"
@@ -82,6 +81,10 @@
                 <button class="detailsSortBtn" data-sort="time" type="button">Time</button>
                 <button class="detailsSortBtn" data-sort="damage" type="button">Damage</button>
               </div>
+              <button class="detailsScreenshotBtn" type="button" aria-label="Save screenshot to clipboard">
+                <i data-lucide="camera"></i>
+              </button>
+              <span class="detailsScreenshotNote" aria-live="polite"></span>
             </div>
             <div class="detailsHeaderControls">
               <button
@@ -173,46 +176,46 @@
                 data-i18n="settings.characterName">
                 Character name
               </label>
-              <input
-                id="characterNameInput"
-                class="characterNameInput"
-                placeholder="Enter your character name"
-                data-i18n-placeholder="settings.characterNamePlaceholder" />
+              <div class="settingsCharacterIdentity">
+                <input
+                  id="characterNameInput"
+                  class="characterNameInput"
+                  readonly
+                  placeholder="Enter your character name"
+                  data-i18n-placeholder="settings.characterNamePlaceholder" />
+                <div class="settingsActorInline">
+                  <span class="settingsActorPrefix">#</span>
+                  <input
+                    id="localActorIdInput"
+                    class="localActorIdInput"
+                    inputmode="numeric"
+                    placeholder="1234" />
+                </div>
+              </div>
             </div>
-            <label class="settingsCheckbox">
-              <input
-                type="checkbox"
-                class="onlyMeCheckbox" />
-              <span data-i18n="settings.onlyMe">Only show my character</span>
-            </label>
             <div class="settingsRow settingsRowSelect">
               <div class="settingsInfo">
                 <div class="settingsLabel" data-i18n="settings.theme.label">Theme</div>
               </div>
-              <select class="settingsSelect themeSelect">
-                <option value="classic" data-i18n="settings.theme.options.classic">
-                  Classic
-                </option>
-                <option value="aion2" data-i18n="settings.theme.options.aion2">AION2</option>
-                <option value="ember" data-i18n="settings.theme.options.ember">Ember</option>
-                <option value="frost" data-i18n="settings.theme.options.frost">Frost</option>
-                <option value="natura" data-i18n="settings.theme.options.natura">Natura</option>
-                <option value="storm" data-i18n="settings.theme.options.storm">Storm</option>
-                <option value="void" data-i18n="settings.theme.options.void">Void</option>
-                <option value="obsidian" data-i18n="settings.theme.options.obsidian">Obsidian</option>
-                <option value="cyber" data-i18n="settings.theme.options.cyber">Cyber</option>
-              </select>
+              <div class="settingsDropdownWrapper themeDropdownWrapper">
+                <button class="settingsDropdownBtn themeDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu themeDropdownMenu" role="menu"></div>
+              </div>
             </div>
             <div class="settingsRow settingsRowSelect">
               <div class="settingsInfo">
                 <div class="settingsLabel" data-i18n="settings.language.label">Language</div>
               </div>
-              <select class="settingsSelect languageSelect">
-                <option value="en">English</option>
-                <option value="ko">한국어</option>
-                <option value="zh-Hant">繁體中文</option>
-                <option value="zh-Hans">简体中文</option>
-              </select>
+              <div class="settingsDropdownWrapper languageDropdownWrapper">
+                <button class="settingsDropdownBtn languageDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu languageDropdownMenu" role="menu"></div>
+              </div>
             </div>
             <div class="settingsRow settingsRowInput">
               <div class="settingsInfo">
@@ -222,12 +225,54 @@
               </div>
               <button class="settingsKeybindInput" type="button">Ctrl+R</button>
             </div>
+            <div class="settingsDivider"></div>
+            <div class="settingsMiniTitle" data-i18n="settings.meterSettings">Meter Settings</div>
+            <div class="settingsRow settingsRowSelect">
+              <div class="settingsInfo">
+                <div class="settingsLabel" data-i18n="settings.allTargetsWindow.label">
+                  All Targets window
+                </div>
+              </div>
+              <div class="settingsDropdownWrapper allTargetsWindowDropdownWrapper">
+                <button class="settingsDropdownBtn allTargetsWindowDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu allTargetsWindowDropdownMenu" role="menu"></div>
+              </div>
+            </div>
+            <div class="settingsRow settingsRowSelect">
+              <div class="settingsInfo">
+                <div class="settingsLabel" data-i18n="settings.trainingMode.label">Training Mode</div>
+              </div>
+              <div class="settingsDropdownWrapper trainSelectionModeDropdownWrapper">
+                <button class="settingsDropdownBtn trainSelectionModeDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu trainSelectionModeDropdownMenu" role="menu"></div>
+              </div>
+            </div>
             <div>
-              <label class="settingsCheckbox">
-                <input
-                        type="checkbox"
-                        class="debugLoggingCheckbox" />
-                <span data-i18n="settings.debugLogging">Enable debug logging</span>
+              <label class="settingsToggle">
+                <span class="settingsToggleLabel" data-i18n="settings.pinMeToTop">
+                  Pin Me To Top
+                </span>
+                <span class="settingsToggleControl">
+                  <input type="checkbox" class="pinMeToTopCheckbox" />
+                  <span class="settingsToggleTrack" aria-hidden="true"></span>
+                </span>
+              </label>
+            </div>
+            <div>
+              <label class="settingsToggle">
+                <span class="settingsToggleLabel" data-i18n="settings.debugLogging">
+                  Enable debug logging
+                </span>
+                <span class="settingsToggleControl">
+                  <input type="checkbox" class="debugLoggingCheckbox" />
+                  <span class="settingsToggleTrack" aria-hidden="true"></span>
+                </span>
               </label>
             </div>
             <button class="discordButton" type="button">
@@ -251,7 +296,7 @@
           <div class="status"></div>
           <div class="tick"></div>
           <div class="analysisStatus" data-i18n="battleTime.analysing">
-            Ready - monitoring combat...
+            Monitoring data...
           </div>
         </div>
         <div class="resizeHandle" aria-hidden="true"></div>
