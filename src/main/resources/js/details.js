@@ -24,6 +24,7 @@ const createDetailsUI = ({
   let selectedAttackerIds = null;
   let selectedAttackerLabel = "";
   let sortMode = "recent";
+  let detectedJobByActorId = new Map();
 
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -139,16 +140,57 @@ const createDetailsUI = ({
 
   const jobColorMap = {
     정령성: "#4FD1C5",
+    Spiritmaster: "#4FD1C5",
     궁성: "#41D98A",
+    Ranger: "#41D98A",
     살성: "#7BE35A",
+    Assassin: "#7BE35A",
     수호성: "#5F8CFF",
+    Templar: "#5F8CFF",
     마도성: "#9A6BFF",
+    Sorcerer: "#9A6BFF",
     호법성: "#E06BFF",
+    Chanter: "#E06BFF",
     치유성: "#F2C15A",
+    Cleric: "#F2C15A",
     검성: "#FF9A3D",
+    Gladiator: "#FF9A3D",
   };
 
   const getJobColor = (job) => jobColorMap[job] || "";
+
+  const getActorJob = (actorId) => {
+    const numericId = Number(actorId);
+    if (!Number.isFinite(numericId) || numericId <= 0) return "";
+    const contextJob = detailsActors.get(numericId)?.job;
+    if (contextJob) return contextJob;
+    const detectedJob = detectedJobByActorId.get(numericId);
+    if (detectedJob) return detectedJob;
+    if (Number(lastRow?.id) === numericId) {
+      return String(lastRow?.job || "");
+    }
+    return "";
+  };
+
+  const rememberJobsFromDetails = (details) => {
+    if (!details || typeof details !== "object") return;
+    const actorStats = Array.isArray(details.perActorStats) ? details.perActorStats : [];
+    actorStats.forEach((entry) => {
+      const actorId = Number(entry?.actorId);
+      const job = String(entry?.job || "").trim();
+      if (Number.isFinite(actorId) && actorId > 0 && job) {
+        detectedJobByActorId.set(actorId, job);
+      }
+    });
+    const skills = Array.isArray(details.skills) ? details.skills : [];
+    skills.forEach((skill) => {
+      const actorId = Number(skill?.actorId);
+      const job = String(skill?.job || "").trim();
+      if (Number.isFinite(actorId) && actorId > 0 && job) {
+        detectedJobByActorId.set(actorId, job);
+      }
+    });
+  };
 
   const updateHeaderText = () => {
     const nicknameTextEl = detailsNicknameBtn?.querySelector?.(".detailsDropdownText");
@@ -171,7 +213,7 @@ const createDetailsUI = ({
       const actorId = Array.isArray(selectedAttackerIds) && selectedAttackerIds.length === 1
         ? selectedAttackerIds[0]
         : null;
-      const actorJob = actorId ? detailsActors.get(Number(actorId))?.job : "";
+      const actorJob = actorId ? getActorJob(actorId) : "";
       const color = actorJob ? getJobColor(actorJob) : "";
       detailsNicknameBtn.style.color = color || "";
     }
@@ -256,7 +298,7 @@ const createDetailsUI = ({
         const span = document.createElement("span");
         span.textContent = resolveStatValue(statKey, actor);
         span.style.fontWeight = "400";
-        const color = getJobColor(actor.job);
+        const color = getJobColor(actor.job || getActorJob(actor.actorId));
         if (color) {
           span.style.color = color;
         }
@@ -397,7 +439,8 @@ const createDetailsUI = ({
       const doubleRate = pct(double, hits);
 
       view.nameTextEl.textContent = skill.name ?? "";
-      const skillColor = skill.job ? getJobColor(skill.job) : "";
+      const resolvedJob = skill.job || getActorJob(skill.actorId);
+      const skillColor = resolvedJob ? getJobColor(resolvedJob) : "";
       view.nameTextEl.style.color = skillColor || "";
       view.hitEl.textContent = `${hits}`;
       view.critEl.textContent = `${critRate}%`;
@@ -482,8 +525,7 @@ const createDetailsUI = ({
       item.className = "detailsDropdownItem";
       item.dataset.value = String(entry.id);
       item.textContent = entry.label;
-      const actor = detailsActors.get(Number(entry.id));
-      const color = getJobColor(actor?.job || "");
+      const color = getJobColor(getActorJob(entry.id));
       if (color) {
         item.style.color = color;
       }
@@ -764,6 +806,13 @@ const createDetailsUI = ({
   });
 
   const render = (details, row) => {
+    if (row?.id && row?.job) {
+      const rowActorId = Number(row.id);
+      if (Number.isFinite(rowActorId) && rowActorId > 0) {
+        detectedJobByActorId.set(rowActorId, String(row.job));
+      }
+    }
+    rememberJobsFromDetails(details);
     selectedAttackerLabel = selectedAttackerLabel || String(row.name ?? "");
     updateHeaderText();
     renderStats(details);

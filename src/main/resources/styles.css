@@ -1274,6 +1274,72 @@ html[lang="ko"] * {
   outline: 1px solid var(--isUser-fill);
   outline-offset: 1px;
 }
+
+.settingsPanel .settingsDropdownWrapper {
+  position: relative;
+  min-width: 180px;
+}
+.settingsPanel .settingsDropdownBtn {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: inherit;
+  font: inherit;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+.settingsPanel .settingsDropdownText {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.settingsPanel .settingsDropdownCaret {
+  opacity: 0.6;
+  font-size: 0.8em;
+  flex: 0 0 auto;
+}
+.settingsPanel .settingsDropdownBtn:focus {
+  outline: 1px solid var(--isUser-fill);
+  outline-offset: 1px;
+}
+.settingsPanel .settingsDropdownMenu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  min-width: 100%;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 22, 40, 0.95);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+  display: none;
+  z-index: 7;
+}
+.settingsPanel .settingsDropdownMenu.isOpen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settingsPanel .settingsDropdownItem {
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.settingsPanel .settingsDropdownItem:hover,
+.settingsPanel .settingsDropdownItem.isActive {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .settingsPanel .settingsCheckbox {
   display: flex;
   align-items: center;
