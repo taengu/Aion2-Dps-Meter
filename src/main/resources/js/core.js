@@ -145,8 +145,8 @@ class DpsApp {
         return this.i18n?.t("battleTime.notRunning", "AION2 not running") ?? "AION2 not running";
       }
       if (this.isDetectingPort) {
-        return this.i18n?.t("connection.detecting", "Detecting device/port...") ??
-          "Detecting device/port...";
+        return this.i18n?.t("connection.detecting", "Detecting AION2 connection...") ??
+          "Detecting AION2 connection...";
       }
       if (this.battleTime?.getState?.() === "state-idle") {
         return this.i18n?.t("battleTime.idle", "Idle") ?? "Idle";
@@ -1309,7 +1309,7 @@ class DpsApp {
     const port = hasPort
       ? String(info.port)
       : this.isDetectingPort
-        ? this.i18n?.t("connection.detecting", "Detecting device/port...")
+        ? this.i18n?.t("connection.detecting", "Detecting AION2 connection...")
         : this.i18n?.t("connection.auto", "Auto");
     this.lockedIp.textContent = ip;
     this.lockedPort.textContent = port;
@@ -1334,8 +1334,8 @@ class DpsApp {
     }
     if (this.isDetectingPort) {
       this.applyConnectionStatusOverride(
-        this.i18n?.t("connection.detecting", "Detecting device/port...") ??
-          "Detecting device/port..."
+        this.i18n?.t("connection.detecting", "Detecting AION2 connection...") ??
+          "Detecting AION2 connection..."
       );
       return;
     }
