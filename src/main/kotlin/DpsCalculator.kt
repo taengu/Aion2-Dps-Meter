@@ -961,11 +961,14 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         resetDataStorage()
     }
 
-    fun restartTargetSelection() {
+    fun restartTargetSelection(clearDamage: Boolean = false) {
         lastLocalHitTime = -1L
         currentTarget = 0
         targetInfoMap.clear()
         lastDpsSnapshot = null
+        if (clearDamage) {
+            dataStorage.flushDamageStorage()
+        }
         dataStorage.setCurrentTarget(0)
     }
 
@@ -974,14 +977,14 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         if (nextId == null || LocalPlayer.playerId == nextId) return
         LocalPlayer.playerId = nextId
         lastKnownLocalPlayerId = nextId
-        restartTargetSelection()
+        restartTargetSelection(clearDamage = true)
     }
 
     fun getDps(): DpsData {
         val currentLocalId = LocalPlayer.playerId
         if (currentLocalId != lastKnownLocalPlayerId) {
             lastKnownLocalPlayerId = currentLocalId
-            restartTargetSelection()
+            restartTargetSelection(clearDamage = true)
         }
         val pdpMap = dataStorage.getBossModeData()
 
