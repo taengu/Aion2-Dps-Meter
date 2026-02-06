@@ -148,18 +148,29 @@ class DpsApp {
         }),
     });
 
+    const withBacklog = (text) => {
+      if (!window.javaBridge?.isRunningFromIde?.()) return text;
+      const backlog = window.javaBridge?.getParsingBacklog?.();
+      if (!Number.isFinite(backlog)) return text;
+      return `${text} (backlog: ${backlog})`;
+    };
+
     const getBattleTimeStatusText = () => {
       if (!this.aionRunning) {
-        return this.i18n?.t("battleTime.notRunning", "AION2 not running") ?? "AION2 not running";
+        const text = this.i18n?.t("battleTime.notRunning", "AION2 not running") ?? "AION2 not running";
+        return withBacklog(text);
       }
       if (this.isDetectingPort) {
-        return this.i18n?.t("connection.detecting", "Detecting AION2 connection...") ??
+        const text = this.i18n?.t("connection.detecting", "Detecting AION2 connection...") ??
           "Detecting AION2 connection...";
+        return withBacklog(text);
       }
       if (this.battleTime?.getState?.() === "state-idle") {
-        return this.i18n?.t("battleTime.idle", "Idle") ?? "Idle";
+        const text = this.i18n?.t("battleTime.idle", "Idle") ?? "Idle";
+        return withBacklog(text);
       }
-      return this.i18n?.t("battleTime.analysing", "Monitoring data...") ?? "Monitoring data...";
+      const text = this.i18n?.t("battleTime.analysing", "Monitoring data...") ?? "Monitoring data...";
+      return withBacklog(text);
     };
 
     this.battleTime = createBattleTimeUI({
@@ -1028,6 +1039,7 @@ class DpsApp {
     if (this.refreshKeybindInput) {
       let capturing = false;
       let pendingValue = "";
+      let captureMode = "dom";
 
       const modifierKeys = ["Control", "Shift", "Alt", "Meta"];
 
@@ -1063,16 +1075,21 @@ class DpsApp {
         this.refreshKeybindInput.textContent = "Press key combination...";
       };
 
-      const stopCapture = () => {
+      const stopCapture = ({ cancelNative = true } = {}) => {
         capturing = false;
         pendingValue = "";
         this.refreshKeybindInput.classList.remove("isCapturing");
         const currentValue = this.refreshKeybindInput.dataset.value || "Ctrl+R";
         this.refreshKeybindInput.textContent = currentValue;
+        if (captureMode === "native" && cancelNative) {
+          window.javaBridge?.cancelRefreshKeybindCapture?.();
+        }
+        captureMode = "dom";
       };
 
       const captureKeydown = (event) => {
         if (!capturing) return;
+        if (captureMode === "native") return;
         event.preventDefault();
         event.stopPropagation();
         const key = normalizeEventKey(event);
@@ -1088,6 +1105,7 @@ class DpsApp {
 
       const captureKeyup = (event) => {
         if (!capturing) return;
+        if (captureMode === "native") return;
         event.preventDefault();
         event.stopPropagation();
         const key = normalizeEventKey(event);
@@ -1098,17 +1116,29 @@ class DpsApp {
         stopCapture();
       };
 
+      this.receiveKeybindCapture = (value) => {
+        if (!capturing) return;
+        if (value) {
+          setKeybindValue(value, { persist: true, syncBackend: true });
+        }
+        stopCapture({ cancelNative: false });
+      };
+
       this.refreshKeybindInput.addEventListener("click", () => {
         startCapture();
-        this.refreshKeybindInput.focus();
+        const nativeStarted = window.javaBridge?.startRefreshKeybindCapture?.() || false;
+        captureMode = nativeStarted ? "native" : "dom";
+        if (captureMode === "dom") {
+          this.refreshKeybindInput.focus();
+        }
       });
       document.addEventListener("keydown", captureKeydown, true);
       document.addEventListener("keyup", captureKeyup, true);
       window.addEventListener("blur", () => {
-        if (capturing) stopCapture();
+        if (capturing && captureMode === "dom") stopCapture();
       });
       this.refreshKeybindInput.addEventListener("blur", () => {
-        if (capturing) stopCapture();
+        if (capturing && captureMode === "dom") stopCapture();
       });
     }
 

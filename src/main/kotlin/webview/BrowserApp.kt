@@ -4,6 +4,7 @@ import com.tbread.DpsCalculator
 import com.tbread.entity.DpsData
 import com.tbread.keyboard.RefreshKeybindManager
 import com.tbread.logging.DebugLogWriter
+import com.tbread.packet.CaptureDispatcher
 import com.tbread.packet.CombatPortDetector
 import com.tbread.packet.LocalPlayer
 import com.tbread.packet.PropertyHandler
@@ -33,6 +34,7 @@ import kotlin.system.exitProcess
 
 class BrowserApp(
     private val dpsCalculator: DpsCalculator,
+    private val captureDispatcher: CaptureDispatcher,
     private val onUiReady: (() -> Unit)? = null
 ) : Application() {
 
@@ -169,6 +171,16 @@ class BrowserApp(
             refreshKeybindManager.updateKeybind(normalized)
         }
 
+        fun startRefreshKeybindCapture(): Boolean {
+            return refreshKeybindManager.beginCapture { combo ->
+                notifyKeybindCaptured(combo)
+            }
+        }
+
+        fun cancelRefreshKeybindCapture() {
+            refreshKeybindManager.cancelCapture()
+        }
+
         fun logDebug(message: String?) {
             if (message.isNullOrBlank()) return
             DebugLogWriter.debug(logger, "UI {}", message.trim())
@@ -178,6 +190,16 @@ class BrowserApp(
             val gradleAppName = System.getProperty("org.gradle.appname")
             val javaCommand = System.getProperty("sun.java.command").orEmpty()
             return gradleAppName != null || javaCommand.contains("org.gradle", ignoreCase = true)
+        }
+
+        fun isRunningFromIde(): Boolean {
+            return System.getProperty("idea.version") != null ||
+                System.getProperty("idea.active") != null ||
+                System.getProperty("idea.platform.prefix") != null
+        }
+
+        fun getParsingBacklog(): Int {
+            return captureDispatcher.getParsingBacklog()
         }
 
         fun exitApp() {
@@ -228,6 +250,18 @@ class BrowserApp(
                 engine.executeScript("window.dpsApp?.triggerRefreshFromKeybind?.()")
             } catch (e: Exception) {
                 logger.warn("Failed to trigger refresh via keybind", e)
+            }
+        }
+    }
+
+    private fun notifyKeybindCaptured(combo: String) {
+        val engine = webEngine ?: return
+        Platform.runLater {
+            try {
+                val escaped = combo.replace("\\", "\\\\").replace("'", "\\'")
+                engine.executeScript("window.dpsApp?.receiveKeybindCapture?.('$escaped')")
+            } catch (e: Exception) {
+                logger.warn("Failed to deliver keybind capture", e)
             }
         }
     }
