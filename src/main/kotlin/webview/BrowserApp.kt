@@ -432,9 +432,9 @@ class BrowserApp(
         stage.setOnShown { uiReadyNotifier() }
         stage.show()
         ensureStageVisible(stage, "initial")
-        Timeline(KeyFrame(Duration.seconds(1.0)) {
+        Timeline(KeyFrame(Duration.seconds(1.0), {
             ensureStageVisible(stage, "delayed")
-        }).apply {
+        })).apply {
             cycleCount = 1
             play()
         }
