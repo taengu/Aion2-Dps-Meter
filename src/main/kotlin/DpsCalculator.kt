@@ -1328,7 +1328,10 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             }
         }
 
-        if (mostRecentTime < 0 || mostRecentTime <= lastLocalHitTime) {
+        if (mostRecentTime < 0) {
+            return fallbackTarget
+        }
+        if (mostRecentTime <= lastLocalHitTime && fallbackTarget != 0) {
             return fallbackTarget
         }
 

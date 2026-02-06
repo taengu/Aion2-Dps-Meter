@@ -1461,6 +1461,9 @@ class DpsApp {
       if (e.target?.closest?.(".resizeHandle")) {
         return;
       }
+      if (e.target?.closest?.(".headerBtn, .footerBtn")) {
+        return;
+      }
       isDragging = true;
       startX = e.screenX;
       startY = e.screenY;
