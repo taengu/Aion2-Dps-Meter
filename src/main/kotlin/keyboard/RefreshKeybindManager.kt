@@ -40,7 +40,9 @@ class RefreshKeybindManager(
         try {
             Logger.getLogger(GlobalScreen::class.java.packageName).level = Level.OFF
             Logger.getLogger(GlobalScreen::class.java.packageName).useParentHandlers = false
-            GlobalScreen.registerNativeHook()
+            if (!GlobalScreen.isNativeHookRegistered()) {
+                GlobalScreen.registerNativeHook()
+            }
             GlobalScreen.addNativeKeyListener(this)
         } catch (e: NativeHookException) {
             logger.warn("Failed to register global keybind hook", e)
