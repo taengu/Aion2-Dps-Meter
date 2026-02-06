@@ -516,12 +516,6 @@ class BrowserApp(
         refreshKeybindValue = storedKeybind
         refreshKeybindManager.updateKeybind(storedKeybind)
         refreshKeybindManager.start()
-        Timeline(KeyFrame(Duration.seconds(5.0), {
-            refreshKeybindManager.ensureRunning()
-        })).apply {
-            cycleCount = Timeline.INDEFINITE
-            play()
-        }
 
 
         val scene = Scene(webView, 1600.0, 1000.0)

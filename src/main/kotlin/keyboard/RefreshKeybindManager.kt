@@ -48,31 +48,11 @@ class RefreshKeybindManager(
             if (!GlobalScreen.isNativeHookRegistered()) {
                 GlobalScreen.registerNativeHook()
             }
+            GlobalScreen.addNativeKeyListener(this)
         } catch (e: NativeHookException) {
             logger.warn("Failed to register global keybind hook", e)
-        } finally {
-            try {
-                GlobalScreen.removeNativeKeyListener(this)
-            } catch (e: Exception) {
-                logger.debug("Failed to remove existing keybind listener", e)
-            }
-            try {
-                GlobalScreen.addNativeKeyListener(this)
-            } catch (e: Exception) {
-                logger.warn("Failed to attach global keybind listener", e)
-            }
-        }
-    }
-
-    fun ensureRunning() {
-        val registered = try {
-            GlobalScreen.isNativeHookRegistered()
         } catch (e: Exception) {
-            logger.debug("Failed to check native hook status", e)
-            false
-        }
-        if (!registered) {
-            start()
+            logger.warn("Failed to attach global keybind listener", e)
         }
     }
 
