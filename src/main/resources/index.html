@@ -193,30 +193,25 @@
               <div class="settingsInfo">
                 <div class="settingsLabel" data-i18n="settings.theme.label">Theme</div>
               </div>
-              <select class="settingsSelect themeSelect">
-                <option value="classic" data-i18n="settings.theme.options.classic">
-                  Classic
-                </option>
-                <option value="aion2" data-i18n="settings.theme.options.aion2">AION2</option>
-                <option value="ember" data-i18n="settings.theme.options.ember">Ember</option>
-                <option value="frost" data-i18n="settings.theme.options.frost">Frost</option>
-                <option value="natura" data-i18n="settings.theme.options.natura">Natura</option>
-                <option value="storm" data-i18n="settings.theme.options.storm">Storm</option>
-                <option value="void" data-i18n="settings.theme.options.void">Void</option>
-                <option value="obsidian" data-i18n="settings.theme.options.obsidian">Obsidian</option>
-                <option value="cyber" data-i18n="settings.theme.options.cyber">Cyber</option>
-              </select>
+              <div class="settingsDropdownWrapper themeDropdownWrapper">
+                <button class="settingsDropdownBtn themeDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu themeDropdownMenu" role="menu"></div>
+              </div>
             </div>
             <div class="settingsRow settingsRowSelect">
               <div class="settingsInfo">
                 <div class="settingsLabel" data-i18n="settings.language.label">Language</div>
               </div>
-              <select class="settingsSelect languageSelect">
-                <option value="en">English</option>
-                <option value="ko">한국어</option>
-                <option value="zh-Hant">繁體中文</option>
-                <option value="zh-Hans">简体中文</option>
-              </select>
+              <div class="settingsDropdownWrapper languageDropdownWrapper">
+                <button class="settingsDropdownBtn languageDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu languageDropdownMenu" role="menu"></div>
+              </div>
             </div>
             <div class="settingsRow settingsRowInput">
               <div class="settingsInfo">
@@ -234,24 +229,25 @@
                   All Targets window
                 </div>
               </div>
-              <select class="settingsSelect allTargetsWindowSelect">
-                <option value="30000" data-i18n="settings.allTargetsWindow.options.30s">30 seconds</option>
-                <option value="60000" data-i18n="settings.allTargetsWindow.options.1m">1 minute</option>
-                <option value="120000" data-i18n="settings.allTargetsWindow.options.2m">2 minutes</option>
-                <option value="180000" data-i18n="settings.allTargetsWindow.options.3m">3 minutes</option>
-                <option value="300000" data-i18n="settings.allTargetsWindow.options.5m">5 minutes</option>
-              </select>
+              <div class="settingsDropdownWrapper allTargetsWindowDropdownWrapper">
+                <button class="settingsDropdownBtn allTargetsWindowDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu allTargetsWindowDropdownMenu" role="menu"></div>
+              </div>
             </div>
             <div class="settingsRow settingsRowSelect">
               <div class="settingsInfo">
                 <div class="settingsLabel" data-i18n="settings.trainingMode.label">Training Mode</div>
               </div>
-              <select class="settingsSelect trainSelectionModeSelect">
-                <option value="all" data-i18n="settings.trainingMode.options.all">All</option>
-                <option value="highestDamage" data-i18n="settings.trainingMode.options.highestDamage">
-                  Highest Damage
-                </option>
-              </select>
+              <div class="settingsDropdownWrapper trainSelectionModeDropdownWrapper">
+                <button class="settingsDropdownBtn trainSelectionModeDropdownBtn" type="button">
+                  <span class="settingsDropdownText">-</span>
+                  <span class="settingsDropdownCaret" aria-hidden="true">▾</span>
+                </button>
+                <div class="settingsDropdownMenu trainSelectionModeDropdownMenu" role="menu"></div>
+              </div>
             </div>
             <div>
               <label class="settingsCheckbox">

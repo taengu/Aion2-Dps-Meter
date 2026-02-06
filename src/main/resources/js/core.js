@@ -208,9 +208,8 @@ class DpsApp {
     this.setupSettingsPanel();
     this.detailsUI?.updateLabels?.();
     this.i18n?.onChange?.((lang) => {
-      if (this.languageSelect) {
-        this.languageSelect.value = lang;
-      }
+      this.settingsSelections.language = lang;
+      this.initializeSettingsDropdowns();
       this.detailsUI?.updateLabels?.();
       this.detailsUI?.refresh?.();
       this.updateDisplayToggleLabel();
@@ -884,17 +883,26 @@ class DpsApp {
     this.lockedIp = document.querySelector(".lockedIp");
     this.lockedPort = document.querySelector(".lockedPort");
     this.localActorIdInput = document.querySelector(".localActorIdInput");
-    this.allTargetsWindowSelect = document.querySelector(".allTargetsWindowSelect");
-    this.trainSelectionModeSelect = document.querySelector(".trainSelectionModeSelect");
+    this.allTargetsWindowDropdownBtn = document.querySelector(".allTargetsWindowDropdownBtn");
+    this.allTargetsWindowDropdownMenu = document.querySelector(".allTargetsWindowDropdownMenu");
+    this.trainSelectionModeDropdownBtn = document.querySelector(".trainSelectionModeDropdownBtn");
+    this.trainSelectionModeDropdownMenu = document.querySelector(".trainSelectionModeDropdownMenu");
     this.resetDetectBtn = document.querySelector(".resetDetectBtn");
     this.characterNameInput = document.querySelector(".characterNameInput");
     this.debugLoggingCheckbox = document.querySelector(".debugLoggingCheckbox");
     this.discordButton = document.querySelector(".discordButton");
     this.quitButton = document.querySelector(".quitButton");
-    this.languageSelect = document.querySelector(".languageSelect");
-    this.themeSelect = document.querySelector(".themeSelect");
+    this.languageDropdownBtn = document.querySelector(".languageDropdownBtn");
+    this.languageDropdownMenu = document.querySelector(".languageDropdownMenu");
+    this.themeDropdownBtn = document.querySelector(".themeDropdownBtn");
+    this.themeDropdownMenu = document.querySelector(".themeDropdownMenu");
     this.refreshKeybindInput = document.querySelector(".settingsKeybindInput");
-    this._settingsDropdownDisposers = [];
+    this.settingsSelections = {
+      language: "en",
+      theme: this.theme,
+      allTargetsWindowMs: "120000",
+      trainSelectionMode: "all",
+    };
 
     const storedName = this.safeGetStorage(this.storageKeys.userName) || "";
     const storedAllTargetsWindowMs = this.safeGetSetting(this.storageKeys.allTargetsWindowMs) ||
@@ -949,40 +957,22 @@ class DpsApp {
       });
     }
 
-    if (this.allTargetsWindowSelect) {
-      const allowed = ["30000", "60000", "120000", "180000", "300000"];
-      const selected = allowed.includes(String(storedAllTargetsWindowMs))
-        ? String(storedAllTargetsWindowMs)
-        : "120000";
-      this.allTargetsWindowSelect.value = selected;
-      this.safeSetSetting(this.storageKeys.allTargetsWindowMs, selected);
-      window.javaBridge?.setAllTargetsWindowMs?.(selected);
-      this.allTargetsWindowSelect.addEventListener("change", (event) => {
-        const value = String(event.target?.value || "120000");
-        this.safeSetSetting(this.storageKeys.allTargetsWindowMs, value);
-        window.javaBridge?.setAllTargetsWindowMs?.(value);
-        if (!this.isCollapse) {
-          this.fetchDps();
-        }
-      });
-    }
-    if (this.trainSelectionModeSelect) {
-      const allowedModes = ["all", "highestDamage"];
-      const selectedMode = allowedModes.includes(String(storedTrainSelectionMode))
-        ? String(storedTrainSelectionMode)
-        : "all";
-      this.trainSelectionMode = selectedMode;
-      this.trainSelectionModeSelect.value = selectedMode;
-      this.safeSetSetting(this.storageKeys.trainSelectionMode, selectedMode);
-      window.javaBridge?.setTrainSelectionMode?.(selectedMode);
-      this.trainSelectionModeSelect.addEventListener("change", (event) => {
-        const value = String(event.target?.value || "all");
-        this.trainSelectionMode = value;
-        this.safeSetSetting(this.storageKeys.trainSelectionMode, value);
-        window.javaBridge?.setTrainSelectionMode?.(value);
-        if (!this.isCollapse) this.fetchDps();
-      });
-    }
+    const allowedWindows = ["30000", "60000", "120000", "180000", "300000"];
+    const selectedWindow = allowedWindows.includes(String(storedAllTargetsWindowMs))
+      ? String(storedAllTargetsWindowMs)
+      : "120000";
+    this.settingsSelections.allTargetsWindowMs = selectedWindow;
+    this.safeSetSetting(this.storageKeys.allTargetsWindowMs, selectedWindow);
+    window.javaBridge?.setAllTargetsWindowMs?.(selectedWindow);
+
+    const allowedModes = ["all", "highestDamage"];
+    const selectedMode = allowedModes.includes(String(storedTrainSelectionMode))
+      ? String(storedTrainSelectionMode)
+      : "all";
+    this.trainSelectionMode = selectedMode;
+    this.settingsSelections.trainSelectionMode = selectedMode;
+    this.safeSetSetting(this.storageKeys.trainSelectionMode, selectedMode);
+    window.javaBridge?.setTrainSelectionMode?.(selectedMode);
 
     if (this.debugLoggingCheckbox) {
       this.debugLoggingCheckbox.checked = this.debugLoggingEnabled;
@@ -992,30 +982,9 @@ class DpsApp {
       });
     }
 
-    if (this.languageSelect) {
-      const currentLanguage = this.i18n?.getLanguage?.() || storedLanguage || "en";
-      this.languageSelect.value = currentLanguage;
-      this.languageSelect.addEventListener("change", (event) => {
-        const value = event.target?.value;
-        if (value) {
-          this.safeSetStorage(this.storageKeys.language, value);
-          this.i18n?.setLanguage?.(value, { persist: true });
-        }
-      });
-    }
-
-    if (this.themeSelect) {
-      this.themeSelect.value = this.theme;
-      this.themeSelect.addEventListener("change", (event) => {
-        const value = event.target?.value;
-        if (value) {
-          this.applyTheme(value, { persist: true });
-          this._settingsDropdownDisposers.forEach((fn) => fn?.());
-          this._settingsDropdownDisposers = [];
-          this.initializeSettingsDropdowns();
-        }
-      });
-    }
+    const currentLanguage = this.i18n?.getLanguage?.() || storedLanguage || "en";
+    this.settingsSelections.language = currentLanguage;
+    this.settingsSelections.theme = this.theme;
 
     this.initializeSettingsDropdowns();
 
@@ -1058,64 +1027,8 @@ class DpsApp {
     if (this.refreshKeybindInput) {
       let capturing = false;
       let pendingValue = "";
-      let captureStarted = false;
-      const pressedKeys = new Set();
-      let captureMods = { ctrl: false, alt: false, shift: false, meta: false };
-      let captureKey = "";
-      let firstPressedKey = "";
-      const comboKeys = new Set();
-      const startCapture = () => {
-        capturing = true;
-        pendingValue = "";
-        captureStarted = false;
-        pressedKeys.clear();
-        captureMods = { ctrl: false, alt: false, shift: false, meta: false };
-        captureKey = "";
-        firstPressedKey = "";
-        comboKeys.clear();
-        this.refreshKeybindInput.classList.add("isCapturing");
-        this.refreshKeybindInput.textContent = "Press key combination...";
-      };
 
-      const stopCapture = () => {
-        capturing = false;
-        pendingValue = "";
-        captureStarted = false;
-        pressedKeys.clear();
-        captureMods = { ctrl: false, alt: false, shift: false, meta: false };
-        captureKey = "";
-        firstPressedKey = "";
-        comboKeys.clear();
-        this.refreshKeybindInput.classList.remove("isCapturing");
-      };
-
-      const updateCaptureMods = () => {
-        captureMods = {
-          ctrl: pressedKeys.has("Control"),
-          alt: pressedKeys.has("Alt"),
-          shift: pressedKeys.has("Shift"),
-          meta: pressedKeys.has("Meta"),
-        };
-      };
-
-      const formatComboFromKeys = () => {
-        const parts = [];
-        if (comboKeys.has("Control")) parts.push("Ctrl");
-        if (comboKeys.has("Alt")) parts.push("Alt");
-        if (comboKeys.has("Shift")) parts.push("Shift");
-        if (comboKeys.has("Meta")) parts.push("Meta");
-        const nonModifiers = [...comboKeys].filter(
-          (k) => !["Control", "Alt", "Shift", "Meta"].includes(k)
-        );
-        const primary = nonModifiers[nonModifiers.length - 1] || "";
-        if (primary) {
-          parts.push(primary.length === 1 ? primary.toUpperCase() : primary.toUpperCase());
-        }
-        if ((!parts.includes("Ctrl") && !parts.includes("Alt")) || !primary) {
-          return "";
-        }
-        return parts.join("+");
-      };
+      const modifierKeys = ["Control", "Shift", "Alt", "Meta"];
 
       const normalizeEventKey = (event) => {
         const rawKey = String(event?.key || "");
@@ -1127,38 +1040,49 @@ class DpsApp {
         return "";
       };
 
+      const buildComboFromEvent = (event, key) => {
+        const isModifierOnly = modifierKeys.includes(key);
+        if (isModifierOnly) return "";
+        const parts = [];
+        if (event.ctrlKey) parts.push("Ctrl");
+        if (event.altKey) parts.push("Alt");
+        if (event.shiftKey) parts.push("Shift");
+        if (event.metaKey) parts.push("Meta");
+        if (!parts.includes("Ctrl") && !parts.includes("Alt")) {
+          return "";
+        }
+        parts.push(key.length === 1 ? key.toUpperCase() : key.toUpperCase());
+        return parts.join("+");
+      };
+
+      const startCapture = () => {
+        capturing = true;
+        pendingValue = "";
+        this.refreshKeybindInput.classList.add("isCapturing");
+        this.refreshKeybindInput.textContent = "Press key combination...";
+      };
+
+      const stopCapture = () => {
+        capturing = false;
+        pendingValue = "";
+        this.refreshKeybindInput.classList.remove("isCapturing");
+        const currentValue = this.refreshKeybindInput.dataset.value || "Ctrl+R";
+        this.refreshKeybindInput.textContent = currentValue;
+      };
+
       const captureKeydown = (event) => {
         if (!capturing) return;
         event.preventDefault();
         event.stopPropagation();
         const key = normalizeEventKey(event);
         if (!key) return;
-        const isModifier = ["Control", "Shift", "Alt", "Meta"].includes(key);
-        if (!captureStarted) {
-          captureStarted = true;
-          firstPressedKey = key;
-        }
-        pressedKeys.add(key);
-        comboKeys.add(key);
-        updateCaptureMods();
-        if (!isModifier) {
-          captureKey = key;
-        }
-        if (!captureStarted || !captureKey) {
+        const combo = buildComboFromEvent(event, key);
+        if (!combo) {
           this.refreshKeybindInput.textContent = "Press key combination...";
           return;
         }
-        if (!captureMods.ctrl && !captureMods.alt) {
-          return;
-        }
-        const parts = [];
-        if (captureMods.ctrl) parts.push("Ctrl");
-        if (captureMods.alt) parts.push("Alt");
-        if (captureMods.shift) parts.push("Shift");
-        if (captureMods.meta) parts.push("Meta");
-        parts.push(captureKey.length === 1 ? captureKey.toUpperCase() : captureKey.toUpperCase());
-        pendingValue = parts.join("+");
-        this.refreshKeybindInput.textContent = "Release to save...";
+        pendingValue = combo;
+        this.refreshKeybindInput.textContent = `Release to save... ${combo}`;
       };
 
       const captureKeyup = (event) => {
@@ -1166,16 +1090,7 @@ class DpsApp {
         event.preventDefault();
         event.stopPropagation();
         const key = normalizeEventKey(event);
-        if (!key) return;
-        if (!captureStarted) {
-          return;
-        }
-        if (key !== firstPressedKey) {
-          pressedKeys.delete(key);
-          updateCaptureMods();
-          return;
-        }
-        pendingValue = formatComboFromKeys();
+        if (!key || modifierKeys.includes(key)) return;
         if (pendingValue) {
           setKeybindValue(pendingValue, { persist: true, syncBackend: true });
         }
@@ -1186,18 +1101,16 @@ class DpsApp {
         startCapture();
         this.refreshKeybindInput.focus();
       });
-      this.refreshKeybindInput.addEventListener("keydown", captureKeydown, true);
-      this.refreshKeybindInput.addEventListener("keyup", captureKeyup, true);
       document.addEventListener("keydown", captureKeydown, true);
       document.addEventListener("keyup", captureKeyup, true);
-      window.addEventListener("keydown", captureKeydown, true);
-      window.addEventListener("keyup", captureKeyup, true);
+      window.addEventListener("blur", () => {
+        if (capturing) stopCapture();
+      });
       this.refreshKeybindInput.addEventListener("blur", () => {
-        if (capturing) {
-          stopCapture();
-        }
+        if (capturing) stopCapture();
       });
     }
+
 
     this.settingsBtn?.addEventListener("click", () => {
       this.toggleSettingsPanel();
@@ -1237,88 +1150,161 @@ class DpsApp {
       });
     };
 
-    const enhanceSelect = (selectEl, { decorateItem = null, decorateButton = null } = {}) => {
-      if (!selectEl || selectEl.dataset.enhancedDropdown === "true") return;
-      selectEl.dataset.enhancedDropdown = "true";
-      selectEl.style.display = "none";
+    const setupDropdown = (
+      button,
+      menu,
+      options,
+      currentValue,
+      onSelect,
+      { decorateItem = null, decorateButton = null } = {}
+    ) => {
+      if (!button || !menu) return;
+      const optionList = Array.isArray(options) ? options : [];
+      menu.innerHTML = "";
 
-      const wrapper = document.createElement("div");
-      wrapper.className = "settingsDropdownWrapper";
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "settingsDropdownBtn";
-      const text = document.createElement("span");
-      text.className = "settingsDropdownText";
-      const caret = document.createElement("span");
-      caret.className = "settingsDropdownCaret";
-      caret.textContent = "▾";
-      btn.append(text, caret);
-      const menu = document.createElement("div");
-      menu.className = "settingsDropdownMenu";
-      wrapper.append(btn, menu);
-      selectEl.insertAdjacentElement("afterend", wrapper);
-
-      const render = () => {
-        menu.innerHTML = "";
-        [...selectEl.options].forEach((opt) => {
-          const item = document.createElement("button");
-          item.type = "button";
-          item.className = "settingsDropdownItem";
-          item.dataset.value = opt.value;
-          item.textContent = opt.textContent;
-          if (opt.value === selectEl.value) item.classList.add("isActive");
-          decorateItem?.(item, opt.value);
-          item.addEventListener("click", () => {
-            selectEl.value = opt.value;
-            selectEl.dispatchEvent(new Event("change", { bubbles: true }));
-            menu.classList.remove("isOpen");
-            render();
-          });
-          menu.appendChild(item);
+      optionList.forEach((opt) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "settingsDropdownItem";
+        item.dataset.value = opt.value;
+        item.textContent = opt.label;
+        if (String(opt.value) === String(currentValue)) {
+          item.classList.add("isActive");
+        }
+        decorateItem?.(item, opt.value);
+        item.addEventListener("click", () => {
+          onSelect?.(opt.value);
+          menu.classList.remove("isOpen");
+          this.initializeSettingsDropdowns();
         });
-        const selectedOption = selectEl.options[selectEl.selectedIndex];
-        text.textContent = selectedOption?.textContent || "-";
-        btn.style.background = "";
-        btn.style.color = "";
-        decorateButton?.(btn, selectEl.value);
-      };
+        menu.appendChild(item);
+      });
 
-      btn.addEventListener("click", (event) => {
+      const selected = optionList.find((opt) => String(opt.value) === String(currentValue)) || optionList[0];
+      const textEl = button.querySelector(".settingsDropdownText");
+      if (textEl) {
+        textEl.textContent = selected?.label || "-";
+      }
+      button.style.background = "";
+      button.style.color = "";
+      decorateButton?.(button, selected?.value);
+      button.onclick = (event) => {
         event.stopPropagation();
         const wasOpen = menu.classList.contains("isOpen");
         closeAll();
         menu.classList.toggle("isOpen", !wasOpen);
-      });
-      document.addEventListener("click", (event) => {
-        if (!wrapper.contains(event.target)) {
-          menu.classList.remove("isOpen");
-        }
-      });
-      selectEl.addEventListener("change", render);
-      render();
-
-      this._settingsDropdownDisposers.push(() => {
-        wrapper.remove();
-        selectEl.style.display = "";
-        delete selectEl.dataset.enhancedDropdown;
-      });
+      };
     };
 
-    enhanceSelect(this.languageSelect);
-    enhanceSelect(this.allTargetsWindowSelect);
-    enhanceSelect(this.trainSelectionModeSelect);
-    enhanceSelect(this.themeSelect, {
-      decorateItem: (item, value) => {
-        const colors = previewThemeVars(value);
-        item.style.background = colors.rowFill;
-        item.style.color = colors.dpsText;
+    if (!this._settingsDropdownOutsideBound) {
+      document.addEventListener("click", (event) => {
+        if (!event.target?.closest?.(".settingsDropdownWrapper")) {
+          closeAll();
+        }
+      });
+      this._settingsDropdownOutsideBound = true;
+    }
+
+    const languageOptions = [
+      { value: "en", label: "English" },
+      { value: "ko", label: "한국어" },
+      { value: "zh-Hant", label: "繁體中文" },
+      { value: "zh-Hans", label: "简体中文" },
+    ];
+
+    const themeOptions = [
+      { value: "classic", label: this.i18n?.t("settings.theme.options.classic", "Classic") },
+      { value: "aion2", label: this.i18n?.t("settings.theme.options.aion2", "AION2") },
+      { value: "ember", label: this.i18n?.t("settings.theme.options.ember", "Ember") },
+      { value: "frost", label: this.i18n?.t("settings.theme.options.frost", "Frost") },
+      { value: "natura", label: this.i18n?.t("settings.theme.options.natura", "Natura") },
+      { value: "storm", label: this.i18n?.t("settings.theme.options.storm", "Storm") },
+      { value: "void", label: this.i18n?.t("settings.theme.options.void", "Void") },
+      { value: "obsidian", label: this.i18n?.t("settings.theme.options.obsidian", "Obsidian") },
+      { value: "cyber", label: this.i18n?.t("settings.theme.options.cyber", "Cyber") },
+    ];
+
+    const allTargetsWindowOptions = [
+      { value: "30000", label: this.i18n?.t("settings.allTargetsWindow.options.30s", "30 seconds") },
+      { value: "60000", label: this.i18n?.t("settings.allTargetsWindow.options.1m", "1 minute") },
+      { value: "120000", label: this.i18n?.t("settings.allTargetsWindow.options.2m", "2 minutes") },
+      { value: "180000", label: this.i18n?.t("settings.allTargetsWindow.options.3m", "3 minutes") },
+      { value: "300000", label: this.i18n?.t("settings.allTargetsWindow.options.5m", "5 minutes") },
+    ];
+
+    const trainModeOptions = [
+      { value: "all", label: this.i18n?.t("settings.trainingMode.options.all", "All") },
+      {
+        value: "highestDamage",
+        label: this.i18n?.t("settings.trainingMode.options.highestDamage", "Highest Damage"),
       },
-      decorateButton: (button, value) => {
-        const colors = previewThemeVars(value);
-        button.style.background = colors.rowFill;
-        button.style.color = colors.dpsText;
+    ];
+
+    setupDropdown(
+      this.languageDropdownBtn,
+      this.languageDropdownMenu,
+      languageOptions,
+      this.settingsSelections.language,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.language = value;
+        this.safeSetStorage(this.storageKeys.language, value);
+        this.i18n?.setLanguage?.(value, { persist: true });
+      }
+    );
+
+    setupDropdown(
+      this.themeDropdownBtn,
+      this.themeDropdownMenu,
+      themeOptions,
+      this.settingsSelections.theme,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.theme = value;
+        this.applyTheme(value, { persist: true });
       },
-    });
+      {
+        decorateItem: (item, value) => {
+          const colors = previewThemeVars(value);
+          item.style.background = colors.rowFill;
+          item.style.color = colors.dpsText;
+        },
+        decorateButton: (button, value) => {
+          const colors = previewThemeVars(value);
+          button.style.background = colors.rowFill;
+          button.style.color = colors.dpsText;
+        },
+      }
+    );
+
+    setupDropdown(
+      this.allTargetsWindowDropdownBtn,
+      this.allTargetsWindowDropdownMenu,
+      allTargetsWindowOptions,
+      this.settingsSelections.allTargetsWindowMs,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.allTargetsWindowMs = value;
+        this.safeSetSetting(this.storageKeys.allTargetsWindowMs, value);
+        window.javaBridge?.setAllTargetsWindowMs?.(value);
+        if (!this.isCollapse) this.fetchDps();
+      }
+    );
+
+    setupDropdown(
+      this.trainSelectionModeDropdownBtn,
+      this.trainSelectionModeDropdownMenu,
+      trainModeOptions,
+      this.settingsSelections.trainSelectionMode,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.trainSelectionMode = value;
+        this.trainSelectionMode = value;
+        this.safeSetSetting(this.storageKeys.trainSelectionMode, value);
+        window.javaBridge?.setTrainSelectionMode?.(value);
+        if (!this.isCollapse) this.fetchDps();
+      }
+    );
   }
 
   setupDetailsPanelSettings() {
@@ -1518,8 +1504,8 @@ class DpsApp {
     const normalized = this.availableThemes.includes(themeId) ? themeId : this.availableThemes[0];
     this.theme = normalized;
     document.documentElement.dataset.theme = normalized;
-    if (this.themeSelect && document.activeElement !== this.themeSelect) {
-      this.themeSelect.value = normalized;
+    if (this.settingsSelections) {
+      this.settingsSelections.theme = normalized;
     }
     if (persist) {
       this.safeSetSetting(this.storageKeys.theme, normalized);
