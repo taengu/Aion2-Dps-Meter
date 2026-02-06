@@ -961,6 +961,13 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         resetDataStorage()
     }
 
+    fun restartTargetSelection() {
+        lastLocalHitTime = -1L
+        currentTarget = 0
+        targetInfoMap.clear()
+        dataStorage.setCurrentTarget(0)
+    }
+
     fun getDps(): DpsData {
         val currentLocalId = LocalPlayer.playerId
         if (currentLocalId != lastKnownLocalPlayerId) {

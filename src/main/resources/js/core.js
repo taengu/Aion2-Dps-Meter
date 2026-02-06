@@ -809,6 +809,7 @@ class DpsApp {
 
   reinitTargetSelection(reason) {
     this.resetTargetTrackingState();
+    window.javaBridge?.restartTargetSelection?.();
     this.setTargetSelection(this.targetSelection, { persist: false, syncBackend: true, reason });
     if (!this.isCollapse) {
       this.fetchDps();

@@ -104,6 +104,10 @@ class BrowserApp(
             dpsCalculator.setTargetSelectionModeById(mode)
         }
 
+        fun restartTargetSelection() {
+            dpsCalculator.restartTargetSelection()
+        }
+
         fun setAllTargetsWindowMs(value: String?) {
             val parsed = value?.trim()?.toLongOrNull() ?: return
             dpsCalculator.setAllTargetsWindowMs(parsed)
