@@ -965,6 +965,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         lastLocalHitTime = -1L
         currentTarget = 0
         targetInfoMap.clear()
+        lastDpsSnapshot = null
         dataStorage.setCurrentTarget(0)
     }
 
