@@ -71,7 +71,13 @@
     0 2px 3px rgba(0,0,0,0.45),
     0 6px 14px rgba(100,140,255,0.24);
 
-  --player-name-shadow: var(--player-name-shadow);
+  --player-name-shadow:
+    -1px  0   0 rgba(0,0,0,0.95),
+     1px  0   0 rgba(0,0,0,0.95),
+     0   -1px 0 rgba(0,0,0,0.95),
+     0    1px 0 rgba(0,0,0,0.95),
+     0    3px 6px rgba(0,0,0,0.8),
+     0    6px 12px rgba(0,0,0,0.6);
 }
 
 :root[data-theme="ember"] {
@@ -161,7 +167,7 @@
 }
 
 :root[data-theme="varian"] {
-  --row-fill: #8a7320;
+  --row-fill: #a2862b;
   --isUser-fill: #ffe062;
 
   --warning-fill: #ffe991;
@@ -223,23 +229,21 @@
   --error-fill: #e36b6b;
 
   --text-color: #ffffff;
-  --dps: #eaf6ff;
-  --dps-text: #eaf6ff;
+  --dps: #8fd6ff;
+  --dps-text: #8fd6ff;
 
   --panel-border: rgba(140, 200, 255, 0.60);
   --title: rgba(240, 250, 255, 0.98);
 
   --text-shadow:
-    0 0 1px rgba(0,0,0,0.92),
-    0 1px 2px rgba(0,0,0,0.62),
-    0 2px 6px rgba(0,0,0,0.50),
-    0 0 10px rgba(140,200,255,0.28);
+    0 0 1px rgba(0,0,0,0.95),
+    0 1px 2px rgba(0,0,0,0.85),
+    0 2px 4px rgba(0,0,0,0.75);
 
   --dps-shadow:
     0 0 1px rgba(0,0,0,0.95),
-    0 1px 2px rgba(0,0,0,0.82),
-    0 2px 8px rgba(0,0,0,0.60),
-    0 0 14px rgba(107,188,255,0.48);
+    0 1px 2px rgba(0,0,0,0.86),
+    0 2px 4px rgba(0,0,0,0.7);
 
   --player-name-shadow:
     -1px  0   0 rgba(0,0,0,0.90),
@@ -458,6 +462,7 @@ html[lang="ko"] * {
     padding: 0 16px 10px;
 
     .settingsTitle {
+      font-size: 16px;
       font-weight: 700;
     }
 
@@ -501,8 +506,9 @@ html[lang="ko"] * {
   }
 
   .settingsLabel {
-    font-size: 14px;
-    opacity: 0.8;
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(200, 215, 230, 1);
   }
 
   .settingsValue {
@@ -523,7 +529,8 @@ html[lang="ko"] * {
   }
 
   .characterNameInput {
-    flex: 1;
+    flex: 0 1 160px;
+    max-width: 160px;
     border: 1px solid var(--panel-border);
     border-radius: var(--rounded-xs);
     padding: 6px 8px;
@@ -539,23 +546,6 @@ html[lang="ko"] * {
     color: var(--text-color);
     font-weight: 600;
     cursor: pointer;
-  }
-
-  .settingsKeybindInput {
-    min-width: 120px;
-    border: 1px solid var(--panel-border);
-    border-radius: var(--rounded-xs);
-    padding: 6px 10px;
-    background: var(--panel-field-bg);
-    color: var(--text-color);
-    font-weight: 600;
-    cursor: pointer;
-    text-align: center;
-  }
-
-  .settingsKeybindInput.isCapturing {
-    outline: 1px solid var(--isUser-fill);
-    outline-offset: 2px;
   }
 
   .settingsSelect {
@@ -789,6 +779,9 @@ html[lang="ko"] * {
       gap: 8px;
     }
   }
+}
+.meter .item:not(.isIdentifying) .content .name {
+  font-weight: 700;
 }
 .meter .item.isIdentifying .content .name {
   font-size: 18px;
@@ -1391,6 +1384,7 @@ html[lang="ko"] * {
   padding: 0 16px 10px;
 }
 .settingsPanel .settingsHeader .settingsTitle {
+  font-size: 16px;
   font-weight: 700;
 }
 .settingsPanel .settingsHeader .closeX {
@@ -1426,8 +1420,9 @@ html[lang="ko"] * {
 .settingsPanel .settingsCharacterIdentity {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
 }
 .settingsPanel .settingsActorInline {
   display: flex;
@@ -1450,10 +1445,9 @@ html[lang="ko"] * {
   margin: 4px 0 2px;
 }
 .settingsPanel .settingsMiniTitle {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.8;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  opacity: 0.9;
   font-weight: 700;
 }
 .settingsPanel .settingsSubValue {
@@ -1466,8 +1460,9 @@ html[lang="ko"] * {
   gap: 4px;
 }
 .settingsPanel .settingsLabel {
-  font-size: 14px;
-  opacity: 0.8;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(200, 215, 230, 1);
 }
 .settingsPanel .settingsValue {
   display: flex;
@@ -1480,7 +1475,8 @@ html[lang="ko"] * {
   margin: 0 6px;
 }
 .settingsPanel .characterNameInput {
-  flex: 1;
+  flex: 0 1 160px;
+  max-width: 160px;
   border: 1px solid var(--panel-border);
   border-radius: var(--rounded-xs);
   padding: 6px 8px;
@@ -1495,21 +1491,6 @@ html[lang="ko"] * {
   color: var(--text-color);
   font-weight: 600;
   cursor: pointer;
-}
-.settingsPanel .settingsKeybindInput {
-  min-width: 120px;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--rounded-xs);
-  padding: 6px 10px;
-  background: var(--panel-field-bg);
-  color: var(--text-color);
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-}
-.settingsPanel .settingsKeybindInput.isCapturing {
-  outline: 1px solid var(--isUser-fill);
-  outline-offset: 2px;
 }
 .settingsPanel .settingsSelect {
   min-width: 180px;
@@ -1837,6 +1818,12 @@ html[lang="ko"] * {
   gap: 4px;
   margin-left: 4px;
 }
+.detailsPanel .detailsHeader .detailsScreenshotWrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 8px;
+}
 .detailsPanel .detailsHeader .detailsScreenshotBtn {
   cursor: pointer;
   display: inline-flex;
@@ -1846,12 +1833,12 @@ html[lang="ko"] * {
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: inherit;
+  color: #3dd2c7;
   transition: 0.2s;
 }
 .detailsPanel .detailsHeader .detailsScreenshotBtn svg {
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
 }
 .detailsPanel .detailsHeader .detailsScreenshotNote {
   font-size: 12px;
@@ -1951,6 +1938,90 @@ html[lang="ko"] * {
   opacity: 0.7;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+.detailsPanel .detailsSettings .detailsSettingsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleLabel {
+  flex: 1;
+  text-align: left;
+  font-size: 13px;
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleControl {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleControl input[type="checkbox"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleTrack {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--panel-border);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleTrack::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleControl input[type="checkbox"]:checked
+  + .detailsSettingsToggleTrack {
+  background: var(--isUser-fill);
+  border-color: var(--isUser-fill);
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleControl input[type="checkbox"]:checked
+  + .detailsSettingsToggleTrack::after {
+  transform: translateX(16px);
+}
+.detailsPanel .detailsSettings .detailsSettingsToggleControl input[type="checkbox"]:focus-visible
+  + .detailsSettingsToggleTrack {
+  outline: 2px solid var(--isUser-fill);
+  outline-offset: 2px;
+}
+.detailsPanel .detailsSettings .detailsSettingsFolder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.detailsPanel .detailsSettings .detailsSettingsFolder.isHidden {
+  display: none;
+}
+.detailsPanel .detailsSettings .detailsSettingsFolderPath {
+  flex: 1 1 160px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  word-break: break-all;
+}
+.detailsPanel .detailsSettings .detailsSettingsFolderBtn {
+  border: 1px solid var(--panel-border);
+  border-radius: var(--rounded-xs);
+  padding: 4px 8px;
+  background: var(--panel-field-bg);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
 }
 .detailsPanel .detailsSettings .detailsSettingsControl {
   display: flex;

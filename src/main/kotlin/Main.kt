@@ -109,10 +109,6 @@ private fun ensureAdminOnWindows() {
     val currentProcess = ProcessHandle.current()
     val command = currentProcess.info().command().orElse(null) ?: return
 
-    // If running as a native .exe, it won't end in java.exe
-    val commandLower = command.lowercase()
-    if (commandLower.endsWith("java.exe") || commandLower.endsWith("javaw.exe")) return
-
     val args = currentProcess.info().arguments().orElse(emptyArray())
     val parameters = args.joinToString(" ") { "\"$it\"" }
 

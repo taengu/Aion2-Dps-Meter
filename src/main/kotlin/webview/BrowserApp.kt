@@ -2,7 +2,6 @@ package com.tbread.webview
 
 import com.tbread.DpsCalculator
 import com.tbread.entity.DpsData
-import com.tbread.keyboard.RefreshKeybindManager
 import com.tbread.logging.DebugLogWriter
 import com.tbread.packet.CaptureDispatcher
 import com.tbread.packet.CombatPortDetector
@@ -18,23 +17,27 @@ import javafx.scene.Scene
 import javafx.scene.paint.Color
 import javafx.scene.input.Clipboard
 import javafx.scene.input.ClipboardContent
-import javafx.scene.input.KeyCode
-import javafx.scene.input.KeyEvent
 import javafx.scene.web.WebView
 import javafx.scene.web.WebEngine
 import javafx.stage.Stage
 import javafx.stage.StageStyle
 import javafx.util.Duration
 import javafx.application.Platform
+import javafx.stage.DirectoryChooser
+import javafx.scene.image.WritablePixelFormat
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import netscape.javascript.JSObject
 import org.slf4j.LoggerFactory
+import java.io.File
+import java.awt.image.BufferedImage
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.nio.file.Paths
+import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
 
@@ -46,15 +49,7 @@ class BrowserApp(
 
     private val logger = LoggerFactory.getLogger(BrowserApp::class.java)
     private var webEngine: WebEngine? = null
-    private val refreshKeybindManager = RefreshKeybindManager({ triggerRefreshFromKeybind() })
-    @Volatile
-    private var refreshKeybindValue: String = "Ctrl+R"
-    @Volatile
-    private var keybindCaptureActive: Boolean = false
-    @Volatile
-    private var keybindCapturePending: String? = null
     override fun stop() {
-        refreshKeybindManager.stop()
         super.stop()
     }
 
@@ -177,27 +172,6 @@ class BrowserApp(
             PropertyHandler.setProperty(DebugLogWriter.SETTING_KEY, enabled.toString())
         }
 
-        fun setRefreshKeybind(value: String?) {
-            val normalized = value?.trim().orEmpty()
-            PropertyHandler.setProperty("dpsMeter.refreshKeybind", normalized)
-            refreshKeybindManager.updateKeybind(normalized)
-            refreshKeybindValue = normalized.ifBlank { "Ctrl+R" }
-        }
-
-        fun startRefreshKeybindCapture(): Boolean {
-            keybindCaptureActive = true
-            keybindCapturePending = null
-            return refreshKeybindManager.beginCapture { combo ->
-                notifyKeybindCaptured(combo)
-            }
-        }
-
-        fun cancelRefreshKeybindCapture() {
-            keybindCaptureActive = false
-            keybindCapturePending = null
-            refreshKeybindManager.cancelCapture()
-        }
-
         fun logDebug(message: String?) {
             if (message.isNullOrBlank()) return
             DebugLogWriter.debug(logger, "UI {}", message.trim())
@@ -261,6 +235,93 @@ class BrowserApp(
             return success
         }
 
+        fun captureScreenshotToFile(
+            x: Double,
+            y: Double,
+            width: Double,
+            height: Double,
+            scale: Double,
+            folderPath: String?,
+            filename: String?
+        ): Boolean {
+            val scene = stage.scene ?: return false
+            if (folderPath.isNullOrBlank() || filename.isNullOrBlank()) return false
+            val latch = CountDownLatch(1)
+            var success = false
+            Platform.runLater {
+                try {
+                    val image = scene.snapshot(null)
+                    val pixelReader = image.pixelReader
+                    if (pixelReader == null) {
+                        latch.countDown()
+                        return@runLater
+                    }
+                    val imageWidth = image.width.toInt()
+                    val imageHeight = image.height.toInt()
+                    val scaledX = (x * scale).toInt()
+                    val scaledY = (y * scale).toInt()
+                    val scaledWidth = (width * scale).toInt()
+                    val scaledHeight = (height * scale).toInt()
+                    val safeX = scaledX.coerceAtLeast(0)
+                    val safeY = scaledY.coerceAtLeast(0)
+                    val safeWidth = scaledWidth.coerceAtLeast(1).coerceAtMost(imageWidth - safeX)
+                    val safeHeight = scaledHeight.coerceAtLeast(1).coerceAtMost(imageHeight - safeY)
+                    val folder = File(folderPath)
+                    if (!folder.exists()) {
+                        folder.mkdirs()
+                    }
+                    val targetFile = File(folder, filename)
+                    val buffer = IntArray(safeWidth * safeHeight)
+                    val format = WritablePixelFormat.getIntArgbInstance()
+                    pixelReader.getPixels(safeX, safeY, safeWidth, safeHeight, format, buffer, 0, safeWidth)
+                    val buffered = BufferedImage(safeWidth, safeHeight, BufferedImage.TYPE_INT_ARGB)
+                    buffered.setRGB(0, 0, safeWidth, safeHeight, buffer, 0, safeWidth)
+                    success = ImageIO.write(buffered, "png", targetFile)
+                } catch (e: Exception) {
+                    logger.warn("Failed to capture screenshot to file", e)
+                } finally {
+                    latch.countDown()
+                }
+            }
+            latch.await(2, TimeUnit.SECONDS)
+            return success
+        }
+
+        fun getDefaultScreenshotFolder(): String {
+            val userHome = System.getProperty("user.home") ?: "."
+            return Paths.get(userHome, "Pictures", "AION2 DPS Meter").toString()
+        }
+
+        fun chooseScreenshotFolder(currentPath: String?): String? {
+            val chooser = DirectoryChooser()
+            chooser.title = "Select screenshot folder"
+            val initial = currentPath?.let { File(it) }
+            if (initial?.exists() == true && initial.isDirectory) {
+                chooser.initialDirectory = initial
+            }
+            if (Platform.isFxApplicationThread()) {
+                return try {
+                    chooser.showDialog(stage)?.absolutePath
+                } catch (e: Exception) {
+                    logger.warn("Failed to choose screenshot folder", e)
+                    null
+                }
+            }
+            val latch = CountDownLatch(1)
+            var selectedPath: String? = null
+            Platform.runLater {
+                try {
+                    selectedPath = chooser.showDialog(stage)?.absolutePath
+                } catch (e: Exception) {
+                    logger.warn("Failed to choose screenshot folder", e)
+                } finally {
+                    latch.countDown()
+                }
+            }
+            latch.await(10, TimeUnit.SECONDS)
+            return selectedPath
+        }
+
         fun notifyUiReady() {
             uiReadyNotifier()
         }
@@ -289,86 +350,6 @@ class BrowserApp(
             while (true) {
                 cachedWindowTitle = WindowTitleDetector.findAion2WindowTitle()
                 Thread.sleep(1000)
-            }
-        }
-    }
-
-    private fun triggerRefreshFromKeybind() {
-        val engine = webEngine
-        if (engine == null) {
-            dpsCalculator.resetDataStorage()
-            return
-        }
-        Platform.runLater {
-            try {
-                engine.executeScript("window.dpsApp?.triggerRefreshFromKeybind?.()")
-            } catch (e: Exception) {
-                logger.warn("Failed to trigger refresh via keybind", e)
-            }
-        }
-    }
-
-    private fun parseKeybindParts(value: String): Pair<Set<String>, String> {
-        val cleaned = value.replace("\\s+".toRegex(), "").uppercase()
-        if (cleaned.isBlank()) return emptySet<String>() to ""
-        val parts = cleaned.split("+").filter { it.isNotBlank() }.toMutableList()
-        var key = ""
-        val mods = mutableSetOf<String>()
-        parts.forEach { part ->
-            when (part) {
-                "CTRL", "CONTROL" -> mods.add("Ctrl")
-                "ALT" -> mods.add("Alt")
-                "SHIFT" -> mods.add("Shift")
-                "META", "CMD", "WIN" -> mods.add("Meta")
-                else -> key = part
-            }
-        }
-        return mods to key
-    }
-
-    private fun matchesKeybind(event: KeyEvent, keybindValue: String): Boolean {
-        val (mods, key) = parseKeybindParts(keybindValue)
-        if (key.isBlank()) return false
-        if (event.isControlDown != mods.contains("Ctrl")) return false
-        if (event.isAltDown != mods.contains("Alt")) return false
-        if (event.isShiftDown != mods.contains("Shift")) return false
-        if (event.isMetaDown != mods.contains("Meta")) return false
-        val code = event.code
-        val keyText = when {
-            code.isDigitKey -> code.name.removePrefix("DIGIT")
-            code.isLetterKey -> code.name.removePrefix("KEY")
-            else -> code.name
-        }
-        return keyText.equals(key, ignoreCase = true)
-    }
-
-    private fun buildCombo(event: KeyEvent): String {
-        if (event.code.isModifierKey) return ""
-        if (!event.isControlDown && !event.isAltDown && !event.isMetaDown) return ""
-        val parts = mutableListOf<String>()
-        if (event.isControlDown) parts.add("Ctrl")
-        if (event.isAltDown) parts.add("Alt")
-        if (event.isShiftDown) parts.add("Shift")
-        if (event.isMetaDown) parts.add("Meta")
-        val code = event.code
-        val keyText = when {
-            code.isDigitKey -> code.name.removePrefix("DIGIT")
-            code.isLetterKey -> code.name.removePrefix("KEY")
-            else -> code.name
-        }
-        if (keyText.isBlank()) return ""
-        parts.add(keyText.uppercase())
-        return parts.joinToString("+")
-    }
-
-    private fun notifyKeybindCaptured(combo: String) {
-        val engine = webEngine ?: return
-        Platform.runLater {
-            try {
-                val escaped = combo.replace("\\", "\\\\").replace("'", "\\'")
-                engine.executeScript("window.dpsApp?.receiveKeybindCapture?.('$escaped')")
-            } catch (e: Exception) {
-                logger.warn("Failed to deliver keybind capture", e)
             }
         }
     }
@@ -417,36 +398,8 @@ class BrowserApp(
             injectBridge()
         }
 
-        val storedKeybind = PropertyHandler.getProperty("dpsMeter.refreshKeybind") ?: "Ctrl+R"
-        refreshKeybindValue = storedKeybind
-        refreshKeybindManager.updateKeybind(storedKeybind)
-        refreshKeybindManager.start()
-
-
         val scene = Scene(webView, 1600.0, 1000.0)
         scene.fill = Color.TRANSPARENT
-        scene.addEventFilter(KeyEvent.KEY_PRESSED) { event ->
-            if (keybindCaptureActive) {
-                keybindCapturePending = buildCombo(event).ifBlank { keybindCapturePending }
-                event.consume()
-                return@addEventFilter
-            }
-            if (matchesKeybind(event, refreshKeybindValue)) {
-                triggerRefreshFromKeybind()
-                event.consume()
-            }
-        }
-        scene.addEventFilter(KeyEvent.KEY_RELEASED) { event ->
-            if (!keybindCaptureActive) return@addEventFilter
-            if (event.code.isModifierKey) return@addEventFilter
-            val captured = keybindCapturePending
-            if (!captured.isNullOrBlank()) {
-                notifyKeybindCaptured(captured)
-            }
-            keybindCaptureActive = false
-            keybindCapturePending = null
-            event.consume()
-        }
 
         try {
             val pageField = engine.javaClass.getDeclaredField("page")
