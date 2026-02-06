@@ -1306,7 +1306,12 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                     TargetDecision(recentTargets, "", targetSelectionMode, 0)
                 } else {
                     val targetId = selectTargetLastHitByMe(localActors, currentTarget)
-                    TargetDecision(setOf(targetId), resolveTargetName(targetId), targetSelectionMode, targetId)
+                    if (targetId == 0) {
+                        val recentTargets = selectRecentTargetsForUnknownPlayer(allTargetsWindowMs)
+                        TargetDecision(recentTargets, "", targetSelectionMode, 0)
+                    } else {
+                        TargetDecision(setOf(targetId), resolveTargetName(targetId), targetSelectionMode, targetId)
+                    }
                 }
             }
             TargetSelectionMode.ALL_TARGETS -> {
@@ -1369,16 +1374,14 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         val localName = LocalPlayer.characterName?.trim().orEmpty()
         val normalizedLocalName = localName.lowercase()
 
-        val nicknameData = dataStorage.getNickname()
         val localActorIds = mutableSetOf<Int>()
         val localPlayerId = LocalPlayer.playerId?.toInt()
         if (localPlayerId != null) {
             // If packet parsing has confirmed local player ID, trust it directly.
             // Nickname mapping may appear later or differ temporarily.
             localActorIds.add(localPlayerId)
-        }
-
-        if (normalizedLocalName.isNotBlank()) {
+        } else if (normalizedLocalName.isNotBlank()) {
+            val nicknameData = dataStorage.getNickname()
             localActorIds.addAll(
                 nicknameData
                     .filterValues { it.trim().lowercase() == normalizedLocalName }
