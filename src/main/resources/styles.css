@@ -2,6 +2,7 @@
   /* Bars */
   --row-fill: #5fbf87;
   --isUser-fill: #6aa6ff;
+  --meter-fill-opacity: 1;
 
   /* Status */
   --warning-fill: #f2b94f;
@@ -222,36 +223,36 @@
 }
 
 :root[data-theme="elyos"] {
-  --row-fill: #d8ecff;
-  --isUser-fill: #6bbcff;
+  --row-fill: #9bbef6;
+  --isUser-fill: #4a9cff;
 
-  --warning-fill: #f6d77a;
-  --error-fill: #e36b6b;
+  --warning-fill: #ffd98b;
+  --error-fill: #f36f8a;
 
-  --text-color: #ffffff;
-  --dps: #8fd6ff;
-  --dps-text: #8fd6ff;
+  --text-color: #f8fbff;
+  --dps: #d7ecff;
+  --dps-text: #d7ecff;
 
-  --panel-border: rgba(140, 200, 255, 0.60);
-  --title: rgba(240, 250, 255, 0.98);
+  --panel-border: rgba(150, 210, 255, 0.7);
+  --title: rgba(244, 252, 255, 0.98);
 
   --text-shadow:
     0 0 1px rgba(0,0,0,0.95),
-    0 1px 2px rgba(0,0,0,0.85),
-    0 2px 4px rgba(0,0,0,0.75);
+    0 1px 2px rgba(0,0,0,0.9),
+    0 2px 6px rgba(0,0,0,0.8);
 
   --dps-shadow:
     0 0 1px rgba(0,0,0,0.95),
-    0 1px 2px rgba(0,0,0,0.86),
-    0 2px 4px rgba(0,0,0,0.7);
+    0 1px 2px rgba(0,0,0,0.9),
+    0 2px 6px rgba(0,0,0,0.8);
 
   --player-name-shadow:
-    -1px  0   0 rgba(0,0,0,0.90),
-     1px  0   0 rgba(0,0,0,0.90),
-     0   -1px 0 rgba(0,0,0,0.90),
-     0    1px 0 rgba(0,0,0,0.90),
-     0    2px 4px rgba(0,0,0,0.75),
-     0    0  10px rgba(120,190,255,0.35);
+    -1px  0   0 rgba(0,0,0,0.95),
+     1px  0   0 rgba(0,0,0,0.95),
+     0   -1px 0 rgba(0,0,0,0.95),
+     0    1px 0 rgba(0,0,0,0.95),
+     0    3px 6px rgba(0,0,0,0.8),
+     0    0  12px rgba(140,205,255,0.4);
 }
 
 :root[data-theme="obsidian"] {
@@ -340,7 +341,11 @@ html[lang="ko"] * {
   position: relative;
   min-width: 300px;
   min-height: 30px;
-  padding-bottom: 32px;
+  padding-bottom: 20px;
+
+  &.flash {
+    animation: detailsFlash 1s ease-out;
+  }
 }
 
 .header {
@@ -368,7 +373,7 @@ html[lang="ko"] * {
     height: 24px;
     display: flex;
     align-items: center;
-    font-size: 16px;
+    font-size: 18px;
   }
 
   .headerBtns {
@@ -497,6 +502,14 @@ html[lang="ko"] * {
 
   .settingsRowInput {
     align-items: center;
+  }
+
+  .settingsRangeStack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    margin-left: auto;
   }
 
   .settingsInfo {
@@ -676,7 +689,7 @@ html[lang="ko"] * {
   gap: 4px;
   padding: 0 12px;
   &:has(.item:not([style*="display: none"])) {
-    padding: 4px 12px 40px;
+    padding: 4px 12px 16px;
   }
   .item {
     position: relative;
@@ -894,7 +907,7 @@ html[lang="ko"] * {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
       flex-wrap: wrap;
     }
@@ -981,11 +994,11 @@ html[lang="ko"] * {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 4px 6px;
+      padding: 4px 6px 4px 150px;
       border-radius: 6px;
       border: none;
       background: transparent;
-      color: inherit;
+      color: var(--isUser-fill);
       transition: 0.2s;
     }
 
@@ -1009,7 +1022,7 @@ html[lang="ko"] * {
       border: 1px solid rgba(255, 255, 255, 0.2);
       background: transparent;
       color: inherit;
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 600;
       padding: 2px 6px;
       border-radius: 999px;
@@ -1305,10 +1318,10 @@ html[lang="ko"] * {
   height: 24px;
   display: flex;
   align-items: center;
-  font-size: 15px;
+  font-size: 18px;
 }
 .header .bossNames .bossName.isAllTargets {
-  font-size: 17px;
+  font-size: 19px;
 }
 .header .headerBtns {
   display: flex;
@@ -1410,6 +1423,22 @@ html[lang="ko"] * {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+.settingsPanel .settingsRange {
+  flex: 1;
+  margin-left: auto;
+  max-width: 220px;
+  accent-color: var(--isUser-fill);
+}
+.settingsPanel .settingsRangeStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: auto;
+}
+.settingsPanel .settingsRangeStack .settingsRange {
+  margin-left: 0;
 }
 .settingsPanel .settingsRowSelect {
   align-items: center;
@@ -1538,6 +1567,7 @@ html[lang="ko"] * {
 .settingsPanel .themeDropdownBtn {
   color: var(--dps-text);
   text-shadow: var(--dps-shadow, var(--text-shadow));
+  background: rgba(12, 22, 40, 1);
 }
 .settingsPanel .themeDropdownBtn .settingsDropdownText {
   color: var(--dps-text);
@@ -1545,6 +1575,9 @@ html[lang="ko"] * {
 }
 .settingsPanel .themeDropdownMenu .settingsDropdownItem {
   text-shadow: var(--dps-shadow, var(--text-shadow));
+}
+.settingsPanel .themeDropdownMenu {
+  background: rgba(12, 22, 40, 1);
 }
 .settingsPanel .settingsDropdownCaret {
   opacity: 0.6;
@@ -1641,7 +1674,7 @@ html[lang="ko"] * {
   position: absolute;
   inset: 0;
   background: var(--row-fill);
-  opacity: 0.8;
+  opacity: var(--meter-fill-opacity, 0.8);
   transform-origin: left center;
   transform: scaleX(0);
   transition: transform 150ms ease;
@@ -1684,7 +1717,7 @@ html[lang="ko"] * {
   color: var(--text-color);
   font-size: 18px;
   text-shadow: var(--player-name-shadow, var(--text-shadow));
-  font-weight: 600;
+  font-weight: 500;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1748,7 +1781,7 @@ html[lang="ko"] * {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   flex-wrap: wrap;
 }
@@ -1829,11 +1862,11 @@ html[lang="ko"] * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 6px;
+  padding: 4px 6px 4px 150px;
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: #3dd2c7;
+  color: var(--isUser-fill);
   transition: 0.2s;
 }
 .detailsPanel .detailsHeader .detailsScreenshotBtn svg {
@@ -1853,7 +1886,7 @@ html[lang="ko"] * {
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: transparent;
   color: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 999px;

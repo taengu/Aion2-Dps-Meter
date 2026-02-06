@@ -1,6 +1,7 @@
 package com.tbread.packet
 
 import com.tbread.config.PcapCapturerConfig
+import com.tbread.logging.CrashLogWriter
 import kotlinx.coroutines.channels.Channel
 import org.pcap4j.core.*
 import org.pcap4j.packet.Packet
@@ -23,6 +24,7 @@ class PcapCapturer(
             try { Pcaps.findAllDevs() ?: emptyList() }
             catch (e: PcapNativeException) {
                 logger.error("Failed to initialize pcap", e)
+                CrashLogWriter.log("Failed to initialize pcap", e)
                 exitProcess(2)
             }
     }
@@ -67,6 +69,7 @@ class PcapCapturer(
             handle.use { h -> h.loop(-1, listener) }
         } catch (e: Exception) {
             logger.error("Packet capture failed on {}", nif.description ?: nif.name, e)
+            CrashLogWriter.log("Packet capture failed on ${nif.description ?: nif.name}", e)
         } finally {
             activeHandles.remove(nif.name)
         }
@@ -77,6 +80,7 @@ class PcapCapturer(
         val devices = getAllDevices()
         if (devices.isEmpty()) {
             logger.error("No capture devices found")
+            CrashLogWriter.log("No capture devices found")
             exitProcess(1)
         }
 

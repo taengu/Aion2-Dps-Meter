@@ -91,7 +91,7 @@ class BrowserApp(
             val changed = LocalPlayer.characterName != normalized
             LocalPlayer.characterName = normalized
             if (changed) {
-                LocalPlayer.playerId = null
+                dpsCalculator.resetLocalIdentity()
             }
         }
 
@@ -104,6 +104,10 @@ class BrowserApp(
             dpsCalculator.setTargetSelectionModeById(mode)
         }
 
+        fun restartTargetSelection() {
+            dpsCalculator.restartTargetSelection()
+        }
+
         fun setAllTargetsWindowMs(value: String?) {
             val parsed = value?.trim()?.toLongOrNull() ?: return
             dpsCalculator.setAllTargetsWindowMs(parsed)
@@ -111,6 +115,11 @@ class BrowserApp(
 
         fun setTrainSelectionMode(mode: String?) {
             dpsCalculator.setTrainSelectionModeById(mode)
+        }
+
+        fun setTargetSelectionWindowMs(value: String?) {
+            val parsed = value?.trim()?.toLongOrNull() ?: return
+            dpsCalculator.setTargetSelectionWindowMs(parsed)
         }
 
         fun bindLocalActorId(actorId: String?) {
@@ -136,6 +145,10 @@ class BrowserApp(
                 localPlayerId = LocalPlayer.playerId
             )
             return Json.encodeToString(info)
+        }
+
+        fun getLastParsedAtMs(): Long {
+            return CombatPortDetector.lastParsedAtMs()
         }
 
         fun getAion2WindowTitle(): String? {
@@ -354,6 +367,18 @@ class BrowserApp(
         }
     }
 
+    private fun ensureStageVisible(stage: Stage, reason: String) {
+        if (!stage.isShowing) {
+            logger.warn("Stage not showing ({}); forcing show", reason)
+            stage.show()
+        }
+        if (stage.isIconified) {
+            stage.isIconified = false
+        }
+        stage.toFront()
+        stage.requestFocus()
+    }
+
     override fun start(stage: Stage) {
         DebugLogWriter.loadFromSettings()
         startWindowTitlePolling()
@@ -388,7 +413,13 @@ class BrowserApp(
         }
         engine.loadWorker.stateProperty().addListener { _, _, newState ->
             when (newState) {
-                Worker.State.SUCCEEDED -> injectBridge()
+                Worker.State.SUCCEEDED -> {
+                    injectBridge()
+                    if (stage.opacity < 1.0) {
+                        stage.opacity = 1.0
+                        ensureStageVisible(stage, "webview-loaded")
+                    }
+                }
                 Worker.State.FAILED -> logger.error("WebView failed to load index.html")
                 else -> Unit
             }
@@ -418,9 +449,24 @@ class BrowserApp(
         stage.isAlwaysOnTop = true
         stage.title = "Aion2 Dps Overlay"
         stage.setOnShown { uiReadyNotifier() }
-
-
+        stage.opacity = 0.0
         stage.show()
+        ensureStageVisible(stage, "initial")
+        Timeline(KeyFrame(Duration.seconds(2.0), {
+            if (stage.opacity < 1.0) {
+                stage.opacity = 1.0
+                ensureStageVisible(stage, "fallback-show")
+            }
+        })).apply {
+            cycleCount = 1
+            play()
+        }
+        Timeline(KeyFrame(Duration.seconds(1.0), {
+            ensureStageVisible(stage, "delayed")
+        })).apply {
+            cycleCount = 1
+            play()
+        }
         Timeline(KeyFrame(Duration.millis(500.0), {
             dpsData = dpsCalculator.getDps()
         })).apply {

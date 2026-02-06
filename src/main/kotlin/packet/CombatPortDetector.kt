@@ -6,8 +6,14 @@ object CombatPortDetector {
     private val logger = LoggerFactory.getLogger(CombatPortDetector::class.java)
     @Volatile private var lockedPort: Int? = null
     @Volatile private var lockedDevice: String? = null
+    @Volatile private var lastParsedAtMs: Long = 0
     private val candidates = LinkedHashMap<Int, String?>()
     private val deviceFlows = mutableMapOf<String, MutableSet<Pair<Int, Int>>>()
+
+    private fun isLoopbackDevice(deviceName: String?): Boolean {
+        if (deviceName.isNullOrBlank()) return false
+        return deviceName.contains("loopback", ignoreCase = true)
+    }
 
     @Synchronized
     private fun lock(port: Int, deviceName: String?) {
@@ -26,6 +32,10 @@ object CombatPortDetector {
         val trimmedDevice = deviceName?.trim()?.takeIf { it.isNotBlank() }
         if (trimmedDevice != null) {
             deviceFlows.getOrPut(trimmedDevice) { mutableSetOf() }.add(flowKey)
+            if (isLoopbackDevice(trimmedDevice)) {
+                lock(port, trimmedDevice)
+                return
+            }
         }
         val existing = candidates[port]
         if (existing.isNullOrBlank() && !trimmedDevice.isNullOrBlank()) {
@@ -46,20 +56,14 @@ object CombatPortDetector {
         val trimmedDevice = deviceName?.trim()?.takeIf { it.isNotBlank() }
         val candidateDevice = candidates[port]
         val deviceForLock = trimmedDevice ?: candidateDevice
-        if (deviceForLock != null) {
-            val preferredDevice = deviceFlows.entries
-                .minWithOrNull(compareBy({ it.value.size }, { it.key }))
-                ?.key
-            if (preferredDevice != null && preferredDevice != deviceForLock) {
-                logger.info(
-                    "Deferring combat port lock on {} ({} flow candidates) because {} has fewer ({}).",
-                    deviceForLock,
-                    deviceFlows[deviceForLock]?.size ?: 0,
-                    preferredDevice,
-                    deviceFlows[preferredDevice]?.size ?: 0
-                )
-                return
-            }
+        val loopbackDevice = deviceFlows.keys.firstOrNull { isLoopbackDevice(it) }
+        if (loopbackDevice != null && !isLoopbackDevice(deviceForLock)) {
+            logger.info(
+                "Deferring combat port lock on {} because loopback ({}) is available.",
+                deviceForLock ?: "unknown",
+                loopbackDevice
+            )
+            return
         }
         lock(port, deviceForLock)
     }
@@ -74,6 +78,11 @@ object CombatPortDetector {
 
     fun currentPort(): Int? = lockedPort
     fun currentDevice(): String? = lockedDevice
+    fun lastParsedAtMs(): Long = lastParsedAtMs
+
+    fun markPacketParsed() {
+        lastParsedAtMs = System.currentTimeMillis()
+    }
 
     @Synchronized
     fun reset() {
@@ -82,6 +91,7 @@ object CombatPortDetector {
         }
         lockedPort = null
         lockedDevice = null
+        lastParsedAtMs = 0
         candidates.clear()
         deviceFlows.clear()
     }

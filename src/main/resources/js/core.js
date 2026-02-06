@@ -16,6 +16,8 @@ class DpsApp {
       onlyShowUser: "dpsMeter.onlyShowUser",
       allTargetsWindowMs: "dpsMeter.allTargetsWindowMs",
       trainSelectionMode: "dpsMeter.trainSelectionMode",
+      targetSelectionWindowMs: "dpsMeter.targetSelectionWindowMs",
+      meterFillOpacity: "dpsMeter.meterFillOpacity",
       detailsBackgroundOpacity: "dpsMeter.detailsBackgroundOpacity",
       detailsIncludeMeterScreenshot: "dpsMeter.detailsIncludeMeterScreenshot",
       detailsSaveScreenshotToFolder: "dpsMeter.detailsSaveScreenshotToFolder",
@@ -76,6 +78,9 @@ class DpsApp {
     this._lastRenderedRowsSummary = null;
     this.localPlayerId = null;
     this.trainSelectionMode = "all";
+    this._detailsFlashTimer = null;
+    this._meterFlashTimer = null;
+    this._recentLocalIdByName = new Map();
 
     DpsApp.instance = this;
   }
@@ -151,10 +156,15 @@ class DpsApp {
       getMetric: (row) => this.getMetricForRow(row),
       getSortDirection: () => this.listSortDirection,
       getPinUserToTop: () => this.pinMeToTop,
-      onClickUserRow: (row) =>
+      onClickUserRow: (row) => {
+        const fallbackAllTargets =
+          this.lastTargetMode === "lastHitByMe" &&
+          (!Number(this.lastTargetId) || Number(this.lastTargetId) <= 0) &&
+          !this.lastTargetName;
         this.detailsUI.open(row, {
-          defaultTargetAll: this.lastTargetMode === "allTargets",
-        }),
+          defaultTargetAll: this.lastTargetMode === "allTargets" || fallbackAllTargets,
+        });
+      },
     });
 
     const withBacklog = (text) => {
@@ -194,6 +204,7 @@ class DpsApp {
       visibleClass: "isVisible",
     });
     this.battleTime.setVisible(false);
+    this.updateConnectionStatusUi();
 
     this.detailsPanel = document.querySelector(".detailsPanel");
     this.detailsClose = document.querySelector(".detailsClose");
@@ -229,7 +240,6 @@ class DpsApp {
     });
     if (this.detailsScreenshotBtn) {
       let screenshotNoteTimer = null;
-      let screenshotFlashTimer = null;
       this.detailsScreenshotBtn.addEventListener("click", () => {
         const tooltipText =
           this.i18n?.t("details.screenshot.captured", "Captured Screenshot") ?? "Captured Screenshot";
@@ -286,11 +296,10 @@ class DpsApp {
         }
         this.detailsScreenshotNote.classList.add("isVisible");
         if (this.detailsPanel) {
-          this.detailsPanel.classList.add("flash");
-          if (screenshotFlashTimer) window.clearTimeout(screenshotFlashTimer);
-          screenshotFlashTimer = window.setTimeout(() => {
-            this.detailsPanel?.classList.remove("flash");
-          }, 1000);
+          this.triggerDetailsFlash();
+        }
+        if (includeMeter && meterRect) {
+          this.triggerMeterFlash();
         }
         if (screenshotNoteTimer) window.clearTimeout(screenshotNoteTimer);
         screenshotNoteTimer = window.setTimeout(() => {
@@ -474,7 +483,8 @@ class DpsApp {
     const previousTargetName = this.lastTargetName;
     const previousTargetMode = this.lastTargetMode;
     const previousTargetId = this.lastTargetId;
-    const { rows, targetName, targetMode, battleTimeMs, targetId } = this.buildRowsFromPayload(raw);
+    const { rows, targetName, targetMode, battleTimeMs, targetId, localPlayerId } =
+      this.buildRowsFromPayload(raw);
     if (this.refreshPending) {
       if (rows.length > 0) {
         return;
@@ -489,6 +499,7 @@ class DpsApp {
     }
 
     this.lastJson = raw;
+    this.applyLocalPlayerIdUpdate(localPlayerId, "backend local id update");
     this.updateLocalPlayerIdentity(rows);
     this._lastBattleTimeMs = battleTimeMs;
     this.lastTargetMode = targetMode;
@@ -529,6 +540,7 @@ class DpsApp {
 
       this.resetPending = false;
     }
+    const isOutOfCombat = this.isOutOfCombatState();
     // 빈값은 ui 안덮어씀
     let rowsToRender = rows;
     const listReasons = [];
@@ -539,8 +551,16 @@ class DpsApp {
         this.battleTime.setVisible(false);
         return;
       }
+    } else if (!isOutOfCombat) {
+      this.lastSnapshot = rows;
+    } else if (this.lastSnapshot) {
+      const updatedSnapshot = this.updateSnapshotNicknameForUser(rows, this.lastSnapshot);
+      this.lastSnapshot = updatedSnapshot;
+      rowsToRender = updatedSnapshot;
     } else {
       this.lastSnapshot = rows;
+      rowsToRender = rows;
+      listReasons.push("idle baseline captured");
     }
 
     // 타이머 표시 여부
@@ -618,6 +638,10 @@ class DpsApp {
     const targetMode = typeof payload?.targetMode === "string" ? payload.targetMode : "";
     const targetIdRaw = payload?.targetId;
     const targetId = Number.isFinite(Number(targetIdRaw)) ? Number(targetIdRaw) : 0;
+    const localPlayerIdRaw = payload?.localPlayerId;
+    const localPlayerId = Number.isFinite(Number(localPlayerIdRaw))
+      ? Number(localPlayerIdRaw)
+      : null;
 
     const mapObj = payload?.map && typeof payload.map === "object" ? payload.map : {};
     const rows = this.buildRowsFromMapObject(mapObj);
@@ -625,13 +649,17 @@ class DpsApp {
     const battleTimeMsRaw = payload?.battleTime;
     const battleTimeMs = Number.isFinite(Number(battleTimeMsRaw)) ? Number(battleTimeMsRaw) : null;
 
-    return { rows, targetName, targetMode, battleTimeMs, targetId };
+    return { rows, targetName, targetMode, battleTimeMs, targetId, localPlayerId };
   }
 
   buildRowsFromMapObject(mapObj) {
     const rows = [];
 
     for (const [id, value] of Object.entries(mapObj || {})) {
+      const numericId = Number(id);
+      if (Number.isFinite(numericId) && numericId <= 0) {
+        continue;
+      }
       const isObj = value && typeof value === "object";
 
       const job = isObj ? (value.job ?? "") : "";
@@ -667,7 +695,149 @@ class DpsApp {
       });
     }
 
-    return rows;
+    const dedupedByName = new Map();
+    for (const row of rows) {
+      const key = String(row.name ?? "");
+      if (!key) continue;
+      const existing = dedupedByName.get(key);
+      if (!existing) {
+        dedupedByName.set(key, row);
+        continue;
+      }
+      const scoreRow = (candidate) => {
+        let score = 0;
+        if (candidate.job) score += 2;
+        if (!candidate.isIdentifying) score += 1;
+        return score;
+      };
+      const existingScore = scoreRow(existing);
+      const nextScore = scoreRow(row);
+      if (nextScore > existingScore) {
+        dedupedByName.set(key, row);
+        continue;
+      }
+      if (nextScore < existingScore) {
+        continue;
+      }
+      const existingId = Number(existing.id);
+      const nextId = Number(row.id);
+      if (!Number.isFinite(existingId) || (Number.isFinite(nextId) && nextId > existingId)) {
+        dedupedByName.set(key, row);
+      }
+    }
+
+    return Array.from(dedupedByName.values());
+  }
+
+  isOutOfCombatState() {
+    const state = this.battleTime?.getState?.();
+    return state === "state-idle" || state === "state-ended";
+  }
+
+  updateSnapshotNicknameForUser(rows, snapshot) {
+    if (!Array.isArray(snapshot) || snapshot.length === 0) return snapshot;
+    const localId = Number(this.localPlayerId);
+    if (!Number.isFinite(localId) || localId <= 0) return snapshot;
+    const incoming = Array.isArray(rows)
+      ? rows.find((row) => Number(row?.id) === localId && !row.isIdentifying)
+      : null;
+    if (!incoming) return snapshot;
+    return snapshot.map((row) => {
+      if (Number(row?.id) !== localId) return row;
+      return {
+        ...row,
+        name: incoming.name,
+        isIdentifying: false,
+        isUser: incoming.isUser,
+      };
+    });
+  }
+
+  getDefaultMeterFillOpacity() {
+    const raw = getComputedStyle(document.documentElement)
+      .getPropertyValue("--meter-fill-opacity")
+      .trim();
+    const value = Number.parseFloat(raw);
+    if (!Number.isFinite(value)) return 100;
+    return Math.round(value * 100);
+  }
+
+  normalizeMeterOpacity(value, fallback = 100) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.min(100, Math.max(10, Math.round(numeric)));
+  }
+
+  applyMeterFillOpacity(percent, { persist } = {}) {
+    const normalized = this.normalizeMeterOpacity(percent, 100);
+    document.documentElement.style.setProperty("--meter-fill-opacity", String(normalized / 100));
+    if (persist) {
+      this.safeSetSetting(this.storageKeys.meterFillOpacity, String(normalized));
+    }
+  }
+
+  triggerDetailsFlash() {
+    if (!this.detailsPanel) return;
+    this.detailsPanel.classList.remove("flash");
+    void this.detailsPanel.offsetWidth;
+    this.detailsPanel.classList.add("flash");
+    if (this._detailsFlashTimer) window.clearTimeout(this._detailsFlashTimer);
+    this._detailsFlashTimer = window.setTimeout(() => {
+      this.detailsPanel?.classList.remove("flash");
+    }, 1000);
+  }
+
+  triggerMeterFlash() {
+    const meterEl = document.querySelector(".meter");
+    if (!meterEl) return;
+    meterEl.classList.remove("flash");
+    void meterEl.offsetWidth;
+    meterEl.classList.add("flash");
+    if (this._meterFlashTimer) window.clearTimeout(this._meterFlashTimer);
+    this._meterFlashTimer = window.setTimeout(() => {
+      meterEl.classList.remove("flash");
+    }, 1000);
+  }
+
+  captureMainMeterScreenshot() {
+    const meterRect = document.querySelector(".meter")?.getBoundingClientRect?.();
+    if (!meterRect) return;
+    const scale = window.devicePixelRatio || 1;
+    const success = window.javaBridge?.captureScreenshotToClipboard?.(
+      meterRect.left,
+      meterRect.top,
+      meterRect.width,
+      meterRect.height,
+      scale
+    );
+    if (success) {
+      this.triggerMeterFlash();
+    }
+  }
+
+  reinitTargetSelection(reason) {
+    this.resetTargetTrackingState();
+    window.javaBridge?.restartTargetSelection?.();
+    this.refreshPending = false;
+    this.resetPending = false;
+    this.lastJson = null;
+    this.lastSnapshot = null;
+    this._lastRenderedListSignature = "";
+    this._lastRenderedRowsSummary = null;
+    this.setTargetSelection(this.targetSelection, { persist: false, syncBackend: true, reason });
+    if (!this.isCollapse) {
+      this.fetchDps();
+    }
+  }
+
+  resetTargetTrackingState() {
+    this.lastTargetMode = "";
+    this.lastTargetName = "";
+    this.lastTargetId = 0;
+    this._lastRenderedTargetLabel = "";
+    this._lastLoggedTargetId = null;
+    this._lastLoggedTargetMode = null;
+    this._lastLoggedTargetName = null;
   }
 
   updateLocalPlayerIdentity(rows = []) {
@@ -679,6 +849,10 @@ class DpsApp {
       return;
     }
     const actorId = Number(matched.id);
+    this.applyLocalPlayerIdUpdate(actorId, "local id update");
+  }
+
+  applyLocalPlayerIdUpdate(actorId, reason) {
     if (!Number.isFinite(actorId) || actorId <= 0) {
       return;
     }
@@ -686,12 +860,36 @@ class DpsApp {
       return;
     }
     this.localPlayerId = actorId;
+    window.javaBridge?.bindLocalActorId?.(String(actorId));
     window.javaBridge?.setLocalPlayerId?.(String(actorId));
-    window.javaBridge?.bindLocalNickname?.(String(actorId), this.USER_NAME);
+    if (this.USER_NAME) {
+      window.javaBridge?.bindLocalNickname?.(String(actorId), this.USER_NAME);
+      this.setUserName(this.USER_NAME, { persist: true, syncBackend: true });
+      this.rememberLocalIdForName(this.USER_NAME, actorId);
+    }
     if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
       this.localActorIdInput.value = String(actorId);
     }
     this.refreshConnectionInfo({ skipSettingsRefresh: true });
+    this.reinitTargetSelection(reason || "local id update");
+  }
+
+  rememberLocalIdForName(name, actorId) {
+    const key = String(name ?? "").trim().toLowerCase();
+    if (!key || !Number.isFinite(actorId) || actorId <= 0) return;
+    this._recentLocalIdByName.set(key, { actorId, timestamp: Date.now() });
+  }
+
+  getRecentLocalIdForName(name) {
+    const key = String(name ?? "").trim().toLowerCase();
+    if (!key) return null;
+    const entry = this._recentLocalIdByName.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > 120000) {
+      this._recentLocalIdByName.delete(key);
+      return null;
+    }
+    return entry.actorId;
   }
 
   getDetailsContext() {
@@ -941,6 +1139,7 @@ class DpsApp {
   }
 
   bindHeaderButtons() {
+    this.logoBtn = document.querySelector(".bossIcon");
     this.collapseBtn?.addEventListener("click", () => {
       this.listSortDirection = this.listSortDirection === "asc" ? "desc" : "asc";
       this.renderCurrentRows();
@@ -981,6 +1180,9 @@ class DpsApp {
       this.setDisplayMode(nextMode, { persist: true });
       this.renderCurrentRows();
     });
+    this.logoBtn?.addEventListener("click", () => {
+      this.captureMainMeterScreenshot();
+    });
   }
 
   setupSettingsPanel() {
@@ -992,12 +1194,16 @@ class DpsApp {
     this.localActorIdInput = document.querySelector(".localActorIdInput");
     this.allTargetsWindowDropdownBtn = document.querySelector(".allTargetsWindowDropdownBtn");
     this.allTargetsWindowDropdownMenu = document.querySelector(".allTargetsWindowDropdownMenu");
+    this.targetWindowDropdownBtn = document.querySelector(".targetWindowDropdownBtn");
+    this.targetWindowDropdownMenu = document.querySelector(".targetWindowDropdownMenu");
     this.trainSelectionModeDropdownBtn = document.querySelector(".trainSelectionModeDropdownBtn");
     this.trainSelectionModeDropdownMenu = document.querySelector(".trainSelectionModeDropdownMenu");
     this.resetDetectBtn = document.querySelector(".resetDetectBtn");
     this.characterNameInput = document.querySelector(".characterNameInput");
     this.debugLoggingCheckbox = document.querySelector(".debugLoggingCheckbox");
     this.pinMeToTopCheckbox = document.querySelector(".pinMeToTopCheckbox");
+    this.meterOpacityInput = document.querySelector(".meterOpacityInput");
+    this.meterOpacityValue = document.querySelector(".meterOpacityValue");
     this.discordButton = document.querySelector(".discordButton");
     this.quitButton = document.querySelector(".quitButton");
     this.languageDropdownBtn = document.querySelector(".languageDropdownBtn");
@@ -1009,6 +1215,7 @@ class DpsApp {
       theme: this.theme,
       allTargetsWindowMs: "120000",
       trainSelectionMode: "all",
+      targetSelectionWindowMs: "5000",
     };
 
     const storedName = this.safeGetStorage(this.storageKeys.userName) || "";
@@ -1018,6 +1225,11 @@ class DpsApp {
     const storedTrainSelectionMode = this.safeGetSetting(this.storageKeys.trainSelectionMode) ||
       this.safeGetStorage(this.storageKeys.trainSelectionMode) ||
       "all";
+    const storedTargetSelectionWindowMs = this.safeGetSetting(this.storageKeys.targetSelectionWindowMs) ||
+      this.safeGetStorage(this.storageKeys.targetSelectionWindowMs) ||
+      "5000";
+    const storedMeterOpacity = this.safeGetSetting(this.storageKeys.meterFillOpacity) ||
+      this.safeGetStorage(this.storageKeys.meterFillOpacity);
     const storedDebugLogging = this.safeGetSetting(this.storageKeys.debugLogging) === "true";
     const storedPinMeToTop = this.safeGetSetting(this.storageKeys.pinMeToTop) === "true";
     const storedTargetSelection = this.safeGetStorage(this.storageKeys.targetSelection);
@@ -1071,6 +1283,14 @@ class DpsApp {
     this.safeSetSetting(this.storageKeys.allTargetsWindowMs, selectedWindow);
     window.javaBridge?.setAllTargetsWindowMs?.(selectedWindow);
 
+    const allowedTargetWindows = ["5000", "10000", "15000", "20000", "30000"];
+    const selectedTargetWindow = allowedTargetWindows.includes(String(storedTargetSelectionWindowMs))
+      ? String(storedTargetSelectionWindowMs)
+      : "5000";
+    this.settingsSelections.targetSelectionWindowMs = selectedTargetWindow;
+    this.safeSetSetting(this.storageKeys.targetSelectionWindowMs, selectedTargetWindow);
+    window.javaBridge?.setTargetSelectionWindowMs?.(selectedTargetWindow);
+
     const allowedModes = ["all", "highestDamage"];
     const selectedMode = allowedModes.includes(String(storedTrainSelectionMode))
       ? String(storedTrainSelectionMode)
@@ -1092,6 +1312,22 @@ class DpsApp {
       this.pinMeToTopCheckbox.addEventListener("change", (event) => {
         const isChecked = !!event.target?.checked;
         this.setPinMeToTop(isChecked, { persist: true });
+      });
+    }
+    if (this.meterOpacityInput && this.meterOpacityValue) {
+      const defaultOpacity = this.getDefaultMeterFillOpacity();
+      const resolvedOpacity = this.normalizeMeterOpacity(storedMeterOpacity, defaultOpacity);
+      this.applyMeterFillOpacity(resolvedOpacity, { persist: false });
+      this.meterOpacityInput.value = String(resolvedOpacity);
+      this.meterOpacityValue.textContent = `${resolvedOpacity}%`;
+      const stopDrag = (event) => event.stopPropagation();
+      this.meterOpacityInput.addEventListener("mousedown", stopDrag);
+      this.meterOpacityInput.addEventListener("touchstart", stopDrag, { passive: true });
+      this.meterOpacityInput.addEventListener("input", (event) => {
+        const value = Number(event.target?.value);
+        const next = this.normalizeMeterOpacity(value, defaultOpacity);
+        this.meterOpacityValue.textContent = `${next}%`;
+        this.applyMeterFillOpacity(next, { persist: true });
       });
     }
 
@@ -1127,11 +1363,11 @@ class DpsApp {
       const previous = root.dataset.theme;
       root.dataset.theme = themeId;
       const computed = getComputedStyle(root);
-      const rowFill = computed.getPropertyValue("--row-fill").trim() || "rgba(255,255,255,0.08)";
-      const dpsText = computed.getPropertyValue("--dps-text").trim() || "#ffffff";
-      const dpsShadow = computed.getPropertyValue("--dps-shadow").trim() || "none";
+      const textColor = computed.getPropertyValue("--text-color").trim() || "#ffffff";
+      const nameShadow = computed.getPropertyValue("--player-name-shadow").trim() || "none";
+      const rowFill = computed.getPropertyValue("--row-fill").trim() || "#2f2f2f";
       root.dataset.theme = previous || "aion2";
-      return { rowFill, dpsText, dpsShadow };
+      return { textColor, nameShadow, rowFill };
     };
 
     const closeAll = () => {
@@ -1217,6 +1453,14 @@ class DpsApp {
 
     themeOptions.sort((a, b) => a.label.localeCompare(b.label));
 
+    const targetWindowOptions = [
+      { value: "5000", label: this.i18n?.t("settings.targetWindow.options.5s", "5 seconds") },
+      { value: "10000", label: this.i18n?.t("settings.targetWindow.options.10s", "10 seconds") },
+      { value: "15000", label: this.i18n?.t("settings.targetWindow.options.15s", "15 seconds") },
+      { value: "20000", label: this.i18n?.t("settings.targetWindow.options.20s", "20 seconds") },
+      { value: "30000", label: this.i18n?.t("settings.targetWindow.options.30s", "30 seconds") },
+    ];
+
     const allTargetsWindowOptions = [
       { value: "30000", label: this.i18n?.t("settings.allTargetsWindow.options.30s", "30 seconds") },
       { value: "60000", label: this.i18n?.t("settings.allTargetsWindow.options.1m", "1 minute") },
@@ -1260,19 +1504,39 @@ class DpsApp {
         decorateItem: (item, value) => {
           const colors = previewThemeVars(value);
           item.style.background = colors.rowFill;
-          item.style.color = colors.dpsText;
-          item.style.textShadow = colors.dpsShadow;
+          item.style.opacity = "1";
+          item.style.color = colors.textColor;
+          item.style.textShadow = colors.nameShadow;
+          item.style.fontWeight = "500";
+          item.style.fontSize = "18px";
         },
         decorateButton: (button, value) => {
           const colors = previewThemeVars(value);
           button.style.background = colors.rowFill;
-          button.style.color = colors.dpsText;
-          button.style.textShadow = colors.dpsShadow;
+          button.style.opacity = "1";
+          button.style.color = colors.textColor;
+          button.style.textShadow = colors.nameShadow;
+          button.style.fontWeight = "500";
+          button.style.fontSize = "18px";
           const textEl = button.querySelector(".settingsDropdownText");
           if (textEl) {
-            textEl.style.textShadow = colors.dpsShadow;
+            textEl.style.textShadow = colors.nameShadow;
           }
         },
+      }
+    );
+
+    setupDropdown(
+      this.targetWindowDropdownBtn,
+      this.targetWindowDropdownMenu,
+      targetWindowOptions,
+      this.settingsSelections.targetSelectionWindowMs,
+      (value) => {
+        if (!value) return;
+        this.settingsSelections.targetSelectionWindowMs = value;
+        this.safeSetSetting(this.storageKeys.targetSelectionWindowMs, value);
+        window.javaBridge?.setTargetSelectionWindowMs?.(value);
+        if (!this.isCollapse) this.fetchDps();
       }
     );
 
@@ -1516,6 +1780,7 @@ class DpsApp {
   }
 
   setUserName(name, { persist = false, syncBackend = false } = {}) {
+    const previousName = this.USER_NAME;
     const trimmed = String(name ?? "").trim();
     this.USER_NAME = trimmed;
     if (this.characterNameInput && document.activeElement !== this.characterNameInput) {
@@ -1526,6 +1791,20 @@ class DpsApp {
     }
     if (syncBackend) {
       window.javaBridge?.setCharacterName?.(trimmed);
+    }
+    if (previousName && previousName !== trimmed) {
+      const cachedId = this.getRecentLocalIdForName(trimmed);
+      if (cachedId) {
+        this.refreshDamageData({ reason: "local name update" });
+        this.applyLocalPlayerIdUpdate(cachedId, "local name update cached id");
+        return;
+      }
+      this.localPlayerId = null;
+      if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
+        this.localActorIdInput.value = "";
+      }
+      this.refreshDamageData({ reason: "local name update" });
+      this.reinitTargetSelection("local name update");
     }
     if (!this.isCollapse) {
       this.fetchDps();
@@ -1662,6 +1941,14 @@ class DpsApp {
       this.elBossName.textContent = this.getDefaultTargetLabel(this.targetSelection);
     }
 
+    const lastParsedAtMs = Number(window.javaBridge?.getLastParsedAtMs?.());
+    if (Number.isFinite(lastParsedAtMs) && lastParsedAtMs > 0) {
+      const idleMs = Date.now() - lastParsedAtMs;
+      if (idleMs > 30_000) {
+        window.javaBridge?.resetAutoDetection?.();
+      }
+    }
+
     window.javaBridge?.resetDps?.();
     this.logDebug(`Damage data refreshed (${reason}).`);
   }
@@ -1723,6 +2010,7 @@ class DpsApp {
       return;
     }
     const info = this.safeParseJSON(raw, {});
+    const previousLocalId = this.localPlayerId;
     const deviceName = typeof info?.device === "string" && info.device.trim() ? info.device : "";
     const rawIp = info?.ip || "-";
     const ip =
@@ -1749,6 +2037,9 @@ class DpsApp {
     if (this.characterNameInput) {
       const nickname = String(info?.characterName || this.USER_NAME || "").trim();
       this.characterNameInput.value = nickname;
+    }
+    if (this.localPlayerId && this.localPlayerId !== previousLocalId) {
+      this.reinitTargetSelection("local id update");
     }
     this.updateConnectionStatusUi();
     if (!skipSettingsRefresh) {

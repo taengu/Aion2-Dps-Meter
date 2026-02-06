@@ -1,6 +1,7 @@
 package com.tbread
 
 import com.tbread.config.PcapCapturerConfig
+import com.tbread.logging.CrashLogWriter
 import com.tbread.packet.*
 import com.tbread.webview.BrowserApp
 import com.tbread.windows.WindowTitleDetector
@@ -45,9 +46,18 @@ class AionMeterApp : Application() {
             primaryStage.icons.add(javafx.scene.image.Image(iconStream))
         }
 
-        // Launch background tasks
+        // Initialize and show the browser
+        val browserApp = BrowserApp(calculator, dispatcher) { markUiReady() }
+        browserApp.start(primaryStage)
+
+        // Launch background tasks after UI initialization
         appScope.launch {
-            dispatcher.run()
+            try {
+                dispatcher.run()
+            } catch (e: Exception) {
+                CrashLogWriter.log("Capture dispatcher stopped unexpectedly", e)
+                throw e
+            }
         }
 
         appScope.launch(Dispatchers.IO) {
@@ -67,14 +77,6 @@ class AionMeterApp : Application() {
                 delay(delayMs)
             }
         }
-
-        // Initialize and show the browser
-        val browserApp = BrowserApp(calculator, dispatcher) { markUiReady() }
-        browserApp.start(primaryStage)
-
-        // Ensure the window actually paints
-        primaryStage.show()
-        primaryStage.toFront()
     }
 
     override fun stop() {
@@ -91,6 +93,7 @@ fun main(args: Array<String>) {
     Thread.setDefaultUncaughtExceptionHandler { t, e ->
         println("Critical Error in thread ${t.name}: ${e.message}")
         e.printStackTrace()
+        CrashLogWriter.log("Uncaught exception in thread ${t.name}", e)
     }
 
     println("Starting Native Aion2 Meter...")

@@ -50,7 +50,13 @@ class DataStorage {
     }
 
     fun appendNickname(uid: Int, nickname: String) {
-        if (nicknameStorage[uid] != null && nicknameStorage[uid].equals(nickname)) return
+        if (nicknameStorage[uid] != null && nicknameStorage[uid].equals(nickname)) {
+            val localName = LocalPlayer.characterName?.trim().orEmpty()
+            if (localName.isNotBlank() && nickname.trim() == localName) {
+                LocalPlayer.playerId = uid.toLong()
+            }
+            return
+        }
         if (nicknameStorage[uid] != null &&
             nickname.toByteArray(Charsets.UTF_8).size == 2 &&
             nickname.toByteArray(Charsets.UTF_8).size < nicknameStorage[uid]!!.toByteArray(Charsets.UTF_8).size
@@ -86,6 +92,11 @@ class DataStorage {
         pendingNicknameStorage[uid] = nickname
     }
 
+    fun resetNicknameStorage() {
+        nicknameStorage.clear()
+        pendingNicknameStorage.clear()
+    }
+
     private fun applyPendingNickname(uid: Int) {
         if (nicknameStorage[uid] != null) return
         val pending = pendingNicknameStorage.remove(uid) ?: return
@@ -101,7 +112,7 @@ class DataStorage {
     }
 
     private fun flushNicknameStorage() {
-        nicknameStorage.clear()
+        resetNicknameStorage()
     }
 
     fun getSkillName(skillCode: Int): String {

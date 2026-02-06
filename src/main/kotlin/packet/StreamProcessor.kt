@@ -158,6 +158,8 @@ class StreamProcessor(private val dataStorage: DataStorage) {
             }
             if (flag && !processed) {
                 logger.trace("Remaining packet {}", toHex(packet))
+                parsed = parseActorNameBindingRules(packet) || parsed
+                parsed = parseLootAttributionActorName(packet) || parsed
                 parsed = castNicknameNet(packet) || parsed
             }
             return parsed
@@ -214,7 +216,7 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         while (i < packet.size) {
             if (packet[i] == 0x36.toByte()) {
                 val actorInfo = readVarInt(packet, i + 1)
-                lastAnchor = if (actorInfo.length > 0 && actorInfo.value >= 1000) {
+                lastAnchor = if (actorInfo.length > 0 && actorInfo.value >= 100) {
                     ActorAnchor(actorInfo.value, i, i + 1 + actorInfo.length)
                 } else {
                     null
@@ -313,14 +315,16 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         }
 
         if (candidates.isEmpty()) return false
+        val localName = LocalPlayer.characterName?.trim().orEmpty()
         val allowPrepopulate = candidates.size > 1
         var foundAny = false
         for (candidate in candidates.values) {
+            val isLocalNameMatch = localName.isNotBlank() && candidate.name == localName
             val existingNickname = dataStorage.getNickname()[candidate.actorId]
             val canUpdateExisting = existingNickname != null &&
                 candidate.name.length > existingNickname.length &&
                 candidate.name.startsWith(existingNickname)
-            if (!allowPrepopulate && !actorAppearsInCombat(candidate.actorId) && !canUpdateExisting) {
+            if (!allowPrepopulate && !isLocalNameMatch && !actorAppearsInCombat(candidate.actorId) && !canUpdateExisting) {
                 if (existingNickname == null) {
                     dataStorage.cachePendingNickname(candidate.actorId, candidate.name)
                 }
@@ -491,13 +495,15 @@ class StreamProcessor(private val dataStorage: DataStorage) {
 
     private fun parsePerfectPacket(packet: ByteArray): Boolean {
         if (packet.size < 3) return false
-        if (parsingDamage(packet)) return true
-        if (parseActorNameBindingRules(packet)) return true
-        if (parseLootAttributionActorName(packet)) return true
-        if (parsingNickname(packet)) return true
-        if (parseSummonPacket(packet)) return false
-        parseDoTPacket(packet)
-        return false
+        val parsedDamage = parsingDamage(packet)
+        val parsedName = parseActorNameBindingRules(packet) ||
+            parseLootAttributionActorName(packet) ||
+            parsingNickname(packet)
+        val parsedSummon = parseSummonPacket(packet)
+        if (!parsedDamage && !parsedName && !parsedSummon) {
+            parseDoTPacket(packet)
+        }
+        return parsedDamage || parsedName
     }
 
     private fun parseDoTPacket(packet:ByteArray){

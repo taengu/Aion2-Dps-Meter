@@ -294,16 +294,22 @@ const createDetailsUI = ({
       slot.valueEl.style.alignItems = "center";
 
       const actorStats = details.perActorStats || [];
-      actorStats.forEach((actor) => {
-        const span = document.createElement("span");
-        span.textContent = resolveStatValue(statKey, actor);
-        span.style.fontWeight = "400";
-        const color = getJobColor(actor.job || getActorJob(actor.actorId));
-        if (color) {
-          span.style.color = color;
-        }
-        slot.valueEl.appendChild(span);
-      });
+      if (statKey !== "details.stats.combatTime") {
+        actorStats.forEach((actor) => {
+          const span = document.createElement("span");
+          if (statKey === "details.stats.totalDamage") {
+            span.textContent = formatCompactNumber(actor.totalDmg);
+          } else {
+            span.textContent = resolveStatValue(statKey, actor);
+          }
+          span.style.fontWeight = "400";
+          const color = getJobColor(actor.job || getActorJob(actor.actorId));
+          if (color) {
+            span.style.color = color;
+          }
+          slot.valueEl.appendChild(span);
+        });
+      }
 
       const totalSpan = document.createElement("span");
       totalSpan.textContent = resolveStatValue(statKey, details);
@@ -470,7 +476,9 @@ const createDetailsUI = ({
     detailsTargets = Array.isArray(nextContext.targets) ? nextContext.targets : [];
     const actorList = Array.isArray(nextContext.actors) ? nextContext.actors : [];
     actorList.forEach((actor) => {
-      detailsActors.set(Number(actor.actorId), actor);
+      const numericId = Number(actor.actorId);
+      if (!Number.isFinite(numericId) || numericId <= 0) return;
+      detailsActors.set(numericId, actor);
     });
     return nextContext;
   };
@@ -479,7 +487,7 @@ const createDetailsUI = ({
     if (!target || typeof target.actorDamage !== "object") return [];
     return Object.keys(target.actorDamage)
       .map((id) => Number(id))
-      .filter((id) => Number.isFinite(id));
+      .filter((id) => Number.isFinite(id) && id > 0);
   };
 
   const resolveActorLabel = (actorId) => {

@@ -144,6 +144,7 @@ const createMeterUI = ({
       const metricValue = Number(resolveMetric(row)?.value) || 0;
       topMetric = Math.max(topMetric, metricValue);
     }
+    const visibleTotalDamage = rows.reduce((sum, row) => sum + (Number(row?.totalDamage) || 0), 0);
 
     for (const row of rows) {
       if (!row) {
@@ -184,7 +185,8 @@ const createMeterUI = ({
 
       const metric = resolveMetric(row) || { value: 0, text: "-" };
       const metricValue = Number(metric.value) || 0;
-      const damageContribution = Number(row.damageContribution) || 0;
+      const damageContribution =
+        visibleTotalDamage > 0 ? (Number(row.totalDamage) / visibleTotalDamage) * 100 : 0;
 
       let contributionClass = "";
       if (damageContribution < 3) {
