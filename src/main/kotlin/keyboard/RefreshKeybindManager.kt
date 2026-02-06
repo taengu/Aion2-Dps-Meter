@@ -64,6 +64,18 @@ class RefreshKeybindManager(
         }
     }
 
+    fun ensureRunning() {
+        val registered = try {
+            GlobalScreen.isNativeHookRegistered()
+        } catch (e: Exception) {
+            logger.debug("Failed to check native hook status", e)
+            false
+        }
+        if (!registered) {
+            start()
+        }
+    }
+
     fun stop() {
         try {
             GlobalScreen.removeNativeKeyListener(this)
