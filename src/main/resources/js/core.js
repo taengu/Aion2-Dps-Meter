@@ -529,6 +529,7 @@ class DpsApp {
 
       this.resetPending = false;
     }
+    const isOutOfCombat = this.isOutOfCombatState();
     // 빈값은 ui 안덮어씀
     let rowsToRender = rows;
     const listReasons = [];
@@ -539,8 +540,16 @@ class DpsApp {
         this.battleTime.setVisible(false);
         return;
       }
+    } else if (!isOutOfCombat) {
+      this.lastSnapshot = rows;
+    } else if (this.lastSnapshot) {
+      const updatedSnapshot = this.updateSnapshotNicknameForUser(rows, this.lastSnapshot);
+      this.lastSnapshot = updatedSnapshot;
+      rowsToRender = updatedSnapshot;
     } else {
       this.lastSnapshot = rows;
+      rowsToRender = rows;
+      listReasons.push("idle baseline captured");
     }
 
     // 타이머 표시 여부
@@ -632,6 +641,10 @@ class DpsApp {
     const rows = [];
 
     for (const [id, value] of Object.entries(mapObj || {})) {
+      const numericId = Number(id);
+      if (Number.isFinite(numericId) && numericId <= 0) {
+        continue;
+      }
       const isObj = value && typeof value === "object";
 
       const job = isObj ? (value.job ?? "") : "";
@@ -668,6 +681,30 @@ class DpsApp {
     }
 
     return rows;
+  }
+
+  isOutOfCombatState() {
+    const state = this.battleTime?.getState?.();
+    return state === "state-idle" || state === "state-ended";
+  }
+
+  updateSnapshotNicknameForUser(rows, snapshot) {
+    if (!Array.isArray(snapshot) || snapshot.length === 0) return snapshot;
+    const localId = Number(this.localPlayerId);
+    if (!Number.isFinite(localId) || localId <= 0) return snapshot;
+    const incoming = Array.isArray(rows)
+      ? rows.find((row) => Number(row?.id) === localId && !row.isIdentifying)
+      : null;
+    if (!incoming) return snapshot;
+    return snapshot.map((row) => {
+      if (Number(row?.id) !== localId) return row;
+      return {
+        ...row,
+        name: incoming.name,
+        isIdentifying: false,
+        isUser: incoming.isUser,
+      };
+    });
   }
 
   updateLocalPlayerIdentity(rows = []) {

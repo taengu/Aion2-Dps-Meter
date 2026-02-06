@@ -470,7 +470,9 @@ const createDetailsUI = ({
     detailsTargets = Array.isArray(nextContext.targets) ? nextContext.targets : [];
     const actorList = Array.isArray(nextContext.actors) ? nextContext.actors : [];
     actorList.forEach((actor) => {
-      detailsActors.set(Number(actor.actorId), actor);
+      const numericId = Number(actor.actorId);
+      if (!Number.isFinite(numericId) || numericId <= 0) return;
+      detailsActors.set(numericId, actor);
     });
     return nextContext;
   };
@@ -479,7 +481,7 @@ const createDetailsUI = ({
     if (!target || typeof target.actorDamage !== "object") return [];
     return Object.keys(target.actorDamage)
       .map((id) => Number(id))
-      .filter((id) => Number.isFinite(id));
+      .filter((id) => Number.isFinite(id) && id > 0);
   };
 
   const resolveActorLabel = (actorId) => {

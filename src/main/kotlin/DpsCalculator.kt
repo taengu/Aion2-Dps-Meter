@@ -1008,6 +1008,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
         pdps.forEach { pdp ->
             totalDamage += pdp.getDamage()
             val uid = dataStorage.getSummonData()[pdp.getActorId()] ?: pdp.getActorId()
+            if (uid <= 0) return@forEach
             val nickname = resolveNickname(uid, nicknameData)
             val existing = dpsData.map[uid]
             if (existing == null) {
@@ -1095,10 +1096,11 @@ class DpsCalculator(private val dataStorage: DataStorage) {
             val actorDamage = mutableMapOf<Int, Int>()
 
             pdps.forEach { pdp ->
-                val uid = summonData[pdp.getActorId()] ?: pdp.getActorId()
-                val damage = pdp.getDamage()
-                totalDamage += damage
-                actorDamage[uid] = (actorDamage[uid] ?: 0) + damage
+            val uid = summonData[pdp.getActorId()] ?: pdp.getActorId()
+            if (uid <= 0) return@forEach
+            val damage = pdp.getDamage()
+            totalDamage += damage
+            actorDamage[uid] = (actorDamage[uid] ?: 0) + damage
 
                 val meta = actorMeta.getOrPut(uid) { ActorMetaBuilder(resolveNickname(uid, nicknameData)) }
                 if (meta.job.isEmpty()) {
@@ -1151,6 +1153,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
 
         pdps.forEach { pdp ->
             val uid = summonData[pdp.getActorId()] ?: pdp.getActorId()
+            if (uid <= 0) return@forEach
             val damage = pdp.getDamage()
             totalTargetDamage += damage
             if (actorIds != null && !actorIds.contains(uid)) {

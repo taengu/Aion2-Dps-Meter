@@ -985,7 +985,7 @@ html[lang="ko"] * {
       border-radius: 6px;
       border: none;
       background: transparent;
-      color: inherit;
+      color: var(--isUser-fill);
       transition: 0.2s;
     }
 
@@ -1009,7 +1009,7 @@ html[lang="ko"] * {
       border: 1px solid rgba(255, 255, 255, 0.2);
       background: transparent;
       color: inherit;
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 600;
       padding: 2px 6px;
       border-radius: 999px;
@@ -1684,7 +1684,7 @@ html[lang="ko"] * {
   color: var(--text-color);
   font-size: 18px;
   text-shadow: var(--player-name-shadow, var(--text-shadow));
-  font-weight: 600;
+  font-weight: 500;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1829,11 +1829,11 @@ html[lang="ko"] * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 6px;
+  padding: 4px 6px 4px 200px;
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: #3dd2c7;
+  color: var(--isUser-fill);
   transition: 0.2s;
 }
 .detailsPanel .detailsHeader .detailsScreenshotBtn svg {
@@ -1853,7 +1853,7 @@ html[lang="ko"] * {
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: transparent;
   color: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 999px;
