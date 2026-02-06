@@ -313,14 +313,16 @@ class StreamProcessor(private val dataStorage: DataStorage) {
         }
 
         if (candidates.isEmpty()) return false
+        val localName = LocalPlayer.characterName?.trim().orEmpty()
         val allowPrepopulate = candidates.size > 1
         var foundAny = false
         for (candidate in candidates.values) {
+            val isLocalNameMatch = localName.isNotBlank() && candidate.name == localName
             val existingNickname = dataStorage.getNickname()[candidate.actorId]
             val canUpdateExisting = existingNickname != null &&
                 candidate.name.length > existingNickname.length &&
                 candidate.name.startsWith(existingNickname)
-            if (!allowPrepopulate && !actorAppearsInCombat(candidate.actorId) && !canUpdateExisting) {
+            if (!allowPrepopulate && !isLocalNameMatch && !actorAppearsInCombat(candidate.actorId) && !canUpdateExisting) {
                 if (existingNickname == null) {
                     dataStorage.cachePendingNickname(candidate.actorId, candidate.name)
                 }
