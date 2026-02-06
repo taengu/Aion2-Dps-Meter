@@ -1505,12 +1505,7 @@ class DpsApp {
   }
 
   applyTheme(themeId, { persist = false } = {}) {
-    const legacyThemeMap = {
-      classic: "varian",
-      void: "asmodian",
-    };
-    const requestedTheme = legacyThemeMap[themeId] || themeId;
-    const normalized = this.availableThemes.includes(requestedTheme) ? requestedTheme : this.availableThemes[0];
+    const normalized = this.availableThemes.includes(themeId) ? themeId : this.availableThemes[0];
     this.theme = normalized;
     document.documentElement.dataset.theme = normalized;
     if (this.settingsSelections) {

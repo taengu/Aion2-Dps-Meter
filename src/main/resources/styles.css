@@ -14,10 +14,10 @@
   /* General text */
   --text-color: #ffffff;
   --text-shadow:
-          0 0 1px rgba(0, 0, 0, 0.95),
-          0 1px 1px rgba(0, 0, 0, 0.95),
-          0 2px 3px rgba(0, 0, 0, 0.8),
-          0 4px 10px rgba(0, 0, 0, 0.45);
+          0 0 1px var(--panel-border),
+          0 1px 1px var(--panel-border),
+          0 2px 3px var(--panel-border),
+          0 4px 10px var(--panel-border);
 
   --rounded-lg: 12px;
   --rounded: 10px;
@@ -95,14 +95,14 @@
 }
 
 :root[data-theme="asmodian"] {
-  --row-fill: #7a6a2e;
-  --isUser-fill: #f2cf4a;
-  --warning-fill: #ffd766;
-  --error-fill: #e85b5b;
-  --dps: #fffbea;
-  --dps-text: #fffbea;
-  --panel-border: rgba(255, 220, 120, 0.25);
-  --title: rgba(255, 250, 230, 0.98);
+  --row-fill: #5a4a78;
+  --isUser-fill: #8f7bff;
+  --warning-fill: #f0b45f;
+  --error-fill: #e05b7a;
+  --dps: #f0ecff;
+  --dps-text: #f0ecff;
+  --panel-border: rgba(180, 160, 255, 0.22);
+  --title: rgba(235, 230, 255, 0.98);
 }
 
 :root[data-theme="varian"] {
