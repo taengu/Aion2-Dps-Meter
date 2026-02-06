@@ -221,7 +221,25 @@ class DpsApp {
     if (this.detailsScreenshotBtn) {
       let screenshotNoteTimer = null;
       this.detailsScreenshotBtn.addEventListener("click", () => {
-        const success = window.javaBridge?.captureScreenshotToClipboard?.();
+        const meterRect = document.querySelector(".meter")?.getBoundingClientRect?.();
+        const detailsRect = this.detailsPanel?.classList?.contains("open")
+          ? this.detailsPanel.getBoundingClientRect()
+          : null;
+        if (!meterRect) return;
+        const minX = detailsRect ? Math.min(meterRect.left, detailsRect.left) : meterRect.left;
+        const minY = detailsRect ? Math.min(meterRect.top, detailsRect.top) : meterRect.top;
+        const maxX = detailsRect ? Math.max(meterRect.right, detailsRect.right) : meterRect.right;
+        const maxY = detailsRect ? Math.max(meterRect.bottom, detailsRect.bottom) : meterRect.bottom;
+        const rectWidth = Math.max(1, maxX - minX);
+        const rectHeight = Math.max(1, maxY - minY);
+        const scale = window.devicePixelRatio || 1;
+        const success = window.javaBridge?.captureScreenshotToClipboard?.(
+          minX,
+          minY,
+          rectWidth,
+          rectHeight,
+          scale
+        );
         if (!success || !this.detailsScreenshotNote) return;
         this.detailsScreenshotNote.textContent = "Saved to clipboard";
         this.detailsScreenshotNote.classList.add("isVisible");
@@ -1073,12 +1091,14 @@ class DpsApp {
     setKeybindValue(storedKeybind || "Ctrl+R", { persist: !storedKeybind, syncBackend: true });
 
     if (!this._refreshKeybindListenerBound) {
-      document.addEventListener("keydown", (event) => {
+      const keybindHandler = (event) => {
         if (this.refreshKeybindInput?.classList?.contains("isCapturing")) return;
         if (!matchesKeybindEvent(event, this._refreshKeybindValue || "Ctrl+R")) return;
         event.preventDefault();
         this.triggerRefreshFromKeybind();
-      });
+      };
+      document.addEventListener("keydown", keybindHandler, true);
+      window.addEventListener("keydown", keybindHandler, true);
       this._refreshKeybindListenerBound = true;
     }
 

@@ -211,16 +211,32 @@ class BrowserApp(
           exitProcess(0)       
         }
 
-        fun captureScreenshotToClipboard(): Boolean {
+        fun captureScreenshotToClipboard(x: Double, y: Double, width: Double, height: Double, scale: Double): Boolean {
             val scene = stage.scene ?: return false
             val latch = CountDownLatch(1)
             var success = false
             Platform.runLater {
                 try {
                     val image = scene.snapshot(null)
+                    val pixelReader = image.pixelReader
+                    if (pixelReader == null) {
+                        latch.countDown()
+                        return@runLater
+                    }
+                    val imageWidth = image.width.toInt()
+                    val imageHeight = image.height.toInt()
+                    val scaledX = (x * scale).toInt()
+                    val scaledY = (y * scale).toInt()
+                    val scaledWidth = (width * scale).toInt()
+                    val scaledHeight = (height * scale).toInt()
+                    val safeX = scaledX.coerceAtLeast(0)
+                    val safeY = scaledY.coerceAtLeast(0)
+                    val safeWidth = scaledWidth.coerceAtLeast(1).coerceAtMost(imageWidth - safeX)
+                    val safeHeight = scaledHeight.coerceAtLeast(1).coerceAtMost(imageHeight - safeY)
+                    val cropped = javafx.scene.image.WritableImage(pixelReader, safeX, safeY, safeWidth, safeHeight)
                     val clipboard = Clipboard.getSystemClipboard()
                     val content = ClipboardContent()
-                    content.putImage(image)
+                    content.putImage(cropped)
                     success = clipboard.setContent(content)
                 } catch (e: Exception) {
                     logger.warn("Failed to capture screenshot", e)
