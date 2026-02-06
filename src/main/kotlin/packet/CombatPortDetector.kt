@@ -32,6 +32,10 @@ object CombatPortDetector {
         val trimmedDevice = deviceName?.trim()?.takeIf { it.isNotBlank() }
         if (trimmedDevice != null) {
             deviceFlows.getOrPut(trimmedDevice) { mutableSetOf() }.add(flowKey)
+            if (isLoopbackDevice(trimmedDevice)) {
+                lock(port, trimmedDevice)
+                return
+            }
         }
         val existing = candidates[port]
         if (existing.isNullOrBlank() && !trimmedDevice.isNullOrBlank()) {

@@ -730,18 +730,18 @@ class DpsApp {
       .getPropertyValue("--meter-fill-opacity")
       .trim();
     const value = Number.parseFloat(raw);
-    if (!Number.isFinite(value)) return 80;
+    if (!Number.isFinite(value)) return 100;
     return Math.round(value * 100);
   }
 
-  normalizeMeterOpacity(value, fallback = 80) {
+  normalizeMeterOpacity(value, fallback = 100) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return fallback;
     return Math.min(100, Math.max(10, Math.round(numeric)));
   }
 
   applyMeterFillOpacity(percent, { persist } = {}) {
-    const normalized = this.normalizeMeterOpacity(percent, 80);
+    const normalized = this.normalizeMeterOpacity(percent, 100);
     document.documentElement.style.setProperty("--meter-fill-opacity", String(normalized / 100));
     if (persist) {
       this.safeSetSetting(this.storageKeys.meterFillOpacity, String(normalized));

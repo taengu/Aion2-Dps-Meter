@@ -914,6 +914,7 @@ class DpsCalculator(private val dataStorage: DataStorage) {
     private val targetSwitchStaleMs = 10_000L
     @Volatile private var targetSelectionWindowMs = 5_000L
     private var lastLocalHitTime: Long = -1L
+    @Volatile private var lastKnownLocalPlayerId: Long? = null
     @Volatile private var allTargetsWindowMs = 120_000L
     @Volatile private var trainSelectionMode: TrainSelectionMode = TrainSelectionMode.ALL
 
@@ -954,6 +955,12 @@ class DpsCalculator(private val dataStorage: DataStorage) {
     }
 
     fun getDps(): DpsData {
+        val currentLocalId = LocalPlayer.playerId
+        if (currentLocalId != lastKnownLocalPlayerId) {
+            lastKnownLocalPlayerId = currentLocalId
+            lastLocalHitTime = -1L
+            currentTarget = 0
+        }
         val pdpMap = dataStorage.getBossModeData()
 
         pdpMap.forEach { (target, data) ->
