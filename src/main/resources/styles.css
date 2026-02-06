@@ -761,6 +761,9 @@ html[lang="ko"] * {
       white-space: nowrap;
       text-overflow: ellipsis;
     }
+    .name.isCjk {
+      font-weight: 400;
+    }
     .dps {
       color: var(--dps-text);
       font-size: var(--font);
