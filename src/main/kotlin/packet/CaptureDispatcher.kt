@@ -52,6 +52,9 @@ class CaptureDispatcher(
                     )
                 }
 
+                if (looksLikeTlsPayload(cap.data)) {
+                    continue
+                }
                 val parsed = assembler.processChunk(cap.data)
                 if (parsed && CombatPortDetector.currentPort() == null) {
                     CombatPortDetector.confirmCandidate(cap.srcPort, cap.dstPort, cap.deviceName)
