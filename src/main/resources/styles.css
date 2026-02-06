@@ -14,10 +14,10 @@
   /* General text */
   --text-color: #ffffff;
   --text-shadow:
-          0 0 1px var(--panel-border),
-          0 1px 1px var(--panel-border),
-          0 2px 3px var(--panel-border),
-          0 4px 10px var(--panel-border);
+          0 0 1px rgba(0, 0, 0, 0.95),
+          0 1px 1px rgba(0, 0, 0, 0.95),
+          0 2px 3px rgba(0, 0, 0, 0.8),
+          0 4px 10px rgba(0, 0, 0, 0.45);
 
   --rounded-lg: 12px;
   --rounded: 10px;
@@ -37,83 +37,123 @@
 }
 
 :root[data-theme="aion2"] {
-  /* Bars */
   --row-fill: #5a47b0;
   --isUser-fill: #4fb6ff;
 
-  /* Status */
   --warning-fill: #f2b45a;
   --error-fill: #e85b7f;
 
-  /* DPS numbers */
   --dps: #cfe9ff;
   --dps-text: #cfe9ff;
 
-  /* UI chrome */
   --panel-border: rgba(140, 180, 255, 0.22);
   --title: rgba(225, 235, 255, 0.98);
+
+  --text-shadow:
+    0 0 1px rgba(140,180,255,0.35),
+    0 1px 1px rgba(140,180,255,0.25),
+    0 2px 3px rgba(0,0,0,0.45),
+    0 6px 14px rgba(100,140,255,0.18);
 }
 
 :root[data-theme="ember"] {
-  /* Bars */
   --row-fill: #d9772a;
   --isUser-fill: #ff6f4f;
 
-  /* Status */
   --warning-fill: #f5c16c;
   --error-fill: #e84b5f;
 
-  /* DPS numbers */
   --dps: #ffe6c9;
   --dps-text: #ffe6c9;
 
-  /* UI chrome */
   --panel-border: rgba(255, 200, 150, 0.22);
   --title: rgba(255, 240, 220, 0.98);
+
+  --text-shadow:
+    0 0 1px rgba(255,180,120,0.4),
+    0 1px 1px rgba(255,160,100,0.3),
+    0 2px 3px rgba(0,0,0,0.45),
+    0 6px 14px rgba(255,120,80,0.2);
 }
 
 :root[data-theme="frost"] {
   --row-fill: #5fa3b5;
   --isUser-fill: #8fd3ff;
+
   --warning-fill: #f2c97d;
   --error-fill: #e56b6b;
+
   --dps: #eaf7ff;
   --dps-text: #eaf7ff;
+
   --panel-border: rgba(180, 220, 255, 0.22);
   --title: rgba(235, 245, 255, 0.98);
+
+  --text-shadow:
+    0 0 1px rgba(180,220,255,0.45),
+    0 1px 1px rgba(160,210,255,0.3),
+    0 2px 3px rgba(0,0,0,0.4),
+    0 6px 14px rgba(120,200,255,0.2);
 }
 
 :root[data-theme="natura"] {
   --row-fill: #4f9b6a;
   --isUser-fill: #7be3a2;
+
   --warning-fill: #f0c36d;
   --error-fill: #e06666;
+
   --dps: #e9f7ef;
   --dps-text: #e9f7ef;
+
   --panel-border: rgba(160, 220, 190, 0.22);
   --title: rgba(230, 245, 235, 0.98);
+
+  --text-shadow:
+    0 0 1px rgba(160,220,190,0.4),
+    0 1px 1px rgba(140,200,170,0.3),
+    0 2px 3px rgba(0,0,0,0.45),
+    0 6px 14px rgba(120,200,160,0.18);
 }
 
 :root[data-theme="asmodian"] {
-  --row-fill: #5a4a78;
-  --isUser-fill: #8f7bff;
-  --warning-fill: #f0b45f;
-  --error-fill: #e05b7a;
-  --dps: #f0ecff;
-  --dps-text: #f0ecff;
-  --panel-border: rgba(180, 160, 255, 0.22);
-  --title: rgba(235, 230, 255, 0.98);
+  --row-fill: #6a4a8a;
+  --isUser-fill: #b064ff;
+
+  --warning-fill: #ffb65a;
+  --error-fill: #ff4f7a;
+
+  --dps: #f6f0ff;
+  --dps-text: #f6f0ff;
+
+  --panel-border: rgba(200, 150, 255, 0.26);
+  --title: rgba(245, 235, 255, 0.98);
+
+  --text-shadow:
+    0 0 1px rgba(200,150,255,0.35),
+    0 1px 1px rgba(200,150,255,0.25),
+    0 2px 3px rgba(0,0,0,0.45),
+    0 6px 14px rgba(176,100,255,0.18);
 }
 
 :root[data-theme="varian"] {
-  --row-fill: #7a6a2e;
-  --isUser-fill: #f2cf4a;
-  --warning-fill: #ffd766;
-  --error-fill: #e85b5b;
-  --dps: #fffbea;
-  --dps-text: #fffbea;
-  --panel-border: rgba(255, 220, 120, 0.25);
-  --title: rgba(255, 250, 230, 0.98);
+  --row-fill: #8a7320;
+  --isUser-fill: #ffe062;
+
+  --warning-fill: #ffe991;
+  --error-fill: #ef5f5f;
+
+  --dps: #fff7d1;
+  --dps-text: #fff7d1;
+
+  --panel-border: rgba(255, 230, 140, 0.3);
+  --title: rgba(255, 252, 235, 0.98);
+
+  --text-shadow:
+    0 0 1px rgba(255,230,140,0.4),
+    0 1px 1px rgba(255,220,120,0.3),
+    0 2px 3px rgba(0,0,0,0.42),
+    0 6px 14px rgba(255,224,98,0.16);
 }
 
 :root[data-theme="fera"] {
