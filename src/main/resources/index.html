@@ -250,11 +250,25 @@
               </div>
             </div>
             <div>
-              <label class="settingsCheckbox">
-                <input
-                        type="checkbox"
-                        class="debugLoggingCheckbox" />
-                <span data-i18n="settings.debugLogging">Enable debug logging</span>
+              <label class="settingsToggle">
+                <span class="settingsToggleLabel" data-i18n="settings.pinMeToTop">
+                  Pin Me To Top
+                </span>
+                <span class="settingsToggleControl">
+                  <input type="checkbox" class="pinMeToTopCheckbox" />
+                  <span class="settingsToggleTrack" aria-hidden="true"></span>
+                </span>
+              </label>
+            </div>
+            <div>
+              <label class="settingsToggle">
+                <span class="settingsToggleLabel" data-i18n="settings.debugLogging">
+                  Enable debug logging
+                </span>
+                <span class="settingsToggleControl">
+                  <input type="checkbox" class="debugLoggingCheckbox" />
+                  <span class="settingsToggleTrack" aria-hidden="true"></span>
+                </span>
               </label>
             </div>
             <button class="discordButton" type="button">

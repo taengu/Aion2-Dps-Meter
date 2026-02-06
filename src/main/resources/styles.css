@@ -438,13 +438,70 @@ html[lang="ko"] * {
     outline-offset: 1px;
   }
 
-  .settingsCheckbox {
+  .settingsToggle {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 12px;
     font-size: 13px;
-    justify-content: flex-end;
     width: 100%;
+  }
+
+  .settingsToggleLabel {
+    flex: 1;
+    text-align: left;
+  }
+
+  .settingsToggleControl {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .settingsToggleControl input[type="checkbox"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .settingsToggleTrack {
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid var(--panel-border);
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .settingsToggleTrack::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s ease;
+  }
+
+  .settingsToggleControl input[type="checkbox"]:checked + .settingsToggleTrack {
+    background: var(--isUser-fill);
+    border-color: var(--isUser-fill);
+  }
+
+  .settingsToggleControl input[type="checkbox"]:checked + .settingsToggleTrack::after {
+    transform: translateX(16px);
+  }
+
+  .settingsToggleControl input[type="checkbox"]:focus-visible + .settingsToggleTrack {
+    outline: 2px solid var(--isUser-fill);
+    outline-offset: 2px;
   }
 
   .discordButton {
@@ -1340,10 +1397,10 @@ html[lang="ko"] * {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.settingsPanel .settingsCheckbox {
+.settingsPanel .settingsToggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   font-size: 13px;
 }
 .settingsPanel .discordButton {

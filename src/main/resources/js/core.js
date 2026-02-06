@@ -7,6 +7,7 @@ class DpsApp {
     this.USER_NAME = "";
     this.onlyShowUser = false;
     this.debugLoggingEnabled = false;
+    this.pinMeToTop = false;
     this.storageKeys = {
       userName: "dpsMeter.userName",
       onlyShowUser: "dpsMeter.onlyShowUser",
@@ -17,6 +18,7 @@ class DpsApp {
       displayMode: "dpsMeter.displayMode",
       language: "dpsMeter.language",
       debugLogging: "dpsMeter.debugLoggingEnabled",
+      pinMeToTop: "dpsMeter.pinMeToTop",
       theme: "dpsMeter.theme",
       refreshKeybind: "dpsMeter.refreshKeybind",
     };
@@ -141,6 +143,7 @@ class DpsApp {
       getUserName: () => this.USER_NAME,
       getMetric: (row) => this.getMetricForRow(row),
       getSortDirection: () => this.listSortDirection,
+      getPinUserToTop: () => this.pinMeToTop,
       onClickUserRow: (row) =>
         this.detailsUI.open(row, {
           defaultTargetAll: this.lastTargetMode === "allTargets",
@@ -890,6 +893,7 @@ class DpsApp {
     this.resetDetectBtn = document.querySelector(".resetDetectBtn");
     this.characterNameInput = document.querySelector(".characterNameInput");
     this.debugLoggingCheckbox = document.querySelector(".debugLoggingCheckbox");
+    this.pinMeToTopCheckbox = document.querySelector(".pinMeToTopCheckbox");
     this.discordButton = document.querySelector(".discordButton");
     this.quitButton = document.querySelector(".quitButton");
     this.languageDropdownBtn = document.querySelector(".languageDropdownBtn");
@@ -912,6 +916,7 @@ class DpsApp {
       this.safeGetStorage(this.storageKeys.trainSelectionMode) ||
       "all";
     const storedDebugLogging = this.safeGetSetting(this.storageKeys.debugLogging) === "true";
+    const storedPinMeToTop = this.safeGetSetting(this.storageKeys.pinMeToTop) === "true";
     const storedTargetSelection = this.safeGetStorage(this.storageKeys.targetSelection);
     const storedLanguage = this.safeGetStorage(this.storageKeys.language);
     const storedTheme = this.safeGetSetting(this.storageKeys.theme);
@@ -922,6 +927,7 @@ class DpsApp {
     this.setUserName(storedName, { persist: false, syncBackend: true });
     this.setOnlyShowUser(false, { persist: false });
     this.setDebugLogging(storedDebugLogging, { persist: false, syncBackend: true });
+    this.setPinMeToTop(storedPinMeToTop, { persist: false });
     const normalizedTargetSelection =
       storedTargetSelection === "allTargets" || storedTargetSelection === "trainTargets"
         ? storedTargetSelection
@@ -979,6 +985,13 @@ class DpsApp {
       this.debugLoggingCheckbox.addEventListener("change", (event) => {
         const isChecked = !!event.target?.checked;
         this.setDebugLogging(isChecked, { persist: true, syncBackend: true });
+      });
+    }
+    if (this.pinMeToTopCheckbox) {
+      this.pinMeToTopCheckbox.checked = this.pinMeToTop;
+      this.pinMeToTopCheckbox.addEventListener("change", (event) => {
+        const isChecked = !!event.target?.checked;
+        this.setPinMeToTop(isChecked, { persist: true });
       });
     }
 
@@ -1478,6 +1491,17 @@ class DpsApp {
     if (syncBackend) {
       window.javaBridge?.setDebugLoggingEnabled?.(this.debugLoggingEnabled);
     }
+  }
+
+  setPinMeToTop(enabled, { persist = false } = {}) {
+    this.pinMeToTop = !!enabled;
+    if (this.pinMeToTopCheckbox && document.activeElement !== this.pinMeToTopCheckbox) {
+      this.pinMeToTopCheckbox.checked = this.pinMeToTop;
+    }
+    if (persist) {
+      this.safeSetSetting(this.storageKeys.pinMeToTop, String(this.pinMeToTop));
+    }
+    this.renderCurrentRows();
   }
 
   setTargetSelection(mode, { persist = false, syncBackend = false, reason = "update" } = {}) {
