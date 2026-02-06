@@ -1,6 +1,7 @@
 package com.tbread
 
 import com.tbread.config.PcapCapturerConfig
+import com.tbread.logging.CrashLogWriter
 import com.tbread.packet.*
 import com.tbread.webview.BrowserApp
 import com.tbread.windows.WindowTitleDetector
@@ -47,7 +48,12 @@ class AionMeterApp : Application() {
 
         // Launch background tasks
         appScope.launch {
-            dispatcher.run()
+            try {
+                dispatcher.run()
+            } catch (e: Exception) {
+                CrashLogWriter.log("Capture dispatcher stopped unexpectedly", e)
+                throw e
+            }
         }
 
         appScope.launch(Dispatchers.IO) {
@@ -91,6 +97,7 @@ fun main(args: Array<String>) {
     Thread.setDefaultUncaughtExceptionHandler { t, e ->
         println("Critical Error in thread ${t.name}: ${e.message}")
         e.printStackTrace()
+        CrashLogWriter.log("Uncaught exception in thread ${t.name}", e)
     }
 
     println("Starting Native Aion2 Meter...")

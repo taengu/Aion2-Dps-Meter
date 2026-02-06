@@ -1,6 +1,7 @@
 package com.tbread.packet
 
 import com.tbread.DataStorage
+import com.tbread.logging.CrashLogWriter
 import com.tbread.windows.WindowTitleDetector
 import kotlinx.coroutines.channels.Channel
 import org.slf4j.LoggerFactory
@@ -25,34 +26,42 @@ class CaptureDispatcher(
 
     suspend fun run() {
         for (cap in channel) {
-            if (!ensureAionRunning()) {
-                continue
-            }
-            val a = minOf(cap.srcPort, cap.dstPort)
-            val b = maxOf(cap.srcPort, cap.dstPort)
-            val key = a to b
+            try {
+                if (!ensureAionRunning()) {
+                    continue
+                }
+                val a = minOf(cap.srcPort, cap.dstPort)
+                val b = maxOf(cap.srcPort, cap.dstPort)
+                val key = a to b
 
-            val assembler = assemblers.getOrPut(key) {
-                StreamAssembler(StreamProcessor(sharedDataStorage))
-            }
+                val assembler = assemblers.getOrPut(key) {
+                    StreamAssembler(StreamProcessor(sharedDataStorage))
+                }
 
-            // "Lock" is informational for now; don't filter until parsing confirmed stable
-            if (CombatPortDetector.currentPort() == null && isUnencryptedCandidate(cap.data)) {
-                // Choose srcPort for now (since magic typically comes from the sender)
-                CombatPortDetector.registerCandidate(cap.srcPort, key, cap.deviceName)
-                logger.info(
-                    "Magic seen on flow {}-{} (src={}, dst={}, device={})",
-                    a,
-                    b,
-                    cap.srcPort,
-                    cap.dstPort,
-                    cap.deviceName
+                // "Lock" is informational for now; don't filter until parsing confirmed stable
+                if (CombatPortDetector.currentPort() == null && isUnencryptedCandidate(cap.data)) {
+                    // Choose srcPort for now (since magic typically comes from the sender)
+                    CombatPortDetector.registerCandidate(cap.srcPort, key, cap.deviceName)
+                    logger.info(
+                        "Magic seen on flow {}-{} (src={}, dst={}, device={})",
+                        a,
+                        b,
+                        cap.srcPort,
+                        cap.dstPort,
+                        cap.deviceName
+                    )
+                }
+
+                val parsed = assembler.processChunk(cap.data)
+                if (parsed && CombatPortDetector.currentPort() == null) {
+                    CombatPortDetector.confirmCandidate(cap.srcPort, cap.dstPort, cap.deviceName)
+                }
+            } catch (e: Exception) {
+                CrashLogWriter.log(
+                    "Parser stopped while processing ${cap.deviceName} ${cap.srcPort}-${cap.dstPort}",
+                    e
                 )
-            }
-
-            val parsed = assembler.processChunk(cap.data)
-            if (parsed && CombatPortDetector.currentPort() == null) {
-                CombatPortDetector.confirmCandidate(cap.srcPort, cap.dstPort, cap.deviceName)
+                throw e
             }
         }
     }

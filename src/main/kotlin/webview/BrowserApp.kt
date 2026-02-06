@@ -354,6 +354,18 @@ class BrowserApp(
         }
     }
 
+    private fun ensureStageVisible(stage: Stage, reason: String) {
+        if (!stage.isShowing) {
+            logger.warn("Stage not showing ({}); forcing show", reason)
+            stage.show()
+        }
+        if (stage.isIconified) {
+            stage.isIconified = false
+        }
+        stage.toFront()
+        stage.requestFocus()
+    }
+
     override fun start(stage: Stage) {
         DebugLogWriter.loadFromSettings()
         startWindowTitlePolling()
@@ -418,9 +430,14 @@ class BrowserApp(
         stage.isAlwaysOnTop = true
         stage.title = "Aion2 Dps Overlay"
         stage.setOnShown { uiReadyNotifier() }
-
-
         stage.show()
+        ensureStageVisible(stage, "initial")
+        Timeline(KeyFrame(Duration.seconds(1.0)) {
+            ensureStageVisible(stage, "delayed")
+        }).apply {
+            cycleCount = 1
+            play()
+        }
         Timeline(KeyFrame(Duration.millis(500.0), {
             dpsData = dpsCalculator.getDps()
         })).apply {
