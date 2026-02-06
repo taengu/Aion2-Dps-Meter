@@ -1760,6 +1760,7 @@ class DpsApp {
   }
 
   setUserName(name, { persist = false, syncBackend = false } = {}) {
+    const previousName = this.USER_NAME;
     const trimmed = String(name ?? "").trim();
     this.USER_NAME = trimmed;
     if (this.characterNameInput && document.activeElement !== this.characterNameInput) {
@@ -1770,6 +1771,13 @@ class DpsApp {
     }
     if (syncBackend) {
       window.javaBridge?.setCharacterName?.(trimmed);
+    }
+    if (previousName && previousName !== trimmed) {
+      this.localPlayerId = null;
+      if (this.localActorIdInput && document.activeElement !== this.localActorIdInput) {
+        this.localActorIdInput.value = "";
+      }
+      this.reinitTargetSelection("local name update");
     }
     if (!this.isCollapse) {
       this.fetchDps();
