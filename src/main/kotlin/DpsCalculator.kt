@@ -1039,12 +1039,22 @@ class DpsCalculator(private val dataStorage: DataStorage) {
                 }
             }
         }
+        val localActorIds = resolveConfirmedLocalActorIds()
         val iterator = dpsData.map.iterator()
         while (iterator.hasNext()) {
-            val (_, data) = iterator.next()
-            if (data.job == "") {
-                iterator.remove()
+            val (uid, data) = iterator.next()
+            val keep = if (data.job == "") {
+                if (localActorIds != null && localActorIds.contains(uid)) {
+                    data.job = "Unknown"
+                    true
+                } else {
+                    iterator.remove()
+                    false
+                }
             } else {
+                true
+            }
+            if (keep) {
                 data.dps = data.amount / battleTime * 1000
                 data.damageContribution = data.amount / totalDamage * 100
             }
@@ -1378,7 +1388,9 @@ class DpsCalculator(private val dataStorage: DataStorage) {
 
     private fun selectTargetLastHitByMe(localActorIds: Set<Int>, fallbackTarget: Int): Int {
         val actorData = dataStorage.getActorData()
-        val cutoff = System.currentTimeMillis() - 5_000L
+        val now = System.currentTimeMillis()
+        val cutoff = now - 5_000L
+        val wasIdle = lastLocalHitTime < 0 || now - lastLocalHitTime > 5_000L
         var mostRecentTarget = fallbackTarget
         var mostRecentTime = -1L
         val recentDamage = mutableMapOf<Int, Int>()
@@ -1407,6 +1419,10 @@ class DpsCalculator(private val dataStorage: DataStorage) {
 
         if (mostRecentTime < 0) {
             return fallbackTarget
+        }
+        if (wasIdle && mostRecentTime > lastLocalHitTime) {
+            lastLocalHitTime = mostRecentTime
+            return mostRecentTarget
         }
         if (mostRecentTime <= lastLocalHitTime && fallbackTarget != 0) {
             return fallbackTarget
