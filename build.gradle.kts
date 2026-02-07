@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.io.File
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -48,18 +49,47 @@ graalvmNative {
     binaries {
         named("main") {
             mainClass.set("com.tbread.Launcher")
+            val runtimeClasspath = configurations.runtimeClasspath.get()
+            val javafxModuleNames = setOf(
+                "javafx-base",
+                "javafx-graphics",
+                "javafx-controls",
+                "javafx-web",
+                "javafx-media"
+            )
+            val javafxModulePath = runtimeClasspath.files
+                .filter { file -> javafxModuleNames.any { name -> file.name.startsWith(name) } }
+                .joinToString(File.pathSeparator) { it.absolutePath }
+            val appClassPath = runtimeClasspath.files
+                .filterNot { file -> javafxModuleNames.any { name -> file.name.startsWith(name) } }
+                .joinToString(File.pathSeparator) { it.absolutePath }
 
             buildArgs.add("-H:+UnlockExperimentalVMOptions")
             buildArgs.add("-H:+AddAllCharsets")
             buildArgs.add("-Dprism.fontdir=C:\\Windows\\Fonts")
             buildArgs.add("--no-fallback")
+            buildArgs.add("--enable-native-access=javafx.base,javafx.graphics,javafx.controls,javafx.web,javafx.media")
+            buildArgs.add("-H:+ReportExceptionStackTraces")
 
             // Critical for UI and async behavior
-            buildArgs.add("--initialize-at-build-time=javafx,com.sun.javafx,kotlinx.coroutines")
+            buildArgs.add("--initialize-at-build-time=javafx,com.sun.javafx,kotlinx.coroutines,kotlinx.coroutines.scheduling.DefaultScheduler")
             buildArgs.add("--initialize-at-run-time=org.pcap4j.core.Pcaps")
+            buildArgs.add("--initialize-at-run-time=javafx.scene.control.Control")
+            buildArgs.add("--initialize-at-run-time=javafx.scene.control.PopupControl")
+            buildArgs.add("--initialize-at-run-time=javafx.scene.web.WebEngine")
+            buildArgs.add("--initialize-at-run-time=javafx.stage.Screen")
+            buildArgs.add("--initialize-at-run-time=com.sun.javafx.scene.control.ControlHelper")
+            buildArgs.add("--initialize-at-run-time=com.sun.javafx.scene.control.LabeledHelper")
 
             // Module support for the native compiler
-            buildArgs.add("--add-modules=jdk.jsobject,jdk.net,javafx.controls,javafx.web,javafx.graphics,javafx.media")
+            buildArgs.addAll(listOf("--class-path", appClassPath))
+            buildArgs.addAll(listOf("--module-path", javafxModulePath))
+            buildArgs.addAll(
+                listOf(
+                    "--add-modules",
+                    "jdk.jsobject,jdk.net,javafx.base,javafx.controls,javafx.web,javafx.graphics,javafx.media"
+                )
+            )
         }
     }
 }
