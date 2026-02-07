@@ -1651,6 +1651,17 @@ html[lang="ko"] * {
   height: 100%;
   fill: currentColor;
 }
+.settingsPanel .settingsFooter {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.settingsPanel .settingsFooterLabel {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
 .list .item {
   position: relative;
@@ -2081,10 +2092,25 @@ html[lang="ko"] * {
   justify-content: space-between;
   gap: 12px;
 }
+.detailsPanel .detailsStats .stat .label {
+  font-weight: 600;
+}
+.detailsPanel .detailsStats .stat .value {
+  font-weight: 400;
+}
+.detailsPanel .detailsBody {
+  font-weight: 400;
+}
 .detailsPanel .detailsSkills .cell {
   min-width: 46px;
   display: flex;
   align-items: center;
+}
+.detailsPanel .detailsSkills .skills .skillRow .cell {
+  font-weight: 400;
+}
+.detailsPanel .detailsSkills .skills .skillRow .cell.name {
+  font-weight: 700;
 }
 .detailsPanel .detailsSkills .cell.name {
   flex: 0 0 200px;
@@ -2203,7 +2229,7 @@ html[lang="ko"] * {
   align-items: center;
   text-shadow: var(--text-shadow);
   color: var(--dps-text);
-  font-weight: 400;
+  font-weight: 700;
 }
 .detailsPanel .detailsSkills .detailsFootnote {
   font-size: 12px;
