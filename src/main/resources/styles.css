@@ -50,7 +50,7 @@
   --indicator-wait: #ffb86b;
   --indicator-idle: #7f8a9a;
   --font: 16px;
-  --details-bg-opacity: 0.65;
+  --details-bg-opacity: 0.8;
 }
 
 :root[data-theme="aion2"] {

@@ -1584,7 +1584,7 @@ class DpsApp {
     this.detailsScreenshotFolderPath = document.querySelector(".detailsSettingsFolderPath");
     this.detailsScreenshotFolderBtn = document.querySelector(".detailsSettingsFolderBtn");
 
-    const storedOpacity = this.safeGetStorage(this.storageKeys.detailsBackgroundOpacity);
+    const storedOpacity = this.safeGetSetting(this.storageKeys.detailsBackgroundOpacity);
     const initialOpacity = this.parseDetailsOpacity(storedOpacity);
     this.setDetailsBackgroundOpacity(initialOpacity, { persist: false });
 
@@ -1710,11 +1710,11 @@ class DpsApp {
 
   parseDetailsOpacity(value) {
     if (value === null || value === undefined || value === "") {
-      return 0.65;
+      return 0.8;
     }
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) {
-      return 0.65;
+      return 0.8;
     }
     return Math.min(1, Math.max(0, parsed));
   }
@@ -1731,7 +1731,7 @@ class DpsApp {
       this.detailsOpacityInput.value = String(Math.round(clamped * 100));
     }
     if (persist) {
-      this.safeSetStorage(this.storageKeys.detailsBackgroundOpacity, String(clamped));
+      this.safeSetSetting(this.storageKeys.detailsBackgroundOpacity, String(clamped));
     }
   }
 
