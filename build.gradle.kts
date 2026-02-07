@@ -19,6 +19,18 @@ java {
 group = "com.tbread"
 version = "0.1.6"
 
+val appVersion = version.toString()
+
+fun computePackageVersion(version: String): String {
+    val base = version.substringBefore("-")
+    val parts = base.split(".").mapNotNull { it.toIntOrNull() }
+    val major = parts.getOrElse(0) { 0 }
+    val minor = parts.getOrElse(1) { 0 }
+    val patch = parts.getOrElse(2) { 0 }
+    val build = if (version.contains("-")) 0 else 1
+    return listOf(major, minor, patch, build).joinToString(".")
+}
+
 repositories {
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
@@ -174,7 +186,7 @@ compose.desktop {
             }
             targetFormats(TargetFormat.Msi)
             packageName = "AION2 DPS Meter"
-            packageVersion = "0.1.6"
+            packageVersion = computePackageVersion(appVersion)
         }
     }
 }
