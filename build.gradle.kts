@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import java.io.File
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -48,7 +49,20 @@ graalvmNative {
     binaries {
         named("main") {
             mainClass.set("com.tbread.Launcher")
-            val runtimeClasspath = configurations.runtimeClasspath.get().asPath
+            val runtimeClasspath = configurations.runtimeClasspath.get()
+            val javafxModuleNames = setOf(
+                "javafx-base",
+                "javafx-graphics",
+                "javafx-controls",
+                "javafx-web",
+                "javafx-media"
+            )
+            val javafxModulePath = runtimeClasspath.files
+                .filter { file -> javafxModuleNames.any { name -> file.name.startsWith(name) } }
+                .joinToString(File.pathSeparator) { it.absolutePath }
+            val appClassPath = runtimeClasspath.files
+                .filterNot { file -> javafxModuleNames.any { name -> file.name.startsWith(name) } }
+                .joinToString(File.pathSeparator) { it.absolutePath }
 
             buildArgs.add("-H:+UnlockExperimentalVMOptions")
             buildArgs.add("-H:+AddAllCharsets")
@@ -60,7 +74,8 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=org.pcap4j.core.Pcaps")
 
             // Module support for the native compiler
-            buildArgs.addAll(listOf("--module-path", runtimeClasspath))
+            buildArgs.addAll(listOf("--class-path", appClassPath))
+            buildArgs.addAll(listOf("--module-path", javafxModulePath))
             buildArgs.addAll(
                 listOf(
                     "--add-modules",
