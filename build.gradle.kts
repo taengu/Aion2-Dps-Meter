@@ -74,6 +74,7 @@ graalvmNative {
             // Critical for UI and async behavior
             buildArgs.add("--initialize-at-build-time=javafx,com.sun.javafx,kotlinx.coroutines")
             buildArgs.add("--initialize-at-run-time=org.pcap4j.core.Pcaps")
+            buildArgs.add("--initialize-at-run-time=javafx.scene.control.Control")
 
             // Module support for the native compiler
             buildArgs.addAll(listOf("--class-path", appClassPath))
