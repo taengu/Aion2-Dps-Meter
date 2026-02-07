@@ -411,7 +411,7 @@
             </div>
             <div class="settingsSupportRow">
               <button class="discordButton" type="button">
-                <span data-i18n="settings.discord">Get support on our Discord</span>
+                <span data-i18n="settings.discord">Find us on Discord</span>
                 <span class="discordIcon" aria-hidden="true">
                   <svg
                     viewBox="0 0 24 24"
@@ -425,18 +425,13 @@
               </button>
               <button class="quitButton" data-i18n="settings.quit">Quit</button>
             </div>
-            <a
-              class="kofiButton"
-              href="https://ko-fi.com/W7W51T1YW9"
-              target="_blank"
-              rel="noreferrer noopener">
-              <img
-                height="36"
-                style="border:0px;height:36px;"
-                src="https://storage.ko-fi.com/cdn/kofi2.png?v=6"
-                border="0"
-                alt="Buy Me a Coffee at ko-fi.com" />
-            </a>
+            <div class="kofiWidget">
+              <script type="text/javascript" src="https://storage.ko-fi.com/cdn/widget/Widget_2.js"></script>
+              <script type="text/javascript">
+                kofiwidget2.init("Support me on Ko-fi", "#6f0fbd", "W7W51T1YW9");
+                kofiwidget2.draw();
+              </script>
+            </div>
             <div class="settingsFooter">
               <span class="settingsFooterLabel" data-i18n="settings.version">Version</span>
               <span class="settingsFooterValue settingsVersionValue">-</span>

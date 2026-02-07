@@ -1659,16 +1659,10 @@ html[lang="ko"] * {
   align-items: center;
   gap: 12px;
 }
-.settingsPanel .kofiButton {
-  display: inline-flex;
-  align-items: center;
+.settingsPanel .kofiWidget {
+  display: flex;
   justify-content: center;
-  height: 36px;
   width: 100%;
-}
-.settingsPanel .kofiButton img {
-  height: 36px;
-  display: block;
 }
 .settingsPanel .discordButton {
   border: 1px solid var(--panel-border);
@@ -1685,9 +1679,38 @@ html[lang="ko"] * {
   justify-content: center;
   gap: 8px;
   flex: 0 0 60%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.settingsPanel .discordButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  filter: brightness(1.05);
+}
+.settingsPanel .discordButton:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  filter: brightness(0.98);
 }
 .settingsPanel .quitButton {
   flex: 0 0 40%;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.settingsPanel .quitButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  filter: brightness(1.05);
+}
+.settingsPanel .quitButton:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+  filter: brightness(0.98);
 }
 .settingsPanel .discordButton .discordIcon {
   display: inline-flex;
