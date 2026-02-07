@@ -70,6 +70,8 @@ graalvmNative {
             buildArgs.add("--no-fallback")
             buildArgs.add("--enable-native-access=javafx.base,javafx.graphics,javafx.controls,javafx.web,javafx.media")
             buildArgs.add("-H:+ReportExceptionStackTraces")
+            // Enable class init tracing to surface all offenders in a single native-image run.
+            buildArgs.add("-H:+TraceClassInitialization")
 
             // Critical for UI and async behavior
             buildArgs.add("--initialize-at-build-time=javafx,com.sun.javafx,com.sun.javafx.tk.quantum.PrimaryTimer,com.sun.scenario.animation.SplineInterpolator,com.sun.scenario.animation.StepInterpolator,kotlinx.coroutines,kotlinx.coroutines.scheduling.DefaultScheduler,kotlin.coroutines.ContinuationInterceptor\$Key")
