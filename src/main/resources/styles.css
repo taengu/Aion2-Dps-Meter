@@ -1667,6 +1667,7 @@ html[lang="ko"] * {
   align-items: center;
   justify-content: center;
   height: 36px;
+  width: 100%;
 }
 .settingsPanel .kofiButton img {
   height: 36px;
@@ -1686,7 +1687,10 @@ html[lang="ko"] * {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  flex: 1 1 auto;
+  flex: 0 0 60%;
+}
+.settingsPanel .quitButton {
+  flex: 0 0 40%;
 }
 .settingsPanel .discordButton .discordIcon {
   display: inline-flex;
