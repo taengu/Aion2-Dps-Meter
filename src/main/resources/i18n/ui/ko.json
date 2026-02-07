@@ -98,11 +98,11 @@
     "targetWindow": {
       "label": "대상 시간 범위",
       "options": {
-        "5s": "5 seconds",
-        "10s": "10 seconds",
-        "15s": "15 seconds",
-        "20s": "20 seconds",
-        "30s": "30 seconds"
+        "5s": "5초",
+        "10s": "10초",
+        "15s": "15초",
+        "20s": "20초",
+        "30s": "30초"
       }
     },
     "targetSelection": {

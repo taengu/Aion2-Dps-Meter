@@ -98,11 +98,11 @@
     "targetWindow": {
       "label": "目標時間範圍",
       "options": {
-        "5s": "5 seconds",
-        "10s": "10 seconds",
-        "15s": "15 seconds",
-        "20s": "20 seconds",
-        "30s": "30 seconds"
+        "5s": "5秒",
+        "10s": "10秒",
+        "15s": "15秒",
+        "20s": "20秒",
+        "30s": "30秒"
       }
     },
     "targetSelection": {
