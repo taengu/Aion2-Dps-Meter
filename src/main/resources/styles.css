@@ -2057,7 +2057,8 @@ html[lang="ko"] * {
 .detailsPanel .detailsHeader .detailsSettingsMenu {
   position: absolute;
   right: 0;
-  top: calc(100% + 8px);
+  top: auto;
+  bottom: calc(100% + 8px);
   min-width: 260px;
   padding: 12px 14px;
   border-radius: 10px;
@@ -2212,6 +2213,7 @@ html[lang="ko"] * {
 }
 .detailsPanel .detailsStats .stat .label {
   font-weight: 700;
+  color: var(--isUser-fill);
 }
 .detailsPanel .detailsStats .stat .value {
   font-weight: 400;

@@ -602,7 +602,7 @@ class DpsApp {
     }
 
     this.updateConnectionStatusUi();
-    if (targetMode === "trainTargets" && this.USER_NAME) {
+    if (targetMode === "trainTargets" && this.isLocalUserIdentified()) {
       rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
     }
     // render
@@ -2108,7 +2108,7 @@ class DpsApp {
   renderCurrentRows() {
     if (this.isCollapse) return;
     let rowsToRender = Array.isArray(this.lastSnapshot) ? this.lastSnapshot : [];
-    if (this.lastTargetMode === "trainTargets" && this.USER_NAME) {
+    if (this.lastTargetMode === "trainTargets" && this.isLocalUserIdentified()) {
       rowsToRender = rowsToRender.filter((row) => row.name === this.USER_NAME);
     }
     const rowsSummary = this.getRowsSummary(rowsToRender);
@@ -2281,7 +2281,9 @@ class DpsApp {
   }
 
   isLocalUserIdentified() {
-    return Boolean(String(this.USER_NAME ?? "").trim());
+    const name = String(this.USER_NAME ?? "").trim();
+    const localId = Number(this.localPlayerId);
+    return Boolean(name) && Number.isFinite(localId) && localId > 0;
   }
 
   getDefaultTargetLabel(targetMode = "") {

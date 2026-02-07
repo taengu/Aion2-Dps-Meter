@@ -45,8 +45,8 @@
       "perfect": "Perfect",
       "double": "Double",
       "back": "Back",
-      "multiHit": "MHit",
-      "multiHitDamage": "MDmg",
+      "multiHit": "MHits",
+      "multiHitDamage": "MHDmg",
       "totalDamage": "Total Damage",
       "heal": "Heal"
     },

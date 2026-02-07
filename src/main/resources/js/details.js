@@ -343,8 +343,15 @@ const createDetailsUI = ({
     nameEl.appendChild(nameTextEl);
 
     const hitEl = document.createElement("div");
-    const critEl = document.createElement("div");
     hitEl.className = "cell center hit";
+
+    const multiHitEl = document.createElement("div");
+    multiHitEl.className = "cell center mhit";
+
+    const multiHitDamageEl = document.createElement("div");
+    multiHitDamageEl.className = "cell center mdmg";
+
+    const critEl = document.createElement("div");
     critEl.className = "cell center crit";
 
     const parryEl = document.createElement("div");
@@ -362,12 +369,6 @@ const createDetailsUI = ({
     const healEl = document.createElement("div");
     healEl.className = "cell center heal";
 
-    const multiHitEl = document.createElement("div");
-    multiHitEl.className = "cell center mhit";
-
-    const multiHitDamageEl = document.createElement("div");
-    multiHitDamageEl.className = "cell center mdmg";
-
     const dmgEl = document.createElement("div");
     dmgEl.className = "cell dmg right";
 
@@ -382,14 +383,14 @@ const createDetailsUI = ({
 
     rowEl.appendChild(nameEl);
     rowEl.appendChild(hitEl);
+    rowEl.appendChild(multiHitEl);
+    rowEl.appendChild(multiHitDamageEl);
     rowEl.appendChild(critEl);
     rowEl.appendChild(parryEl);
     rowEl.appendChild(perfectEl);
     rowEl.appendChild(doubleEl);
     rowEl.appendChild(backEl);
     rowEl.appendChild(healEl);
-    rowEl.appendChild(multiHitEl);
-    rowEl.appendChild(multiHitDamageEl);
 
     rowEl.appendChild(dmgEl);
 
@@ -398,14 +399,14 @@ const createDetailsUI = ({
       nameEl,
       nameTextEl,
       hitEl,
+      multiHitEl,
+      multiHitDamageEl,
       critEl,
       parryEl,
       backEl,
       perfectEl,
       doubleEl,
       healEl,
-      multiHitEl,
-      multiHitDamageEl,
       dmgFillEl,
       dmgTextEl,
     };
