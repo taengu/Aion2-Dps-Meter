@@ -165,8 +165,16 @@ class DpsApp {
           this.lastTargetMode === "lastHitByMe" &&
           (!Number(this.lastTargetId) || Number(this.lastTargetId) <= 0) &&
           !this.lastTargetName;
+        const isTrainTargets = this.lastTargetMode === "trainTargets";
+        const shouldDefaultAllTrainTargets = isTrainTargets && this.trainSelectionMode === "all";
+        const shouldDefaultTrainTarget = isTrainTargets && this.trainSelectionMode === "highestDamage";
+        const defaultTargetId = shouldDefaultTrainTarget && Number(this.lastTargetId) > 0
+          ? Number(this.lastTargetId)
+          : null;
         this.detailsUI.open(row, {
-          defaultTargetAll: this.lastTargetMode === "allTargets" || fallbackAllTargets,
+          defaultTargetAll:
+            this.lastTargetMode === "allTargets" || fallbackAllTargets || shouldDefaultAllTrainTargets,
+          defaultTargetId,
         });
       },
     });

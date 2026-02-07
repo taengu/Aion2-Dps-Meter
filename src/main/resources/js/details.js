@@ -897,7 +897,10 @@ const createDetailsUI = ({
 
   const isOpen = () => detailsPanel.classList.contains("open");
 
-  const open = async (row, { force = false, restartOnSwitch = true, defaultTargetAll = false } = {}) => {
+  const open = async (
+    row,
+    { force = false, restartOnSwitch = true, defaultTargetAll = false, defaultTargetId = null } = {}
+  ) => {
     const rowId = row?.id ?? null;
     // if (!rowId) return;
 
@@ -924,6 +927,8 @@ const createDetailsUI = ({
     loadDetailsContext();
     if (defaultTargetAll) {
       selectedTargetId = null;
+    } else if (Number.isFinite(Number(defaultTargetId)) && Number(defaultTargetId) > 0) {
+      selectedTargetId = Number(defaultTargetId);
     } else if (detailsContext && detailsContext.currentTargetId) {
       selectedTargetId = detailsContext.currentTargetId;
     } else {
