@@ -122,15 +122,17 @@ graalvmNative {
     }
 }
 
-val javafxNativeLibs = listOf(
-    "jfxwebkit.dll",
-    "prism_sw.dll",
-    "prism_d3d.dll",
-    "prism_common.dll",
-    "glass.dll",
-    "javafx_font.dll",
-    "javafx_iio.dll",
-    "jfxmedia.dll"
+val javafxNativeLibPatterns = listOf(
+    "**/jfxwebkit*.dll",
+    "**/jfxwebkit*.pak",
+    "**/icudtl.dat",
+    "**/prism_sw.dll",
+    "**/prism_d3d.dll",
+    "**/prism_common.dll",
+    "**/glass.dll",
+    "**/javafx_font.dll",
+    "**/javafx_iio.dll",
+    "**/jfxmedia.dll"
 )
 
 tasks.named("nativeCompile").configure {
@@ -140,7 +142,7 @@ tasks.named("nativeCompile").configure {
         runtimeJars.forEach { jar ->
             copy {
                 from(zipTree(jar)) {
-                    include(javafxNativeLibs.map { "**/$it" })
+                    include(javafxNativeLibPatterns)
                 }
                 into(outputDir)
             }
