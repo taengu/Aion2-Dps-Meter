@@ -72,14 +72,19 @@ graalvmNative {
             buildArgs.add("-H:+ReportExceptionStackTraces")
 
             // Critical for UI and async behavior
-            buildArgs.add("--initialize-at-build-time=javafx,com.sun.javafx,kotlinx.coroutines,kotlinx.coroutines.scheduling.DefaultScheduler")
+            buildArgs.add("--initialize-at-build-time=javafx,com.sun.javafx,com.sun.javafx.tk.quantum.PrimaryTimer,com.sun.scenario.animation.SplineInterpolator,com.sun.scenario.animation.StepInterpolator,kotlinx.coroutines,kotlinx.coroutines.scheduling.DefaultScheduler,kotlin.coroutines.ContinuationInterceptor\$Key")
             buildArgs.add("--initialize-at-run-time=org.pcap4j.core.Pcaps")
             buildArgs.add("--initialize-at-run-time=javafx.scene.control.Control")
             buildArgs.add("--initialize-at-run-time=javafx.scene.control.PopupControl")
+            buildArgs.add("--initialize-at-run-time=javafx.scene.control.Labeled\\$StyleableProperties")
             buildArgs.add("--initialize-at-run-time=javafx.scene.web.WebEngine")
             buildArgs.add("--initialize-at-run-time=javafx.stage.Screen")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.scene.control.ControlHelper")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.scene.control.LabeledHelper")
+            buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.Toolkit")
+            buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumToolkit")
+            buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumRenderer")
+            buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.PaintCollector")
 
             // Module support for the native compiler
             buildArgs.addAll(listOf("--class-path", appClassPath))
