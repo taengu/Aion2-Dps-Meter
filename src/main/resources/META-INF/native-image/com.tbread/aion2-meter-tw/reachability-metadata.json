@@ -6,6 +6,10 @@
           "com.sun.jna.platform.win32.Shell32"
         ]
       }
+    },
+    {
+      "type": "com.sun.jna.platform.win32.WinDef$INT_PTR",
+      "allPublicConstructors": true
     }
   ]
 }
