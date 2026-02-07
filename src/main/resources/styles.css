@@ -2220,7 +2220,7 @@ html[lang="ko"] * {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
 }
 .detailsPanel .detailsSkills .cell {
   min-width: 0;
@@ -2270,15 +2270,11 @@ html[lang="ko"] * {
   color: white;
 }
 .detailsPanel .detailsSkills .skills {
-  max-height: none;
-  flex: 1 1 auto;
-  min-height: 0;
   padding: 0 12px;
-  overflow-y: auto;
+  overflow-y: visible;
   overflow-x: hidden;
   scrollbar-gutter: stable;
   min-width: 900px;
-  max-height: 100%;
 }
 .detailsPanel .detailsSkills::-webkit-scrollbar {
   height: 10px;
