@@ -939,6 +939,7 @@ class DpsApp {
     let totalDouble = 0;
     let totalMultiHitCount = 0;
     let totalMultiHitDamage = 0;
+    let totalHeal = 0;
 
     const pushSkill = ({
       codeKey,
@@ -966,6 +967,7 @@ class DpsApp {
       const t = Number(time) || 0;
 
       totalDmg += dmgInt;
+      totalHeal += Number(heal) || 0;
       if (countForTotals) {
         totalTimes += t;
         totalCrit += Number(crit) || 0;
@@ -1091,8 +1093,14 @@ class DpsApp {
           totalBack: 0,
           totalPerfect: 0,
           totalDouble: 0,
+          totalHeal: 0,
+          multiHitCount: 0,
+          multiHitDamage: 0,
         };
       entry.totalDmg += Number(skill.dmg) || 0;
+      entry.totalHeal += Number(skill.heal) || 0;
+      entry.multiHitCount += Number(skill.multiHitCount) || 0;
+      entry.multiHitDamage += Number(skill.multiHitDamage) || 0;
       if (!skill.isDot) {
         entry.totalTimes += Number(skill.time) || 0;
         entry.totalCrit += Number(skill.crit) || 0;
@@ -1130,6 +1138,9 @@ class DpsApp {
         totalBack: entry.totalBack,
         totalPerfect: entry.totalPerfect,
         totalDouble: entry.totalDouble,
+        totalHeal: entry.totalHeal,
+        multiHitCount: entry.multiHitCount,
+        multiHitDamage: entry.multiHitDamage,
         contributionPct:
           Number.isFinite(baseTotalDamage) && baseTotalDamage > 0
             ? (entry.totalDmg / baseTotalDamage) * 100
@@ -1153,6 +1164,7 @@ class DpsApp {
       totalDoublePct: pct(totalDouble, totalTimes),
       multiHitCount: totalMultiHitCount,
       multiHitDamage: totalMultiHitDamage,
+      totalHeal,
       combatTime,
       battleTimeMs: Number.isFinite(battleTimeMsRaw) ? battleTimeMsRaw : 0,
 

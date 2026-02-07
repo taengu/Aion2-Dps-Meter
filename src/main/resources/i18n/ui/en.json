@@ -59,6 +59,7 @@
       "backRate": "Back Attack Rate",
       "parryRate": "Parry Rate",
       "combatTime": "Combat Time",
+      "selfHealing": "Self-Healing",
       "multiHitDamage": "Multi-Hit Damage",
       "multiHitHits": "Multi-Hits"
     },

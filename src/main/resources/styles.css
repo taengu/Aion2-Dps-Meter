@@ -2203,13 +2203,16 @@ html[lang="ko"] * {
 .detailsPanel .detailsStats {
   display: grid;
   gap: 6px 12px;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   padding: 6px 12px;
 }
 .detailsPanel .detailsStats .stat {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+}
+.detailsPanel .detailsStats .stat.statWide {
+  grid-column: span 2;
 }
 .detailsPanel .detailsStats .stat .label {
   font-weight: 700;

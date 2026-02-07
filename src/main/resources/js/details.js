@@ -53,12 +53,12 @@ const createDetailsUI = ({
     if (!Number.isFinite(n)) return "-";
     const abs = Math.abs(n);
     if (abs >= 1_000_000) {
-      return `${(n / 1_000_000).toFixed(3)}m`;
+      return `${(n / 1_000_000).toFixed(2)}m`;
     }
     if (abs >= 1_000) {
-      return `${(n / 1_000).toFixed(3)}k`;
+      return `${(n / 1_000).toFixed(2)}k`;
     }
-    return `${n.toFixed(3)}`;
+    return `${n.toFixed(2)}`;
   };
   const formatMinutesSince = (timestampMs) => {
     const ts = Number(timestampMs);
@@ -83,23 +83,34 @@ const createDetailsUI = ({
   const detailsTargetSuffix = detailsTitle?.querySelector?.(".detailsTargetSuffix");
 
   const STATUS = [
-    { key: "details.stats.totalDamage", fallback: "Total Damage", getValue: (d) => formatNum(d?.totalDmg) },
+    {
+      key: "details.stats.totalDamage",
+      fallback: "Total Damage",
+      getValue: (d) => formatNum(d?.totalDmg),
+      isWide: true,
+    },
+    { key: "details.stats.combatTime", fallback: "Combat Time", getValue: (d) => d?.combatTime ?? "-" },
     { key: "details.stats.contribution", fallback: "Contribution", getValue: (d) => pctText(d?.contributionPct) },
     { key: "details.stats.multiHitHits", fallback: "Multi-Hits", getValue: (d) => formatNum(d?.multiHitCount) },
-    { key: "details.stats.multiHitDamage", fallback: "Multi-Hit Damage", getValue: (d) => formatNum(d?.multiHitDamage) },
-    // { label: "보스 막기비율", getValue: (d) => d?.parry ?? "-" },
-    // { label: "보스 회피비율", getValue: (d) => d?.eva ?? "-" },
+    {
+      key: "details.stats.multiHitDamage",
+      fallback: "Multi-Hit Damage",
+      getValue: (d) => formatDamageCompact(d?.multiHitDamage),
+    },
     { key: "details.stats.critRate", fallback: "Crit Rate", getValue: (d) => pctText(d?.totalCritPct) },
     { key: "details.stats.perfectRate", fallback: "Perfect Rate", getValue: (d) => pctText(d?.totalPerfectPct) },
     { key: "details.stats.doubleRate", fallback: "Double Rate", getValue: (d) => pctText(d?.totalDoublePct) },
     { key: "details.stats.backRate", fallback: "Back Attack Rate", getValue: (d) => pctText(d?.totalBackPct) },
     { key: "details.stats.parryRate", fallback: "Parry Rate", getValue: (d) => pctText(d?.totalParryPct) },
-    { key: "details.stats.combatTime", fallback: "Combat Time", getValue: (d) => d?.combatTime ?? "-" },
+    { key: "details.stats.selfHealing", fallback: "Self-Healing", getValue: (d) => formatNum(d?.totalHeal) },
   ];
 
-  const createStatView = (labelKey, fallbackLabel) => {
+  const createStatView = (labelKey, fallbackLabel, { isWide = false } = {}) => {
     const statEl = document.createElement("div");
     statEl.className = "stat";
+    if (isWide) {
+      statEl.classList.add("statWide");
+    }
 
     const labelEl = document.createElement("p");
     labelEl.className = "label";
@@ -115,7 +126,7 @@ const createDetailsUI = ({
     return { statEl, labelEl, valueEl, labelKey, fallbackLabel };
   };
 
-  const statSlots = STATUS.map((def) => createStatView(def.key, def.fallback));
+  const statSlots = STATUS.map((def) => createStatView(def.key, def.fallback, { isWide: def.isWide }));
   statSlots.forEach((value) => detailsStatsEl.appendChild(value.statEl));
 
   const getTargetById = (targetId) =>
@@ -263,6 +274,8 @@ const createDetailsUI = ({
     switch (statKey) {
       case "details.stats.totalDamage":
         return formatNum(data.totalDmg);
+      case "details.stats.multiHitDamage":
+        return formatDamageCompact(data.multiHitDamage);
       case "details.stats.contribution":
         return pctText(data.contributionPct);
       case "details.stats.critRate":
@@ -275,6 +288,8 @@ const createDetailsUI = ({
         return pctText(data.totalBackPct);
       case "details.stats.parryRate":
         return pctText(data.totalParryPct);
+      case "details.stats.selfHealing":
+        return formatNum(data.totalHeal);
       case "details.stats.combatTime":
         return data.combatTime ?? "-";
       default:
@@ -311,6 +326,8 @@ const createDetailsUI = ({
           const span = document.createElement("span");
           if (statKey === "details.stats.totalDamage") {
             span.textContent = formatCompactNumber(actor.totalDmg);
+          } else if (statKey === "details.stats.multiHitDamage") {
+            span.textContent = formatDamageCompact(actor.multiHitDamage);
           } else {
             span.textContent = resolveStatValue(statKey, actor);
           }
@@ -516,7 +533,7 @@ const createDetailsUI = ({
       view.doubleEl.textContent = `${doubleRate}%`;
       view.healEl.textContent = `${formatNum(heal)}`;
       view.multiHitEl.textContent = `${formatNum(multiHitCount)}`;
-      view.multiHitDamageEl.textContent = `${formatNum(multiHitDamage)}`;
+      view.multiHitDamageEl.textContent = `${formatDamageCompact(multiHitDamage)}`;
 
       view.dmgTextEl.textContent = `${formatDamageCompact(damage)} (${damageRate.toFixed(1)}%)`;
       view.dmgFillEl.style.transform = `scaleX(${barFillRatio})`;
@@ -715,6 +732,9 @@ const createDetailsUI = ({
           totalBack: 0,
           totalPerfect: 0,
           totalDouble: 0,
+          totalHeal: 0,
+          multiHitCount: 0,
+          multiHitDamage: 0,
         };
         next.totalDmg += Number(entry?.totalDmg) || 0;
         if (!next.job && entry?.job) next.job = entry.job;
@@ -724,6 +744,9 @@ const createDetailsUI = ({
         next.totalBack += Number(entry?.totalBack) || 0;
         next.totalPerfect += Number(entry?.totalPerfect) || 0;
         next.totalDouble += Number(entry?.totalDouble) || 0;
+        next.totalHeal += Number(entry?.totalHeal) || 0;
+        next.multiHitCount += Number(entry?.multiHitCount) || 0;
+        next.multiHitDamage += Number(entry?.multiHitDamage) || 0;
         totals.set(actorId, next);
       });
     });
@@ -741,10 +764,12 @@ const createDetailsUI = ({
     let totalDouble = 0;
     let totalMultiHitCount = 0;
     let totalMultiHitDamage = 0;
+    let totalHeal = 0;
 
     skills.forEach((skill) => {
       const dmg = Number(skill?.dmg) || 0;
       totalDmg += dmg;
+      totalHeal += Number(skill?.heal) || 0;
       totalMultiHitCount += Number(skill?.multiHitCount) || 0;
       totalMultiHitDamage += Number(skill?.multiHitDamage) || 0;
       if (!skill?.isDot) {
@@ -770,6 +795,7 @@ const createDetailsUI = ({
       totalDoublePct: pct(totalDouble, totalTimes),
       multiHitCount: totalMultiHitCount,
       multiHitDamage: totalMultiHitDamage,
+      totalHeal,
       combatTime: formatBattleTime(battleTimeMs),
       battleTimeMs,
       skills,
