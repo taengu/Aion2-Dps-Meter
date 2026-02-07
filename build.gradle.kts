@@ -30,8 +30,6 @@ fun computeMsiVersion(version: String): String {
     return listOf(major, minor, patch).joinToString(".")
 }
 
-val appVersion = version.toString()
-
 fun computePackageVersion(version: String): String {
     val base = version.substringBefore("-")
     val parts = base.split(".").mapNotNull { it.toIntOrNull() }
