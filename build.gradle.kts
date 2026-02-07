@@ -83,6 +83,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.Toolkit")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumToolkit")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumRenderer")
+            buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.PaintCollector")
 
             // Module support for the native compiler
             buildArgs.addAll(listOf("--class-path", appClassPath))
