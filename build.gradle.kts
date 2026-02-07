@@ -169,6 +169,7 @@ compose.desktop {
                 // Note: If you don't have an icon yet, comment out the line below
                 iconFile.set(project.file("src/main/resources/icon.ico"))
                 shortcut = true
+                shortcutName = "Aion2 DPS Meter"
                 menuGroup = "Aion2 DPS Meter"
                 upgradeUuid = "d1f8995e-c0af-4f01-9067-a69ee897361a"
             }
