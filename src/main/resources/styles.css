@@ -373,9 +373,14 @@ html[lang="ko"] * {
     justify-content: center;
     opacity: 0;
     background: rgba(0, 0, 0, 0.35);
+    color: #ffffff;
     transition: opacity 150ms ease;
     pointer-events: none;
     border-radius: 8px;
+  }
+  .bossIconOverlay svg {
+    width: 22px;
+    height: 22px;
   }
   .bossIcon:hover .bossIconOverlay {
     opacity: 1;
