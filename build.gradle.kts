@@ -76,6 +76,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=org.pcap4j.core.Pcaps")
             buildArgs.add("--initialize-at-run-time=javafx.scene.control.Control")
             buildArgs.add("--initialize-at-run-time=javafx.scene.control.PopupControl")
+            buildArgs.add("--initialize-at-run-time=javafx.scene.control.Labeled\\$StyleableProperties")
             buildArgs.add("--initialize-at-run-time=javafx.scene.web.WebEngine")
             buildArgs.add("--initialize-at-run-time=javafx.stage.Screen")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.scene.control.ControlHelper")
