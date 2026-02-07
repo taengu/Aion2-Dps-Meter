@@ -101,6 +101,10 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumToolkit")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumRenderer")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.PaintCollector")
+            buildArgs.add("--initialize-at-run-time=com.sun.glass.utils.NativeLibLoader")
+
+            // Ensure JavaFX native libraries (DLLs) are bundled for Prism/Glass on Windows
+            buildArgs.add("-H:IncludeResources=.*\\\\.dll$")
 
             // Module support for the native compiler
             buildArgs.addAll(listOf("--class-path", appClassPath))
