@@ -123,8 +123,10 @@ graalvmNative {
 }
 
 val javafxNativeLibs = listOf(
+    "jfxwebkit.dll",
     "prism_sw.dll",
     "prism_d3d.dll",
+    "prism_common.dll",
     "glass.dll",
     "javafx_font.dll",
     "javafx_iio.dll",
