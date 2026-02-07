@@ -921,6 +921,7 @@ html[lang="ko"] * {
   background: rgba(12, 22, 40, var(--details-bg-opacity, 0.5));
   padding: 6px 4px;
   border-radius: var(--rounded-lg);
+  height: calc(100vh - 24px);
   max-height: calc(100vh - 24px);
   max-width: calc(100vw - 24px);
   overflow: hidden;
