@@ -69,9 +69,6 @@ graalvmNative {
             buildArgs.add("-Dprism.fontdir=C:\\Windows\\Fonts")
             buildArgs.add("--no-fallback")
             buildArgs.add("--enable-native-access=javafx.base,javafx.graphics,javafx.controls,javafx.web,javafx.media")
-            // Enable class init tracing to surface all offenders in a single native-image run.
-            buildArgs.add("-H:TraceClassInitialization=*")
-
             // Critical for UI and async behavior
             buildArgs.add("--initialize-at-build-time=javafx,com.sun.javafx,com.sun.javafx.tk.quantum.PrimaryTimer,com.sun.scenario.animation.SplineInterpolator,com.sun.scenario.animation.StepInterpolator,kotlinx.coroutines,kotlinx.coroutines.scheduling.DefaultScheduler,kotlin.coroutines.ContinuationInterceptor\$Key")
             buildArgs.add("--initialize-at-build-time=com.sun.scenario.effect.Offset")
@@ -83,6 +80,7 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=javafx.scene.control.Slider")
             buildArgs.add("--initialize-at-run-time=javafx.scene.control.Slider\$StyleableProperties")
             buildArgs.add("--initialize-at-run-time=javafx.scene.control.ScrollBar\$StyleableProperties")
+            buildArgs.add("--initialize-at-run-time=javafx.scene.control.skin.ProgressIndicatorSkin")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.scene.control.Properties")
             buildArgs.add("--initialize-at-run-time=javafx.scene.web.WebEngine")
             buildArgs.add("--initialize-at-run-time=javafx.stage.Screen")
