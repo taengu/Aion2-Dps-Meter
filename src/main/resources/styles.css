@@ -2213,14 +2213,14 @@ html[lang="ko"] * {
   flex: 1 1 0;
 }
 .detailsPanel .detailsSkills .cell.heal {
-  flex: 1.2 1 0;
+  flex: 0.9 1 0;
 }
 .detailsPanel .detailsSkills .cell.mhit,
 .detailsPanel .detailsSkills .cell.mdmg {
-  flex: 1.2 1 0;
+  flex: 0.9 1 0;
 }
 .detailsPanel .detailsSkills .cell.dmg {
-  flex: 2.2 1 0;
+  flex: 2.5 1 0;
   justify-content: center;
 }
 .detailsPanel .detailsSkills .cell.right {
