@@ -105,9 +105,7 @@ graalvmNative {
 
             // Ensure JavaFX native libraries (DLLs) are bundled for Prism/Glass on Windows
             buildArgs.add("-H:IncludeResources=.*\\\\.dll$")
-            buildArgs.add("-H:IncludeResources=^META-INF/lib/.*\\\\.dll$")
-            buildArgs.add("-H:IncludeResources=^com/sun/.*\\\\.dll$")
-            buildArgs.add("-Dprism.order=sw")
+            buildArgs.add("-H:ReflectionConfigurationFiles=src/main/resources/native-image/reflect-config.json")
 
             // Module support for the native compiler
             buildArgs.addAll(listOf("--class-path", appClassPath))
