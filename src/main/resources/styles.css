@@ -2271,7 +2271,9 @@ html[lang="ko"] * {
 }
 .detailsPanel .detailsSkills .skills {
   padding: 0 12px;
-  overflow-y: visible;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
   min-width: 900px;
