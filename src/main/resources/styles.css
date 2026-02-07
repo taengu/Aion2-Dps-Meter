@@ -795,7 +795,7 @@ html[lang="ko"] * {
       line-height: 1.2;
       padding-bottom: 1px;
       text-shadow: var(--player-name-shadow, var(--text-shadow));
-      font-weight: 600;
+      font-weight: 400;
       overflow: hidden;
       white-space: nowrap;
       text-overflow: ellipsis;
@@ -813,9 +813,6 @@ html[lang="ko"] * {
       gap: 8px;
     }
   }
-}
-.meter .item:not(.isIdentifying) .content .name {
-  font-weight: 700;
 }
 .meter .item.isIdentifying .content .name {
   font-size: 18px;
