@@ -2163,7 +2163,7 @@ html[lang="ko"] * {
   min-height: 0;
 }
 .detailsPanel .detailsSkills .cell {
-  min-width: 46px;
+  min-width: 0;
   display: flex;
   align-items: center;
 }
@@ -2174,24 +2174,24 @@ html[lang="ko"] * {
   font-weight: 700;
 }
 .detailsPanel .detailsSkills .cell.name {
-  flex: 0 0 200px;
+  flex: 2.4 1 0;
   justify-content: flex-start;
   white-space: nowrap;
   color: var(--isUser-fill);
 }
 .detailsPanel .detailsSkills .cell.center {
   justify-content: center;
-  flex: 0 0 56px;
+  flex: 1 1 0;
 }
 .detailsPanel .detailsSkills .cell.heal {
-  flex: 0 0 72px;
+  flex: 1.2 1 0;
 }
 .detailsPanel .detailsSkills .cell.mhit,
 .detailsPanel .detailsSkills .cell.mdmg {
-  flex: 0 0 64px;
+  flex: 1.2 1 0;
 }
 .detailsPanel .detailsSkills .cell.dmg {
-  flex: 0 0 220px;
+  flex: 2.2 1 0;
   justify-content: center;
 }
 .detailsPanel .detailsSkills .cell.right {
