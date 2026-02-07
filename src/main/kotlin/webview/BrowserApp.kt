@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.nio.file.Paths
+import java.nio.charset.StandardCharsets
 import javax.imageio.ImageIO
 import kotlin.concurrent.thread
 import kotlin.system.exitProcess
@@ -424,7 +425,17 @@ class BrowserApp(
                 else -> Unit
             }
         }
-        engine.load(javaClass.getResource("/index.html")?.toExternalForm())
+        val indexUrl = requireNotNull(javaClass.getResource("/index.html")) { "index.html not found" }
+        val baseUrl = indexUrl.toExternalForm().substringBeforeLast('/') + "/"
+        val html = indexUrl.openStream().use { input ->
+            String(input.readBytes(), StandardCharsets.UTF_8)
+        }
+        val htmlWithBase = if (html.contains("<base", ignoreCase = true)) {
+            html
+        } else {
+            html.replaceFirst("<head>", "<head>\n    <base href=\"$baseUrl\" />")
+        }
+        engine.loadContent(htmlWithBase, "text/html; charset=UTF-8")
         if (engine.loadWorker.state == Worker.State.SUCCEEDED) {
             injectBridge()
         }
