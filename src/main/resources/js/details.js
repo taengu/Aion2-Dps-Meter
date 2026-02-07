@@ -25,12 +25,22 @@ const createDetailsUI = ({
   let selectedAttackerLabel = "";
   let sortMode = "recent";
   let detectedJobByActorId = new Map();
+  let skillSortKey = "dmg";
+  let skillSortDir = "desc";
 
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
   const formatNum = (v) => {
     const n = Number(v);
     if (!Number.isFinite(n)) return "-";
+    return dpsFormatter.format(n);
+  };
+  const formatCount = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return "-";
+    if (Math.abs(n) < 1000) {
+      return `${Math.round(n)}`;
+    }
     return dpsFormatter.format(n);
   };
   const pctText = (v) => {
@@ -58,7 +68,7 @@ const createDetailsUI = ({
     if (abs >= 1_000) {
       return `${(n / 1_000).toFixed(2)}k`;
     }
-    return `${n.toFixed(2)}`;
+    return `${Math.round(n)}`;
   };
   const formatMinutesSince = (timestampMs) => {
     const ts = Number(timestampMs);
@@ -86,12 +96,12 @@ const createDetailsUI = ({
     {
       key: "details.stats.totalDamage",
       fallback: "Total Damage",
-      getValue: (d) => formatNum(d?.totalDmg),
-      isWide: true,
+      getValue: (d) => formatDamageCompact(d?.totalDmg),
     },
-    { key: "details.stats.combatTime", fallback: "Combat Time", getValue: (d) => d?.combatTime ?? "-" },
     { key: "details.stats.contribution", fallback: "Contribution", getValue: (d) => pctText(d?.contributionPct) },
-    { key: "details.stats.multiHitHits", fallback: "Multi-Hits", getValue: (d) => formatNum(d?.multiHitCount) },
+    { key: "details.stats.combatTime", fallback: "Combat Time", getValue: (d) => d?.combatTime ?? "-" },
+    { key: "details.stats.hits", fallback: "Hits", getValue: (d) => formatCount(d?.totalHits) },
+    { key: "details.stats.multiHitHits", fallback: "Multi-Hits", getValue: (d) => formatCount(d?.multiHitCount) },
     {
       key: "details.stats.multiHitDamage",
       fallback: "Multi-Hit Damage",
@@ -100,25 +110,25 @@ const createDetailsUI = ({
     { key: "details.stats.critRate", fallback: "Crit Rate", getValue: (d) => pctText(d?.totalCritPct) },
     { key: "details.stats.perfectRate", fallback: "Perfect Rate", getValue: (d) => pctText(d?.totalPerfectPct) },
     { key: "details.stats.doubleRate", fallback: "Double Rate", getValue: (d) => pctText(d?.totalDoublePct) },
-    { key: "details.stats.backRate", fallback: "Back Attack Rate", getValue: (d) => pctText(d?.totalBackPct) },
     { key: "details.stats.parryRate", fallback: "Parry Rate", getValue: (d) => pctText(d?.totalParryPct) },
-    { key: "details.stats.selfHealing", fallback: "Self-Healing", getValue: (d) => formatNum(d?.totalHeal) },
+    { key: "details.stats.selfHealing", fallback: "Self-Healing", getValue: (d) => formatCount(d?.totalHeal) },
+    { key: "details.stats.empty", fallback: "", getValue: () => "", isPlaceholder: true },
   ];
 
-  const createStatView = (labelKey, fallbackLabel, { isWide = false } = {}) => {
+  const createStatView = (labelKey, fallbackLabel, { isPlaceholder = false } = {}) => {
     const statEl = document.createElement("div");
     statEl.className = "stat";
-    if (isWide) {
-      statEl.classList.add("statWide");
+    if (isPlaceholder) {
+      statEl.classList.add("statEmpty");
     }
 
     const labelEl = document.createElement("p");
     labelEl.className = "label";
-    labelEl.textContent = labelText(labelKey, fallbackLabel);
+    labelEl.textContent = isPlaceholder ? "" : labelText(labelKey, fallbackLabel);
 
     const valueEl = document.createElement("p");
     valueEl.className = "value";
-    valueEl.textContent = "-";
+    valueEl.textContent = isPlaceholder ? "" : "-";
 
     statEl.appendChild(labelEl);
     statEl.appendChild(valueEl);
@@ -126,8 +136,11 @@ const createDetailsUI = ({
     return { statEl, labelEl, valueEl, labelKey, fallbackLabel };
   };
 
-  const statSlots = STATUS.map((def) => createStatView(def.key, def.fallback, { isWide: def.isWide }));
+  const statSlots = STATUS.map((def) =>
+    createStatView(def.key, def.fallback, { isPlaceholder: def.isPlaceholder })
+  );
   statSlots.forEach((value) => detailsStatsEl.appendChild(value.statEl));
+  bindSkillHeaderSorting();
 
   const getTargetById = (targetId) =>
     detailsTargets.find((target) => Number(target?.targetId) === Number(targetId));
@@ -264,7 +277,11 @@ const createDetailsUI = ({
   const updateLabels = () => {
     for (let i = 0; i < statSlots.length; i++) {
       const slot = statSlots[i];
-      slot.labelEl.textContent = labelText(slot.labelKey, slot.fallbackLabel);
+      if (slot.labelKey === "details.stats.empty") {
+        slot.labelEl.textContent = "";
+      } else {
+        slot.labelEl.textContent = labelText(slot.labelKey, slot.fallbackLabel);
+      }
     }
     updateHeaderText();
   };
@@ -273,7 +290,9 @@ const createDetailsUI = ({
     if (!data) return "-";
     switch (statKey) {
       case "details.stats.totalDamage":
-        return formatNum(data.totalDmg);
+        return formatDamageCompact(data.totalDmg);
+      case "details.stats.hits":
+        return formatCount(data.totalHits);
       case "details.stats.multiHitDamage":
         return formatDamageCompact(data.multiHitDamage);
       case "details.stats.contribution":
@@ -289,7 +308,9 @@ const createDetailsUI = ({
       case "details.stats.parryRate":
         return pctText(data.totalParryPct);
       case "details.stats.selfHealing":
-        return formatNum(data.totalHeal);
+        return formatCount(data.totalHeal);
+      case "details.stats.empty":
+        return "";
       case "details.stats.combatTime":
         return data.combatTime ?? "-";
       default:
@@ -321,11 +342,17 @@ const createDetailsUI = ({
       slot.valueEl.style.alignItems = "center";
 
       const actorStats = details.perActorStats || [];
+      if (statKey === "details.stats.empty") {
+        slot.valueEl.textContent = "";
+        continue;
+      }
       if (statKey !== "details.stats.combatTime") {
         actorStats.forEach((actor) => {
           const span = document.createElement("span");
           if (statKey === "details.stats.totalDamage") {
-            span.textContent = formatCompactNumber(actor.totalDmg);
+            span.textContent = formatDamageCompact(actor.totalDmg);
+          } else if (statKey === "details.stats.hits") {
+            span.textContent = formatCount(actor.totalHits);
           } else if (statKey === "details.stats.multiHitDamage") {
             span.textContent = formatDamageCompact(actor.multiHitDamage);
           } else {
@@ -438,6 +465,85 @@ const createDetailsUI = ({
     }
   };
 
+  const getSkillSortValue = (skill, key) => {
+    const hits = Number(skill?.time) || 0;
+    switch (key) {
+      case "name":
+        return String(skill?.name || "").toLowerCase();
+      case "hit":
+        return hits;
+      case "mhit":
+        return Number(skill?.multiHitCount) || 0;
+      case "mdmg":
+        return Number(skill?.multiHitDamage) || 0;
+      case "crit":
+        return hits > 0 ? (Number(skill?.crit) || 0) / hits : 0;
+      case "parry":
+        return hits > 0 ? (Number(skill?.parry) || 0) / hits : 0;
+      case "perfect":
+        return hits > 0 ? (Number(skill?.perfect) || 0) / hits : 0;
+      case "double":
+        return hits > 0 ? (Number(skill?.double) || 0) / hits : 0;
+      case "back":
+        return hits > 0 ? (Number(skill?.back) || 0) / hits : 0;
+      case "heal":
+        return Number(skill?.heal) || 0;
+      case "dmg":
+      default:
+        return Number(skill?.dmg) || 0;
+    }
+  };
+
+  const compareSkillSort = (a, b) => {
+    const key = skillSortKey;
+    const dir = skillSortDir === "asc" ? 1 : -1;
+    const aVal = getSkillSortValue(a, key);
+    const bVal = getSkillSortValue(b, key);
+    if (key === "name") {
+      return aVal.localeCompare(bVal) * dir;
+    }
+    if (aVal === bVal) {
+      return (Number(b?.dmg) || 0) - (Number(a?.dmg) || 0);
+    }
+    return (aVal - bVal) * dir;
+  };
+
+  const updateSkillHeaderSortState = () => {
+    const headerCells = detailsPanel?.querySelectorAll?.(".detailsSkills .skillHeader .cell");
+    headerCells?.forEach?.((cell) => {
+      const key = cell?.dataset?.sortKey;
+      if (!key) return;
+      const isActive = key === skillSortKey;
+      cell.classList.toggle("isSorted", isActive);
+      if (isActive) {
+        cell.setAttribute("data-sort-dir", skillSortDir);
+      } else {
+        cell.removeAttribute("data-sort-dir");
+      }
+    });
+  };
+
+  const bindSkillHeaderSorting = () => {
+    const headerCells = detailsPanel?.querySelectorAll?.(".detailsSkills .skillHeader .cell[data-sort-key]");
+    headerCells?.forEach?.((cell) => {
+      cell.addEventListener("click", () => {
+        const key = cell?.dataset?.sortKey;
+        if (!key) return;
+        if (skillSortKey === key) {
+          skillSortDir = skillSortDir === "asc" ? "desc" : "asc";
+        } else {
+          skillSortKey = key;
+          skillSortDir = key === "name" ? "asc" : "desc";
+        }
+        updateSkillHeaderSortState();
+        if (lastDetails) {
+          renderSkills(lastDetails);
+        }
+      });
+    });
+    updateSkillHeaderSortState();
+  };
+
   const renderSkills = (details) => {
     const skills = Array.isArray(details?.skills) ? details.skills : [];
     const groupedSkills = new Map();
@@ -472,9 +578,7 @@ const createDetailsUI = ({
         multiHitDamage: (Number(existing.multiHitDamage) || 0) + (Number(skill.multiHitDamage) || 0),
       });
     });
-    const topSkills = [...groupedSkills.values()].sort(
-      (a, b) => (Number(b?.dmg) || 0) - (Number(a?.dmg) || 0)
-    );
+    const topSkills = [...groupedSkills.values()].sort(compareSkillSort);
     // .slice(0, 12);
 
     const totalDamage = Number(details?.totalDmg);
@@ -531,8 +635,8 @@ const createDetailsUI = ({
       view.backEl.textContent = `${backRate}%`;
       view.perfectEl.textContent = `${perfectRate}%`;
       view.doubleEl.textContent = `${doubleRate}%`;
-      view.healEl.textContent = `${formatNum(heal)}`;
-      view.multiHitEl.textContent = `${formatNum(multiHitCount)}`;
+      view.healEl.textContent = `${formatCount(heal)}`;
+      view.multiHitEl.textContent = `${formatCount(multiHitCount)}`;
       view.multiHitDamageEl.textContent = `${formatDamageCompact(multiHitDamage)}`;
 
       view.dmgTextEl.textContent = `${formatDamageCompact(damage)} (${damageRate.toFixed(1)}%)`;
@@ -732,6 +836,7 @@ const createDetailsUI = ({
           totalBack: 0,
           totalPerfect: 0,
           totalDouble: 0,
+          totalHits: 0,
           totalHeal: 0,
           multiHitCount: 0,
           multiHitDamage: 0,
@@ -744,6 +849,7 @@ const createDetailsUI = ({
         next.totalBack += Number(entry?.totalBack) || 0;
         next.totalPerfect += Number(entry?.totalPerfect) || 0;
         next.totalDouble += Number(entry?.totalDouble) || 0;
+        next.totalHits += Number(entry?.totalHits) || 0;
         next.totalHeal += Number(entry?.totalHeal) || 0;
         next.multiHitCount += Number(entry?.multiHitCount) || 0;
         next.multiHitDamage += Number(entry?.multiHitDamage) || 0;
@@ -787,6 +893,7 @@ const createDetailsUI = ({
 
     return {
       totalDmg,
+      totalHits: totalTimes,
       contributionPct: totalTargetDamage > 0 ? (totalDmg / totalTargetDamage) * 100 : 0,
       totalCritPct: pct(totalCrit, totalTimes),
       totalParryPct: pct(totalParry, totalTimes),

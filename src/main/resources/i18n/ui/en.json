@@ -53,6 +53,7 @@
     "stats": {
       "totalDamage": "Total Damage",
       "contribution": "Contribution",
+      "hits": "Hits",
       "critRate": "Crit Rate",
       "perfectRate": "Perfect Rate",
       "doubleRate": "Double Rate",

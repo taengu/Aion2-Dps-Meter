@@ -1093,6 +1093,7 @@ class DpsApp {
           totalBack: 0,
           totalPerfect: 0,
           totalDouble: 0,
+          totalHits: 0,
           totalHeal: 0,
           multiHitCount: 0,
           multiHitDamage: 0,
@@ -1102,6 +1103,7 @@ class DpsApp {
       entry.multiHitCount += Number(skill.multiHitCount) || 0;
       entry.multiHitDamage += Number(skill.multiHitDamage) || 0;
       if (!skill.isDot) {
+        entry.totalHits += Number(skill.time) || 0;
         entry.totalTimes += Number(skill.time) || 0;
         entry.totalCrit += Number(skill.crit) || 0;
         entry.totalParry += Number(skill.parry) || 0;
@@ -1138,6 +1140,7 @@ class DpsApp {
         totalBack: entry.totalBack,
         totalPerfect: entry.totalPerfect,
         totalDouble: entry.totalDouble,
+        totalHits: entry.totalHits,
         totalHeal: entry.totalHeal,
         multiHitCount: entry.multiHitCount,
         multiHitDamage: entry.multiHitDamage,
@@ -1162,6 +1165,7 @@ class DpsApp {
       totalBackPct: pct(totalBack, totalTimes),
       totalPerfectPct: pct(totalPerfect, totalTimes),
       totalDoublePct: pct(totalDouble, totalTimes),
+      totalHits: totalTimes,
       multiHitCount: totalMultiHitCount,
       multiHitDamage: totalMultiHitDamage,
       totalHeal,

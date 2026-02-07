@@ -2211,8 +2211,8 @@ html[lang="ko"] * {
   justify-content: space-between;
   gap: 12px;
 }
-.detailsPanel .detailsStats .stat.statWide {
-  grid-column: span 2;
+.detailsPanel .detailsStats .stat.statEmpty {
+  visibility: hidden;
 }
 .detailsPanel .detailsStats .stat .label {
   font-weight: 700;
@@ -2237,6 +2237,9 @@ html[lang="ko"] * {
   min-height: 0;
   overflow-x: auto;
   overflow-y: hidden;
+}
+.detailsPanel .detailsSkills .skillHeader .cell[data-sort-key] {
+  cursor: pointer;
 }
 .detailsPanel .detailsSkills .cell {
   min-width: 0;
