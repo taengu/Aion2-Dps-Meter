@@ -101,6 +101,13 @@ graalvmNative {
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumToolkit")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.QuantumRenderer")
             buildArgs.add("--initialize-at-run-time=com.sun.javafx.tk.quantum.PaintCollector")
+            buildArgs.add("--initialize-at-run-time=com.sun.glass.utils.NativeLibLoader")
+
+            // Ensure JavaFX native libraries (DLLs) are bundled for Prism/Glass on Windows
+            buildArgs.add("-H:IncludeResources=^prism_sw\\\\.dll$")
+            buildArgs.add(
+                "-H:ReflectionConfigurationFiles=${project.file("src/main/resources/native-image/reflect-config.json")}"
+            )
 
             // Module support for the native compiler
             buildArgs.addAll(listOf("--class-path", appClassPath))
@@ -111,6 +118,34 @@ graalvmNative {
                     "jdk.jsobject,jdk.net,javafx.base,javafx.controls,javafx.web,javafx.graphics,javafx.media"
                 )
             )
+        }
+    }
+}
+
+val javafxNativeLibPatterns = listOf(
+    "**/jfxwebkit*.dll",
+    "**/jfxwebkit*.pak",
+    "**/icudtl.dat",
+    "**/prism_sw.dll",
+    "**/prism_d3d.dll",
+    "**/prism_common.dll",
+    "**/glass.dll",
+    "**/javafx_font.dll",
+    "**/javafx_iio.dll",
+    "**/jfxmedia.dll"
+)
+
+tasks.named("nativeCompile").configure {
+    doLast {
+        val outputDir = layout.buildDirectory.dir("native/nativeCompile").get().asFile
+        val runtimeJars = configurations.runtimeClasspath.get().files.filter { it.extension == "jar" }
+        runtimeJars.forEach { jar ->
+            copy {
+                from(zipTree(jar)) {
+                    include(javafxNativeLibPatterns)
+                }
+                into(outputDir)
+            }
         }
     }
 }
@@ -133,9 +168,14 @@ compose.desktop {
                 includeAllModules = true
                 // Note: If you don't have an icon yet, comment out the line below
                 iconFile.set(project.file("src/main/resources/icon.ico"))
+                shortcut = true
+                shortcutName = "AION 2 DPS Meter"
+                menuGroup = "AION 2 DPS Meter"
+                upgradeUuid = "d1f8995e-c0af-4f01-9067-a69ee897361a"
             }
             targetFormats(TargetFormat.Msi)
-            packageName = "aion2meter-tw"
+            packageName = "AION 2 DPS Meter"
+            installationPath = "AION 2 DPS Meter"
             packageVersion = "0.1.6"
         }
     }
