@@ -1664,6 +1664,7 @@ html[lang="ko"] * {
   display: flex;
   justify-content: center;
   width: 100%;
+  margin-bottom: -12px;
 }
 .settingsPanel .discordButton {
   border: 1px solid var(--panel-border);
